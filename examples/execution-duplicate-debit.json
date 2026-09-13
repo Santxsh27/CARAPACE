@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run_duplicate_0001",
+  "contract_id": "pac_demo_0001",
+  "observed_at": "2026-09-13T10:02:00Z",
+  "actual_request": {
+    "amount_minor": 499900,
+    "currency": "INR",
+    "direction": "SEND",
+    "fees_minor": 0,
+    "payee_id": "upi:abc-electronics@bank",
+    "purpose": "GOODS",
+    "reference": "ORDER-7782"
+  },
+  "actual_request_hash_sha256": "041ff130c2a6e874d846b5b7df63b902f0bd0b130787b2716a17b378d18f355a",
+  "idempotency_key": "idem-demo-0001",
+  "lifecycle": [
+    "DRAFT",
+    "USER_CONFIRMED",
+    "AUTHORIZED",
+    "SUBMITTED",
+    "ACCEPTED",
+    "SETTLED"
+  ],
+  "settlement_reference": "settlement-demo-0001",
+  "ledger_entries": [
+    {
+      "entry_id": "entry-debit-0001",
+      "logical_payment_id": "pac_demo_0001",
+      "account_ref": "customer_demo_meera",
+      "counterparty_ref": "upi:abc-electronics@bank",
+      "direction": "DEBIT",
+      "amount_minor": 499900,
+      "currency": "INR",
+      "status": "POSTED"
+    },
+    {
+      "entry_id": "entry-debit-0002",
+      "logical_payment_id": "pac_demo_0001",
+      "account_ref": "customer_demo_meera",
+      "counterparty_ref": "upi:abc-electronics@bank",
+      "direction": "DEBIT",
+      "amount_minor": 499900,
+      "currency": "INR",
+      "status": "POSTED"
+    }
+  ]
+}
+

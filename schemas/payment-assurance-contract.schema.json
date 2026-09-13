@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://carapace.example/schemas/payment-assurance-contract.schema.json",
+  "title": "CARAPACE Payment Assurance Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "created_at",
+    "expires_at",
+    "actor_ref",
+    "session_ref",
+    "payment",
+    "integrity",
+    "confirmation",
+    "policy_version"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "contract_id": { "type": "string", "minLength": 8 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "actor_ref": { "type": "string", "minLength": 1 },
+    "session_ref": { "type": "string", "minLength": 1 },
+    "payment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "direction",
+        "amount_minor",
+        "currency",
+        "fees_minor",
+        "payee_id",
+        "payee_display_name",
+        "purpose",
+        "reference"
+      ],
+      "properties": {
+        "direction": { "enum": ["SEND", "REQUEST", "RECEIVE_EXPECTED"] },
+        "amount_minor": { "type": "integer", "minimum": 1 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "fees_minor": { "type": "integer", "minimum": 0 },
+        "payee_id": { "type": "string", "minLength": 1 },
+        "payee_display_name": { "type": "string", "minLength": 1 },
+        "purpose": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonce", "request_hash_sha256", "idempotency_key"],
+      "properties": {
+        "nonce": { "type": "string", "minLength": 16 },
+        "request_hash_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "idempotency_key": { "type": "string", "minLength": 8 }
+      }
+    },
+    "confirmation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confirmed_at", "method"],
+      "properties": {
+        "confirmed_at": { "type": "string", "format": "date-time" },
+        "method": { "enum": ["BANK_UI", "WALLET_UI", "TEST_FIXTURE"] }
+      }
+    },
+    "policy_version": { "type": "string", "minLength": 1 }
+  }
+}
+

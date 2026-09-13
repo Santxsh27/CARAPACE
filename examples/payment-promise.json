@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "contract_id": "pac_demo_0001",
+  "created_at": "2026-09-13T10:00:00Z",
+  "expires_at": "2026-09-13T10:15:00Z",
+  "actor_ref": "customer_demo_meera",
+  "session_ref": "session_demo_1001",
+  "payment": {
+    "direction": "SEND",
+    "amount_minor": 499900,
+    "currency": "INR",
+    "fees_minor": 0,
+    "payee_id": "upi:abc-electronics@bank",
+    "payee_display_name": "ABC Electronics",
+    "purpose": "GOODS",
+    "reference": "ORDER-7782"
+  },
+  "integrity": {
+    "nonce": "nonce-demo-0000000001",
+    "request_hash_sha256": "041ff130c2a6e874d846b5b7df63b902f0bd0b130787b2716a17b378d18f355a",
+    "idempotency_key": "idem-demo-0001"
+  },
+  "confirmation": {
+    "confirmed_at": "2026-09-13T10:01:00Z",
+    "method": "TEST_FIXTURE"
+  },
+  "policy_version": "policy-demo-1"
+}
+

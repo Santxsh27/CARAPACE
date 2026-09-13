@@ -1,0 +1,28 @@
+name: carapace
+
+services:
+  verifier:
+    build:
+      context: .
+    image: carapace-core:local
+    command:
+      - verify
+      - examples/payment-promise.json
+      - examples/execution-valid.json
+
+  tests:
+    build:
+      context: .
+    image: carapace-core:local
+    entrypoint: ["python", "-m", "unittest"]
+    command: ["discover", "-s", "tests", "-v"]
+
+  duplicate-debit-demo:
+    profiles: ["counterexample"]
+    build:
+      context: .
+    image: carapace-core:local
+    command:
+      - verify
+      - examples/payment-promise.json
+      - examples/execution-duplicate-debit.json
