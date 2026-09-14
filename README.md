@@ -52,13 +52,23 @@ Then open [http://localhost:8080/docs](http://localhost:8080/docs) for the live
 interactive API. The Compose configuration uses the explicitly non-production
 demo tenant `demo-bank` and key `local-demo-key-change-me`.
 
+Docker does not automatically open a browser. Keep the terminal running after
+it prints `Uvicorn running on http://0.0.0.0:8080`, then open the documentation
+link yourself. Stop the service later with `Control+C`.
+
 In a second terminal, run all tests or either deterministic CLI demonstration:
 
 ```bash
+docker compose --profile tools run --rm --build demo
 docker compose --profile test run --rm --build tests
 docker compose --profile tools run --rm verifier
 docker compose --profile tools run --rm duplicate-debit-demo
 ```
+
+The first command is the easiest complete check. It creates fresh synthetic
+identifiers every time, proves a correct payment returns `MATCH`, proves a
+duplicate debit returns `MISMATCH`, retrieves the persisted critical incident,
+and prints `Overall: PASS`.
 
 The duplicate-debit demonstration intentionally exits with code `1` because
 CARAPACE found the seeded financial mismatch.

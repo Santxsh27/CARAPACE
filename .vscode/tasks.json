@@ -31,6 +31,12 @@
       "problemMatcher": []
     },
     {
+      "label": "CARAPACE: Run complete API demo",
+      "type": "shell",
+      "command": "docker compose --profile tools run --rm --build demo",
+      "problemMatcher": []
+    },
+    {
       "label": "CARAPACE: Test in Docker",
       "type": "shell",
       "command": "docker compose --profile test run --rm --build tests",

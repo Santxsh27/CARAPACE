@@ -11,11 +11,46 @@ Mismatches automatically become evidence cases.
 docker compose up --build api
 ```
 
+The first `data-init` container only grants UID `10001` ownership of the
+dedicated evidence volume and then exits. The API itself still runs as the
+unprivileged `carapace` user. This also repairs volumes created by older
+CARAPACE builds.
+
+Wait for this line:
+
+```text
+Uvicorn running on http://0.0.0.0:8080
+```
+
+Docker will not open a browser automatically. Leave that terminal running while
+using the API, and press `Control+C` when you want to stop it.
+
 Useful URLs:
 
 - Interactive OpenAPI: `http://localhost:8080/docs`
 - Readiness: `http://localhost:8080/health/ready`
 - Alternative documentation: `http://localhost:8080/redoc`
+
+## Easiest complete demonstration
+
+With Docker Desktop running, this single command builds what is needed, starts
+the API dependency, and performs the complete synthetic workflow:
+
+```bash
+docker compose --profile tools run --rm --build demo
+```
+
+It creates new IDs on every run, so it can be repeated without database
+conflicts. Success ends with output similar to:
+
+```text
+CARAPACE DEMO RESULT
+  Correct payment: MATCH
+  Duplicate debit: MISMATCH
+  Incident: case_... (OPEN)
+  Failed rules: AT_MOST_ONE_POSTED_DEBIT, DEBIT_AMOUNT_MATCH
+  Overall: PASS
+```
 
 Health endpoints are public. Every `/v1` endpoint requires both headers:
 

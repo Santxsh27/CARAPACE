@@ -1,6 +1,22 @@
 name: carapace
 
 services:
+  data-init:
+    build:
+      context: .
+      target: runtime
+    image: carapace-core:local
+    user: "0:0"
+    read_only: true
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN"]
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["chown"]
+    command: ["-R", "10001:10001", "/data"]
+    volumes:
+      - carapace-data:/data
+
   api:
     build:
       context: .
@@ -15,6 +31,9 @@ services:
       - "8080:8080"
     volumes:
       - carapace-data:/data
+    depends_on:
+      data-init:
+        condition: service_completed_successfully
 
   verifier:
     profiles: ["tools"]
@@ -46,6 +65,18 @@ services:
       - verify
       - examples/payment-promise.json
       - examples/execution-duplicate-debit.json
+
+  demo:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: runtime
+    image: carapace-core:local
+    entrypoint: ["carapace-demo"]
+    command: ["--base-url", "http://api:8080"]
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   carapace-data:

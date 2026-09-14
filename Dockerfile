@@ -15,7 +15,8 @@ COPY tests ./tests
 RUN python -m pip install --no-cache-dir . \
     && groupadd --gid 10001 carapace \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin carapace \
-    && chown -R carapace:carapace /app
+    && mkdir -p /data \
+    && chown -R carapace:carapace /app /data
 
 FROM base AS test
 

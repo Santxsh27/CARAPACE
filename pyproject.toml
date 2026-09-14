@@ -21,6 +21,7 @@ test = [
 [project.scripts]
 carapace = "carapace_core.cli:main"
 carapace-api = "carapace_api.__main__:main"
+carapace-demo = "carapace_core.api_demo:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -37,3 +37,21 @@ jobs:
         run: docker build --target test --tag carapace-core-test:ci .
       - name: Execute container tests
         run: docker run --rm carapace-core-test:ci
+      - name: Verify Compose API and persistent evidence volume
+        run: |
+          docker compose up --detach --build api
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8080/health/ready; then
+              break
+            fi
+            if [ "$attempt" = "20" ]; then
+              docker compose logs api
+              exit 1
+            fi
+            sleep 1
+          done
+          test "$(docker compose exec -T api id -u)" = "10001"
+          test "$(docker compose exec -T api stat -c %u /data)" = "10001"
+      - name: Clean up Compose services
+        if: always()
+        run: docker compose down --volumes
