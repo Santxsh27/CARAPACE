@@ -21,7 +21,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install CARAPACE
-        run: python -m pip install .
+        run: python -m pip install ".[test]"
       - name: Run deterministic tests
         run: python -m unittest discover -s tests -v
       - name: Verify valid reference payment
@@ -34,4 +34,6 @@ jobs:
       - name: Build container
         run: docker build --tag carapace-core:ci .
       - name: Run tests in container
-        run: docker compose run --rm tests
+        run: docker build --target test --tag carapace-core-test:ci .
+      - name: Execute container tests
+        run: docker run --rm carapace-core-test:ci

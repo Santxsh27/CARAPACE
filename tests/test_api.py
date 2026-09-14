@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from carapace_api.config import Settings
+from carapace_api.factory import create_app
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_example(name: str) -> dict:
+    with (ROOT / "examples" / name).open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+class AssuranceApiTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        settings = Settings(
+            environment="test",
+            database_path=Path(self.temporary_directory.name) / "evidence.db",
+            tenant_keys={"bank-a": "key-a", "bank-b": "key-b"},
+        )
+        self.client = TestClient(create_app(settings=settings))
+        self.bank_a = {
+            "X-Carapace-Tenant": "bank-a",
+            "X-Carapace-API-Key": "key-a",
+        }
+        self.bank_b = {
+            "X-Carapace-Tenant": "bank-b",
+            "X-Carapace-API-Key": "key-b",
+        }
+
+    def tearDown(self) -> None:
+        self.client.close()
+        self.temporary_directory.cleanup()
+
+    def create_contract(self) -> dict:
+        contract = load_example("payment-promise.json")
+        response = self.client.post(
+            "/v1/contracts", json=contract, headers=self.bank_a
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        return contract
+
+    def test_health_is_public_and_ready(self) -> None:
+        response = self.client.get("/health/ready")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+
+    def test_contract_endpoint_requires_authentication(self) -> None:
+        response = self.client.post(
+            "/v1/contracts", json=load_example("payment-promise.json")
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_contract_is_isolated_by_tenant(self) -> None:
+        contract = self.create_contract()
+        own_response = self.client.get(
+            f"/v1/contracts/{contract['contract_id']}", headers=self.bank_a
+        )
+        other_response = self.client.get(
+            f"/v1/contracts/{contract['contract_id']}", headers=self.bank_b
+        )
+        self.assertEqual(own_response.status_code, 200)
+        self.assertEqual(other_response.status_code, 404)
+
+    def test_invalid_contract_digest_is_rejected_before_storage(self) -> None:
+        contract = load_example("payment-promise.json")
+        contract["payment"]["amount_minor"] += 1
+        response = self.client.post(
+            "/v1/contracts", json=contract, headers=self.bank_a
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(
+            response.json()["detail"]["code"], "CONTRACT_REQUEST_HASH_INVALID"
+        )
+
+    def test_valid_run_is_stored_without_case(self) -> None:
+        self.create_contract()
+        evidence = load_example("execution-valid.json")
+        response = self.client.post(
+            f"/v1/contracts/{evidence['contract_id']}/runs",
+            json=evidence,
+            headers=self.bank_a,
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        self.assertEqual(response.json()["report"]["verdict"], "MATCH")
+        self.assertIsNone(response.json()["case_id"])
+
+        saved = self.client.get(
+            f"/v1/runs/{evidence['run_id']}", headers=self.bank_a
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json()["report"]["verdict"], "MATCH")
+
+    def test_duplicate_debit_creates_retrievable_evidence_case(self) -> None:
+        self.create_contract()
+        evidence = load_example("execution-duplicate-debit.json")
+        response = self.client.post(
+            f"/v1/contracts/{evidence['contract_id']}/runs",
+            json=evidence,
+            headers=self.bank_a,
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        body = response.json()
+        self.assertEqual(body["report"]["verdict"], "MISMATCH")
+        self.assertIsNotNone(body["case_id"])
+
+        case = self.client.get(
+            f"/v1/cases/{body['case_id']}", headers=self.bank_a
+        )
+        self.assertEqual(case.status_code, 200)
+        self.assertEqual(case.json()["status"], "OPEN")
+        self.assertIn(
+            "AT_MOST_ONE_POSTED_DEBIT", case.json()["failed_checks"]
+        )
+
+    def test_duplicate_run_id_is_rejected(self) -> None:
+        self.create_contract()
+        evidence = load_example("execution-valid.json")
+        first = self.client.post(
+            f"/v1/contracts/{evidence['contract_id']}/runs",
+            json=evidence,
+            headers=self.bank_a,
+        )
+        second = self.client.post(
+            f"/v1/contracts/{evidence['contract_id']}/runs",
+            json=evidence,
+            headers=self.bank_a,
+        )
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(second.status_code, 409)
+
+
+if __name__ == "__main__":
+    unittest.main()

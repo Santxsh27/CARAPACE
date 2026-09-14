@@ -1,28 +1,51 @@
 name: carapace
 
 services:
-  verifier:
+  api:
     build:
       context: .
+      target: runtime
     image: carapace-core:local
+    environment:
+      CARAPACE_ENV: development
+      CARAPACE_DB_PATH: /data/carapace.db
+      CARAPACE_TENANT_KEYS_JSON: '{"demo-bank":"local-demo-key-change-me"}'
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    volumes:
+      - carapace-data:/data
+
+  verifier:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: runtime
+    image: carapace-core:local
+    entrypoint: ["carapace"]
     command:
       - verify
       - examples/payment-promise.json
       - examples/execution-valid.json
 
   tests:
+    profiles: ["test"]
     build:
       context: .
-    image: carapace-core:local
-    entrypoint: ["python", "-m", "unittest"]
-    command: ["discover", "-s", "tests", "-v"]
+      target: test
+    image: carapace-core-test:local
 
   duplicate-debit-demo:
-    profiles: ["counterexample"]
+    profiles: ["tools"]
     build:
       context: .
+      target: runtime
     image: carapace-core:local
+    entrypoint: ["carapace"]
     command:
       - verify
       - examples/payment-promise.json
       - examples/execution-duplicate-debit.json
+
+volumes:
+  carapace-data:

@@ -1,6 +1,6 @@
 # Incremental build roadmap
 
-## Milestone 0 — Trust core (current)
+## Milestone 0 — Trust core (complete)
 
 - PAC and execution-evidence schemas.
 - Canonical request hashing.
@@ -12,7 +12,7 @@
 Exit condition: a valid payment passes, a duplicate debit fails, and the result
 is reproducible without an AI model.
 
-## Milestone 1 — API and evidence store
+## Milestone 1 — API and evidence store (complete)
 
 - Cloud Run-compatible control-plane API.
 - Contract and run persistence.
@@ -20,7 +20,11 @@ is reproducible without an AI model.
 - Evidence-case creation.
 - Generated OpenAPI documentation.
 
-## Milestone 2 — Gemini context interpreter
+Exit condition: two tenants cannot read one another's records, invalid
+contracts are rejected before storage, every submitted run receives the exact
+deterministic verdict, and every mismatch opens a durable evidence case.
+
+## Milestone 2 — Gemini context interpreter (next)
 
 - Structured input/output schemas.
 - Prompt-injection boundary and redaction.
@@ -58,4 +62,3 @@ is reproducible without an AI model.
 - Cost and latency instrumentation.
 - Cloud deployment.
 - Three-minute end-to-end demonstration.
-

@@ -24,9 +24,16 @@
       "problemMatcher": []
     },
     {
+      "label": "CARAPACE: Start assurance API",
+      "type": "shell",
+      "command": "docker compose up --build api",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
       "label": "CARAPACE: Test in Docker",
       "type": "shell",
-      "command": "docker compose run --rm tests",
+      "command": "docker compose --profile test run --rm --build tests",
       "group": "test",
       "problemMatcher": []
     }

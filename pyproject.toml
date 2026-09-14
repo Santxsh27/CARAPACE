@@ -4,14 +4,23 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "carapace-core"
-version = "0.1.0"
-description = "Deterministic trust core for CARAPACE payment assurance"
+version = "0.2.0"
+description = "Contract-first payment assurance and evidence API for CARAPACE"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "fastapi>=0.115,<1",
+  "pydantic>=2.10,<3",
+  "uvicorn>=0.32,<1",
+]
+
+[project.optional-dependencies]
+test = [
+  "httpx2>=2.12,<3",
+]
 
 [project.scripts]
 carapace = "carapace_core.cli:main"
+carapace-api = "carapace_api.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-

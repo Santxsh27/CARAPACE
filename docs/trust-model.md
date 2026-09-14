@@ -12,6 +12,10 @@
 - Do not inject faults into production.
 - Do not label a payment safe merely because no risk signal was found.
 - Preserve explicit states such as `UNVERIFIED`, `PENDING`, and `NEEDS_REVIEW`.
+- Scope every stored contract, run, and case to an authenticated bank tenant.
+- Reject malformed or unbound contracts before they become trusted evidence.
+- Use the bundled static API key only for local development. Production identity
+  must use short-lived, managed credentials and bank-approved authorization.
 
 ## Evidence levels
 
@@ -34,3 +38,15 @@
   bank-approved reversible containment.
 - Generated patches remain isolated until all gates pass and a human approves.
 
+## Current versus production controls
+
+| Concern | Current executable adapter | Production target |
+| --- | --- | --- |
+| Tenant identity | Explicit local API key | Workload identity/OIDC plus authorization |
+| Evidence persistence | Tenant-scoped SQLite | Firestore or bank-approved managed store |
+| Signing | Schema and hash validation only | Cloud KMS or bank HSM signatures |
+| Payment data | Synthetic fixtures | Minimized, tokenized, authorized bank evidence |
+| AI | Not in the verdict path | Structured, redacted proposals outside trust gates |
+
+The development adapter proves system behaviour, not production accreditation.
+It contains no real customer funds, credentials, or banking secrets.

@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -13,11 +13,26 @@ COPY examples ./examples
 COPY tests ./tests
 
 RUN python -m pip install --no-cache-dir . \
-    && addgroup --system carapace \
-    && adduser --system --ingroup carapace --uid 10001 carapace \
+    && groupadd --gid 10001 carapace \
+    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin carapace \
     && chown -R carapace:carapace /app
+
+FROM base AS test
+
+RUN python -m pip install --no-cache-dir ".[test]"
 
 USER carapace
 
-ENTRYPOINT ["carapace"]
-CMD ["verify", "examples/payment-promise.json", "examples/execution-valid.json"]
+ENTRYPOINT ["python", "-m", "unittest"]
+CMD ["discover", "-s", "tests", "-v"]
+
+FROM base AS runtime
+
+USER carapace
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=2)"]
+
+CMD ["python", "-m", "carapace_api"]

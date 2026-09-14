@@ -56,9 +56,40 @@ reproduce -> explain -> patch proposal -> regression -> human approval
 
 ## Current executable boundary
 
-Milestone 0 implements the PAC, execution evidence, lifecycle machine, request
-digest, and deterministic verifier. Later components must communicate through
-these versioned schemas rather than bypassing them.
+Milestones 0 and 1 implement the PAC, execution evidence, lifecycle machine,
+request digest, deterministic verifier, authenticated REST boundary,
+tenant-isolated storage, and automatic evidence-case creation. Later components
+must communicate through these versioned schemas and API contracts rather than
+bypassing them.
+
+```text
+Authenticated tenant
+        |
+        v
+POST Payment Assurance Contract
+        |
+        v
+Strict schema + canonical digest validation
+        |
+        v
+POST execution evidence
+        |
+        v
+Deterministic verifier
+        |
+   +----+----+
+   |         |
+ MATCH    MISMATCH
+   |         |
+Stored run   +--> Stored critical evidence case
+```
+
+The current SQLite adapter makes this flow real and persistent on a developer
+machine or single-container demo. It is deliberately hidden behind the store
+boundary so Firestore or another bank-approved database can replace it without
+changing PAC or verifier semantics. Static API keys are only a local integration
+mechanism; production deployments require managed identity and short-lived
+credentials.
 
 ## Planned deployment shape
 
@@ -72,4 +103,3 @@ these versioned schemas rather than bypassing them.
 
 For the hackathon, Bank of Anthos is the authorized application under test and
 all accounts and funds are artificial.
-
