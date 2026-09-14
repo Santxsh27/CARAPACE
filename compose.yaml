@@ -28,7 +28,7 @@ services:
       CARAPACE_TENANT_KEYS_JSON: '{"demo-bank":"local-demo-key-change-me"}'
       PORT: "8080"
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - carapace-data:/data
     depends_on:
@@ -78,5 +78,52 @@ services:
       api:
         condition: service_healthy
 
+  anthos-ledger:
+    profiles: ["anthos"]
+    platform: linux/amd64
+    image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/ledger-db:v0.6.10@sha256:891cb7afe34f358ce7ed7002a1923b25e113b30bca44fecb10cc8b116d665a03
+    environment:
+      POSTGRES_DB: postgresdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      # Upstream's init script only disables seeds when this is empty.
+      USE_DEMO_DATA: ""
+      LOCAL_ROUTING_NUM: "883745000"
+    volumes:
+      - anthos-ledger-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d postgresdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  anthos-demo:
+    profiles: ["anthos"]
+    build:
+      context: .
+      target: runtime
+    image: carapace-core:local
+    entrypoint: ["carapace-anthos-web"]
+    environment:
+      CARAPACE_DEMO_ENABLED: "true"
+      CARAPACE_API_BASE_URL: http://api:8080
+      CARAPACE_TENANT: demo-bank
+      CARAPACE_API_KEY: local-demo-key-change-me
+      BOA_DATABASE_URL: postgresql://admin:password@anthos-ledger:5432/postgresdb
+      PORT: "8090"
+    ports:
+      - "127.0.0.1:8090:8090"
+    depends_on:
+      api:
+        condition: service_healthy
+      anthos-ledger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
 volumes:
   carapace-data:
+  anthos-ledger-data:

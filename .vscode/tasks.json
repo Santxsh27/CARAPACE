@@ -37,6 +37,13 @@
       "problemMatcher": []
     },
     {
+      "label": "CARAPACE: Start Bank of Anthos demo",
+      "type": "shell",
+      "command": "docker compose --profile anthos up --build anthos-demo",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
       "label": "CARAPACE: Test in Docker",
       "type": "shell",
       "command": "docker compose --profile test run --rm --build tests",

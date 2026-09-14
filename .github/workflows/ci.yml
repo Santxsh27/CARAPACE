@@ -55,3 +55,34 @@ jobs:
       - name: Clean up Compose services
         if: always()
         run: docker compose down --volumes
+
+  bank-of-anthos-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start the official Bank of Anthos ledger slice
+        run: docker compose --profile anthos up --detach --build anthos-demo
+      - name: Wait for the local integration page
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8090/api/status > status.json; then
+              break
+            fi
+            if [ "$attempt" = "30" ]; then
+              docker compose --profile anthos logs
+              exit 1
+            fi
+            sleep 2
+          done
+          jq -e '.api == true and .ledger == true' status.json
+      - name: Verify a real ledger row and duplicate-debit incident
+        run: |
+          curl --fail-with-body --silent --request POST \
+            http://127.0.0.1:8090/api/run > result.json
+          jq . result.json
+          jq -e '.correct_payment_verdict == "MATCH" and
+                 .duplicate_payment_verdict == "MISMATCH" and
+                 .overall == "PASS"' result.json
+      - name: Clean up the integration
+        if: always()
+        run: docker compose --profile anthos down --volumes

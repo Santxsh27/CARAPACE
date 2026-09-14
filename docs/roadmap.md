@@ -42,10 +42,11 @@ deterministic verdict, and every mismatch opens a durable evidence case.
 
 ## Milestone 4 — Ledger Witness
 
-- Bank of Anthos adapter.
-- Controlled payment and retry execution.
-- Ledger snapshot and event reconciliation.
-- Trust Receipt and mismatch case.
+- Bank of Anthos ledger adapter. **Complete for the official local ledger slice.**
+- Controlled payment and retry execution. **Complete with artificial money.**
+- Exact transaction-ID binding and ledger-row reconciliation. **Complete.**
+- Beginner-facing live integration page. **Complete.**
+- Full LedgerWriter/Kubernetes path and staged Trust Receipt. **Remaining.**
 
 ## Milestone 5 — ProofOps
 

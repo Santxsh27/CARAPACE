@@ -24,10 +24,13 @@ dashboard. It implements:
 - automatic critical evidence-case creation for deterministic mismatches;
 - live, readiness, and generated OpenAPI endpoints;
 - passing and deliberately failing sample executions;
+- a real adapter for Google's official Bank of Anthos ledger database;
+- a one-click local page that writes and verifies artificial-money ledger rows;
 - executable unit/API tests and command-line demonstrations.
 
-Gemini integration, the consumer Lens, the bank SDK, Ledger Witness, ProofOps,
-and the Firebase experience will be added on top of these stable contracts.
+Gemini integration, the consumer Lens, the bank SDK, the remaining Ledger
+Witness stages, ProofOps, and the Firebase experience will be added on top of
+these stable contracts.
 Gemini will produce proposed structured data and code changes; it will never
 replace the verifier implemented here.
 
@@ -73,6 +76,28 @@ and prints `Overall: PASS`.
 The duplicate-debit demonstration intentionally exits with code `1` because
 CARAPACE found the seeded financial mismatch.
 
+## See the Bank of Anthos connection
+
+This is the easiest visual demonstration for a beginner. It starts the
+CARAPACE API, Google's official Bank of Anthos ledger database, and a separate
+local explanation page:
+
+```bash
+docker compose --profile anthos up --build anthos-demo
+```
+
+When the containers are healthy, open
+[http://localhost:8090](http://localhost:8090). Click **Run the live safety
+test**. The page creates a Payment Promise, stores one artificial payment in
+the real external ledger schema, verifies it, forces a second retry debit, and
+shows the CARAPACE incident.
+
+This is a genuine integration with the official Bank of Anthos ledger slice;
+it is not yet the complete seven-service Kubernetes application. No cloud
+account, GCP billing, or real money is used. See
+[docs/bank-of-anthos.md](docs/bank-of-anthos.md) for the exact boundary and the
+production upgrade path.
+
 ## Run without Docker
 
 Python 3.11 or newer is required.
@@ -99,6 +124,7 @@ carapace/
 ├── schemas/                    Language-neutral JSON contracts
 ├── src/carapace_api/           Tenant-isolated assurance API and evidence store
 ├── src/carapace_core/          Deterministic trust core
+├── src/carapace_integrations/  Bank adapters and isolated local demo
 ├── tests/                      Executable acceptance tests
 ├── Dockerfile                  Reproducible non-root runtime
 └── compose.yaml                Team test and demonstration commands

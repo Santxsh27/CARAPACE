@@ -23,7 +23,7 @@ from .models import (
 from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundError
 
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 
 def create_app(

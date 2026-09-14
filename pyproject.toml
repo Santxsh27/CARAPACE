@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "carapace-core"
-version = "0.2.0"
+version = "0.3.0"
 description = "Contract-first payment assurance and evidence API for CARAPACE"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1",
+  "psycopg[binary]>=3.2,<4",
   "pydantic>=2.10,<3",
   "uvicorn>=0.32,<1",
 ]
@@ -22,6 +23,8 @@ test = [
 carapace = "carapace_core.cli:main"
 carapace-api = "carapace_api.__main__:main"
 carapace-demo = "carapace_core.api_demo:main"
+carapace-anthos-demo = "carapace_integrations.anthos_demo:main"
+carapace-anthos-web = "carapace_integrations.anthos_web:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
