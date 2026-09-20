@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from carapace_core.lens import IntentDirection, MessageIntent
 
@@ -33,15 +34,25 @@ class VertexGeminiIntentProvider:
     provider_name = "google-vertex-ai"
     mode = "VERTEX_AI"
 
-    def __init__(self, project: str, location: str, model: str) -> None:
+    def __init__(
+        self,
+        project: str,
+        location: str,
+        model: str,
+        *,
+        client: Any | None = None,
+    ) -> None:
         if not project:
             raise RuntimeError("GOOGLE_CLOUD_PROJECT is required for the Vertex AI provider")
+
+        self.model_name = model
+        if client is not None:
+            self._client = client
+            return
         try:
             from google import genai
         except ImportError as error:
             raise RuntimeError("Install the google-genai dependency to use Vertex AI") from error
-
-        self.model_name = model
         self._client = genai.Client(vertexai=True, project=project, location=location)
 
     def extract_intent(self, message_text: str, locale: str) -> MessageIntent:
@@ -58,5 +69,11 @@ class VertexGeminiIntentProvider:
                 response_json_schema=_GeminiIntent.model_json_schema(),
             ),
         )
-        parsed = _GeminiIntent.model_validate_json(response.text)
+        response_text = getattr(response, "text", None)
+        if not isinstance(response_text, str) or not response_text.strip():
+            raise RuntimeError("Vertex AI returned no structured intent response")
+        try:
+            parsed = _GeminiIntent.model_validate_json(response_text)
+        except (ValidationError, ValueError) as error:
+            raise RuntimeError("Vertex AI returned an invalid structured intent response") from error
         return MessageIntent(**parsed.model_dump())

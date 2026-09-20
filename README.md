@@ -34,7 +34,8 @@ dashboard. It implements:
 - CARAPACE Lens: a working message-plus-UPI-request workflow that finds exact
   direction, amount, payee, PIN and pressure contradictions;
 - a Gemini on Vertex AI structured-output adapter with prompt-injection
-  boundaries and explicit provider/model provenance;
+  boundaries, sensitive-input redaction, explicit provider/model provenance,
+  and a visible runtime-status endpoint;
 - an honestly labelled no-cost local intent provider so the demo remains fully
   runnable without cloud credentials;
 - executable unit/API tests and command-line demonstrations.

@@ -265,6 +265,7 @@ class LensProvenanceResponse(StrictModel):
     model: str
     mode: Literal["LOCAL_RULES", "VERTEX_AI"]
     ai_is_authority: Literal[False] = False
+    input_redaction_applied: bool
     deterministic_policy: Literal["lens-reconciliation-v1"] = "lens-reconciliation-v1"
 
 
@@ -276,3 +277,12 @@ class LensAnalysisResponse(StrictModel):
     findings: list[LensFindingResponse]
     plain_language_result: str
     provenance: LensProvenanceResponse
+
+
+class AIStatusResponse(StrictModel):
+    provider: str
+    model: str
+    mode: Literal["LOCAL_RULES", "VERTEX_AI"]
+    status: Literal["LOCAL_READY", "VERTEX_CONFIGURED"]
+    cloud_project_configured: bool
+    message: str

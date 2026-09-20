@@ -57,12 +57,38 @@ Use Application Default Credentials locally or a least-privilege service
 identity on Cloud Run. Do not commit credential files. Vertex mode fails closed
 if Gemini is unavailable; it does not silently label local rules as AI.
 
+### Safe live setup
+
+CARAPACE is intentionally **local-first**: the running Docker demo stays on
+the no-cost fallback until an operator deliberately configures a Google Cloud
+project. To enable live Gemini, the project owner must enable Vertex AI,
+ensure billing and model access are available, and authenticate using their own
+Google identity. Locally, that normally means `gcloud auth application-default
+login`; on Cloud Run, use the service's attached least-privilege identity.
+
+Set the four variables above in your local environment or deployment secret,
+then restart the API. Never mount, paste, or commit a service-account key into
+this repository. Confirm the selected mode at:
+
+```bash
+curl -s http://localhost:8080/v1/ai/status
+```
+
+`VERTEX_CONFIGURED` means the API selected the Vertex adapter; the first Lens
+request proves that the configured identity can actually call the model. If
+that call fails, Lens returns an explicit unavailable result rather than
+silently switching to local rules. The Control Room shows the same mode and
+model beside the Lens demo.
+
 The Vertex adapter uses:
 
 - a system instruction that treats message content as untrusted data;
 - temperature zero;
 - a strict JSON schema;
 - Pydantic validation;
+- credential redaction before the model boundary (OTP, PIN, CVV, password and
+  card-number values are removed, while the surrounding safety warning stays
+  available);
 - provider/model/mode provenance in every response;
 - deterministic reconciliation after model output.
 

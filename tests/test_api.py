@@ -54,6 +54,14 @@ class AssuranceApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
 
+    def test_ai_status_truthfully_reports_local_fallback(self) -> None:
+        response = self.client.get("/v1/ai/status")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["mode"], "LOCAL_RULES")
+        self.assertEqual(response.json()["status"], "LOCAL_READY")
+        self.assertFalse(response.json()["cloud_project_configured"])
+
     def test_contract_endpoint_requires_authentication(self) -> None:
         response = self.client.post(
             "/v1/contracts", json=load_example("payment-promise.json")
@@ -104,8 +112,22 @@ class AssuranceApiTests(unittest.TestCase):
         self.assertEqual(body["payment"]["amount_minor"], 499_900)
         self.assertEqual(body["provenance"]["mode"], "LOCAL_RULES")
         self.assertFalse(body["provenance"]["ai_is_authority"])
+        self.assertFalse(body["provenance"]["input_redaction_applied"])
         codes = {finding["code"] for finding in body["findings"]}
         self.assertIn("DIRECTION_CONTRADICTION", codes)
+
+    def test_lens_redacts_a_supplied_secret_before_provider_analysis(self) -> None:
+        response = self.client.post(
+            "/v1/lens/analyze",
+            json={
+                "message_text": "ABC Support: refund ₹4,999. UPI PIN is 1234. Scan now.",
+                "payment_uri": "upi://pay?pa=rktraders@upi&pn=R%20K%20Traders&am=4999&cu=INR",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()["provenance"]["input_redaction_applied"])
+        self.assertEqual(response.json()["decision"], "STOP")
 
     def test_lens_rejects_non_upi_request(self) -> None:
         response = self.client.post(

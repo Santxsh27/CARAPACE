@@ -10,6 +10,7 @@ from starlette.concurrency import run_in_threadpool
 
 from carapace_ai.factory import create_lens_provider
 from carapace_ai.provider import LensIntentProvider
+from carapace_ai.redaction import redact_for_model
 from carapace_core.canonical import request_digest
 from carapace_core.fee_policy import assess_upi_charge
 from carapace_core.lens import LensInputError, parse_upi_payment_uri, reconcile_intent
@@ -20,6 +21,7 @@ from .auth import TenantAuthenticator, TenantContext
 from .config import Settings
 from .models import (
     ContractResponse,
+    AIStatusResponse,
     EvidenceCaseResponse,
     ExecutionEvidence,
     FeeShieldRequest,
@@ -35,7 +37,7 @@ from .models import (
 from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundError
 
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 
 def create_app(
@@ -57,6 +59,26 @@ def create_app(
         redoc_url="/redoc",
     )
     application.state.store = resolved_store
+
+    @application.get(
+        "/v1/ai/status",
+        response_model=AIStatusResponse,
+        tags=["ai"],
+    )
+    async def ai_status() -> AIStatusResponse:
+        is_vertex = resolved_lens_provider.mode == "VERTEX_AI"
+        return AIStatusResponse(
+            provider=resolved_lens_provider.provider_name,
+            model=resolved_lens_provider.model_name,
+            mode=resolved_lens_provider.mode,
+            status="VERTEX_CONFIGURED" if is_vertex else "LOCAL_READY",
+            cloud_project_configured=is_vertex,
+            message=(
+                "Gemini on Vertex AI is configured. Model calls remain advisory; deterministic policy decides."
+                if is_vertex
+                else "Local no-cost intent rules are active. Configure Vertex AI to use live Gemini."
+            ),
+        )
 
     @application.get("/health/live", response_model=HealthResponse, tags=["health"])
     async def live() -> HealthResponse:
@@ -83,10 +105,11 @@ def create_app(
         except LensInputError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
+        model_input = redact_for_model(request.message_text)
         try:
             intent = await run_in_threadpool(
                 resolved_lens_provider.extract_intent,
-                request.message_text,
+                model_input.text,
                 request.locale,
             )
         except Exception as error:
@@ -107,6 +130,7 @@ def create_app(
                     "model": resolved_lens_provider.model_name,
                     "mode": resolved_lens_provider.mode,
                     "ai_is_authority": False,
+                    "input_redaction_applied": model_input.redaction_applied,
                     "deterministic_policy": "lens-reconciliation-v1",
                 },
             }
