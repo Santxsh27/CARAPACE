@@ -154,10 +154,46 @@ class VerificationReportResponse(StrictModel):
     checks: list[CheckResponse]
 
 
+class ReceiptStageResponse(StrictModel):
+    code: Literal[
+        "PAYMENT_FIELDS_BOUND",
+        "BANK_POSTING_MATCHED",
+        "SETTLEMENT_CONFIRMED",
+    ]
+    state: Literal["PASS", "PENDING", "FAIL"]
+    message: str
+
+
+class TrustReceiptResponse(StrictModel):
+    schema_version: Literal["1.0"]
+    receipt_id: str = Field(pattern=r"^receipt_[a-f0-9]{24}$")
+    contract_id: str
+    run_id: str
+    issued_at: datetime
+    assurance_level: Literal[
+        "PAYMENT_FIELDS_BOUND",
+        "BANK_POSTING_MATCHED",
+        "SETTLEMENT_CONFIRMED",
+        "MISMATCH",
+        "UNVERIFIED",
+    ]
+    verdict: Literal["MATCH", "MISMATCH"]
+    summary: str
+    direction: PaymentDirection
+    amount_minor: int = Field(gt=0)
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    payee_id: str
+    payee_display_name: str
+    stages: list[ReceiptStageResponse]
+    evidence_digest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    integrity_protection: Literal["SHA256_EVIDENCE_DIGEST"]
+
+
 class RunResponse(StrictModel):
     evidence: ExecutionEvidence
     report: VerificationReportResponse
     case_id: str | None
+    receipt: TrustReceiptResponse | None = None
 
 
 class EvidenceCaseResponse(StrictModel):

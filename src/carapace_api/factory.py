@@ -13,6 +13,7 @@ from carapace_ai.provider import LensIntentProvider
 from carapace_core.canonical import request_digest
 from carapace_core.fee_policy import assess_upi_charge
 from carapace_core.lens import LensInputError, parse_upi_payment_uri, reconcile_intent
+from carapace_core.receipt import build_trust_receipt
 from carapace_core.verifier import verify_payment
 
 from .auth import TenantAuthenticator, TenantContext
@@ -28,12 +29,13 @@ from .models import (
     LensAnalysisResponse,
     PaymentAssuranceContract,
     RunResponse,
+    TrustReceiptResponse,
     VerificationReportResponse,
 )
 from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundError
 
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 
 def create_app(
@@ -191,9 +193,15 @@ def create_app(
         evidence_payload = evidence.model_dump(mode="json")
         report = verify_payment(contract_payload, evidence_payload)
         report_payload = report.as_dict()
+        receipt_payload = build_trust_receipt(
+            contract_payload, evidence_payload, report_payload
+        ).as_dict()
         try:
             case_id = resolved_store.put_run(
-                tenant.tenant_id, evidence_payload, report_payload
+                tenant.tenant_id,
+                evidence_payload,
+                report_payload,
+                receipt_payload,
             )
         except StorageConflictError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
@@ -202,6 +210,7 @@ def create_app(
             evidence=evidence,
             report=VerificationReportResponse.model_validate(report_payload),
             case_id=case_id,
+            receipt=TrustReceiptResponse.model_validate(receipt_payload),
         )
 
     @application.get(
@@ -218,6 +227,21 @@ def create_app(
         except StorageNotFoundError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         return RunResponse.model_validate(payload)
+
+    @application.get(
+        "/v1/receipts/{receipt_id}",
+        response_model=TrustReceiptResponse,
+        tags=["receipts"],
+    )
+    async def get_receipt(
+        receipt_id: str,
+        tenant: TenantContext = Depends(authenticate),
+    ) -> TrustReceiptResponse:
+        try:
+            payload = resolved_store.get_receipt(tenant.tenant_id, receipt_id)
+        except StorageNotFoundError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        return TrustReceiptResponse.model_validate(payload)
 
     @application.get(
         "/v1/cases/{case_id}",

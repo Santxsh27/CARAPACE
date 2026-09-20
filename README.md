@@ -22,6 +22,8 @@ dashboard. It implements:
 - a Cloud Run-compatible REST API with strict request validation;
 - tenant-isolated contract, verification-run, and incident storage;
 - automatic critical evidence-case creation for deterministic mismatches;
+- stored, tenant-isolated Trust Receipts with honest field-binding, bank-
+  posting and settlement stages;
 - live, readiness, and generated OpenAPI endpoints;
 - passing and deliberately failing sample executions;
 - a real adapter for Google's official Bank of Anthos ledger database;
@@ -37,7 +39,7 @@ dashboard. It implements:
   runnable without cloud credentials;
 - executable unit/API tests and command-line demonstrations.
 
-Camera QR decoding, Document AI, BigQuery analytics, the bank SDK, the remaining
+Camera capture, Document AI, BigQuery analytics, the bank SDK, the remaining
 Ledger Witness stages, ProofOps, and the Firebase experience will be added on
 top of these stable contracts. Gemini produces proposed structured data and
 code changes; it never replaces the verifier implemented here.
@@ -107,6 +109,11 @@ Click **Run the bound safety test** in the control room. It creates a Payment
 Promise, stores one artificial payment in the official ledger, verifies it,
 forces a second retry debit, highlights both rows, and shows the incident and
 failed rule.
+
+The same run now creates two durable Trust Receipts: the first shows that the
+bank posting matched while settlement is still pending, and the forced retry
+creates a red `MISMATCH` receipt. See
+[docs/trust-receipts.md](docs/trust-receipts.md) for the exact claim boundary.
 
 This runs the official application containers locally through Docker Compose;
 it is not a GKE deployment or a production bank. No cloud account, GCP billing,

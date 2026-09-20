@@ -84,6 +84,11 @@ Deterministic verifier
  MATCH    MISMATCH
    |         |
 Stored run   +--> Stored critical evidence case
+   |         |
+   +----+----+
+        |
+        v
+Stored Trust Receipt with explicit assurance stages
 ```
 
 The public Lens path is intentionally separate:

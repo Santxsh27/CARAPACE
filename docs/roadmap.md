@@ -37,7 +37,8 @@ deterministic verdict, and every mismatch opens a durable evidence case.
 
 - Beginner-facing Lens workflow in the existing Control Room. **Complete for text + decoded UPI URI.**
 - Firebase web application. **Remaining.**
-- User-initiated QR image, link, invoice, and screenshot check. **Remaining.**
+- User-initiated QR image import. **Complete in supported Chromium browsers.**
+- Link, invoice, screenshot understanding and camera capture. **Remaining.**
 - Bank-controlled confirmation screen.
 - PAC creation and integrity verification.
 - Honest coverage levels in the UI.
@@ -48,7 +49,8 @@ deterministic verdict, and every mismatch opens a durable evidence case.
 - Controlled payment and retry execution. **Complete with artificial money.**
 - Exact transaction-ID binding and ledger-row reconciliation. **Complete.**
 - Beginner-facing live integration page. **Complete.**
-- Full LedgerWriter/Kubernetes path and staged Trust Receipt. **Remaining.**
+- Deterministic, stored staged Trust Receipt. **Complete; Cloud KMS signing remains.**
+- Full LedgerWriter/Kubernetes path. **Remaining.**
 
 ## Milestone 5 — ProofOps
 

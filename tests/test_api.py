@@ -148,14 +148,33 @@ class AssuranceApiTests(unittest.TestCase):
             headers=self.bank_a,
         )
         self.assertEqual(response.status_code, 201, response.text)
-        self.assertEqual(response.json()["report"]["verdict"], "MATCH")
-        self.assertIsNone(response.json()["case_id"])
+        body = response.json()
+        self.assertEqual(body["report"]["verdict"], "MATCH")
+        self.assertIsNone(body["case_id"])
+        self.assertEqual(
+            body["receipt"]["assurance_level"], "SETTLEMENT_CONFIRMED"
+        )
 
         saved = self.client.get(
             f"/v1/runs/{evidence['run_id']}", headers=self.bank_a
         )
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(saved.json()["report"]["verdict"], "MATCH")
+        self.assertEqual(
+            saved.json()["receipt"]["receipt_id"],
+            body["receipt"]["receipt_id"],
+        )
+
+        receipt_id = body["receipt"]["receipt_id"]
+        receipt = self.client.get(
+            f"/v1/receipts/{receipt_id}", headers=self.bank_a
+        )
+        hidden = self.client.get(
+            f"/v1/receipts/{receipt_id}", headers=self.bank_b
+        )
+        self.assertEqual(receipt.status_code, 200)
+        self.assertEqual(receipt.json()["run_id"], evidence["run_id"])
+        self.assertEqual(hidden.status_code, 404)
 
     def test_duplicate_debit_creates_retrievable_evidence_case(self) -> None:
         self.create_contract()
@@ -169,6 +188,7 @@ class AssuranceApiTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["report"]["verdict"], "MISMATCH")
         self.assertIsNotNone(body["case_id"])
+        self.assertEqual(body["receipt"]["assurance_level"], "MISMATCH")
 
         case = self.client.get(
             f"/v1/cases/{body['case_id']}", headers=self.bank_a

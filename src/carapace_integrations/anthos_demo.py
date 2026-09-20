@@ -153,6 +153,12 @@ class AnthosDemoResult:
     duplicate_transaction_id: int
     correct_payment_verdict: str
     duplicate_payment_verdict: str
+    trust_receipt_id: str
+    trust_receipt_level: str
+    trust_receipt_summary: str
+    settlement_state: str
+    mismatch_receipt_id: str
+    mismatch_receipt_level: str
     incident_case_id: str
     failed_checks: list[str]
     overall: str
@@ -238,10 +244,29 @@ def run_demo(
     )
     correct_verdict = correct["report"]["verdict"]
     duplicate_verdict = duplicate["report"]["verdict"]
+    receipt = correct.get("receipt")
+    if not receipt:
+        raise RuntimeError("matching payment did not produce a Trust Receipt")
+    settlement_stage = next(
+        (
+            stage
+            for stage in receipt["stages"]
+            if stage["code"] == "SETTLEMENT_CONFIRMED"
+        ),
+        None,
+    )
+    if settlement_stage is None:
+        raise RuntimeError("Trust Receipt omitted the settlement stage")
+    mismatch_receipt = duplicate.get("receipt")
+    if not mismatch_receipt:
+        raise RuntimeError("duplicate payment did not produce a mismatch receipt")
     failed_checks = list(incident["failed_checks"])
     passed = (
         correct_verdict == "MATCH"
         and duplicate_verdict == "MISMATCH"
+        and receipt["assurance_level"] == "BANK_POSTING_MATCHED"
+        and settlement_stage["state"] == "PENDING"
+        and mismatch_receipt["assurance_level"] == "MISMATCH"
         and "AT_MOST_ONE_POSTED_DEBIT" in failed_checks
     )
     return AnthosDemoResult(
@@ -254,6 +279,12 @@ def run_demo(
         duplicate_transaction_id=duplicate_id,
         correct_payment_verdict=correct_verdict,
         duplicate_payment_verdict=duplicate_verdict,
+        trust_receipt_id=str(receipt["receipt_id"]),
+        trust_receipt_level=str(receipt["assurance_level"]),
+        trust_receipt_summary=str(receipt["summary"]),
+        settlement_state=str(settlement_stage["state"]),
+        mismatch_receipt_id=str(mismatch_receipt["receipt_id"]),
+        mismatch_receipt_level=str(mismatch_receipt["assurance_level"]),
         incident_case_id=str(case_id),
         failed_checks=failed_checks,
         overall="PASS" if passed else "FAIL",
@@ -312,7 +343,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "5. CARAPACE read both rows: "
                 f"{result.duplicate_payment_verdict}"
             )
-            print(f"6. Evidence case opened: {result.incident_case_id}")
+            print(
+                "6. Customer Trust Receipt: "
+                f"{result.trust_receipt_level} ({result.settlement_state})"
+            )
+            print(f"7. Evidence case opened: {result.incident_case_id}")
             print(f"   Failed rules: {', '.join(result.failed_checks)}")
             print(f"Overall integration check: {result.overall}")
         return 0 if result.overall == "PASS" else 1

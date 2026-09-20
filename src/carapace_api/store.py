@@ -73,8 +73,23 @@ class SQLiteEvidenceStore:
                         REFERENCES runs (tenant_id, run_id)
                 );
 
+                CREATE TABLE IF NOT EXISTS trust_receipts (
+                    tenant_id TEXT NOT NULL,
+                    receipt_id TEXT NOT NULL,
+                    run_id TEXT NOT NULL,
+                    contract_id TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, receipt_id),
+                    UNIQUE (tenant_id, run_id),
+                    FOREIGN KEY (tenant_id, run_id)
+                        REFERENCES runs (tenant_id, run_id)
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_runs_contract
                     ON runs (tenant_id, contract_id);
+                CREATE INDEX IF NOT EXISTS idx_receipts_contract
+                    ON trust_receipts (tenant_id, contract_id);
                 """
             )
 
@@ -119,6 +134,7 @@ class SQLiteEvidenceStore:
         tenant_id: str,
         evidence: Mapping[str, Any],
         report: Mapping[str, Any],
+        receipt: Mapping[str, Any],
     ) -> str | None:
         now = datetime.now(timezone.utc).isoformat()
         case_id = None
@@ -165,6 +181,22 @@ class SQLiteEvidenceStore:
                             now,
                         ),
                     )
+                connection.execute(
+                    """
+                    INSERT INTO trust_receipts (
+                        tenant_id, receipt_id, run_id, contract_id,
+                        payload_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        tenant_id,
+                        receipt["receipt_id"],
+                        evidence["run_id"],
+                        evidence["contract_id"],
+                        canonical_json(receipt),
+                        now,
+                    ),
+                )
         except sqlite3.IntegrityError as error:
             raise StorageConflictError("run already exists or contract is missing") from error
         return case_id
@@ -173,8 +205,12 @@ class SQLiteEvidenceStore:
         with self._connect() as connection:
             row = connection.execute(
                 """
-                SELECT evidence_json, report_json, case_id FROM runs
-                WHERE tenant_id = ? AND run_id = ?
+                SELECT r.evidence_json, r.report_json, r.case_id,
+                       t.payload_json AS receipt_json
+                FROM runs AS r
+                LEFT JOIN trust_receipts AS t
+                  ON t.tenant_id = r.tenant_id AND t.run_id = r.run_id
+                WHERE r.tenant_id = ? AND r.run_id = ?
                 """,
                 (tenant_id, run_id),
             ).fetchone()
@@ -184,7 +220,25 @@ class SQLiteEvidenceStore:
             "evidence": json.loads(row["evidence_json"]),
             "report": json.loads(row["report_json"]),
             "case_id": row["case_id"],
+            "receipt": (
+                json.loads(row["receipt_json"])
+                if row["receipt_json"] is not None
+                else None
+            ),
         }
+
+    def get_receipt(self, tenant_id: str, receipt_id: str) -> dict[str, Any]:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json FROM trust_receipts
+                WHERE tenant_id = ? AND receipt_id = ?
+                """,
+                (tenant_id, receipt_id),
+            ).fetchone()
+        if row is None:
+            raise StorageNotFoundError("trust receipt not found")
+        return json.loads(row["payload_json"])
 
     def get_case(self, tenant_id: str, case_id: str) -> dict[str, Any]:
         with self._connect() as connection:
