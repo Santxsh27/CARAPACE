@@ -189,7 +189,8 @@ Trust Receipt   Evidence Case
 ### Start the environment
 
 ```bash
-cd /Users/santosh/Desktop/CARAPACE
+git clone https://github.com/Santxsh27/CARAPACE.git
+cd CARAPACE
 docker compose --profile anthos-full up --build
 ```
 
@@ -212,7 +213,7 @@ In the Control Room:
 ### Run the automated tests
 
 ```bash
-cd /Users/santosh/Desktop/CARAPACE
+cd CARAPACE
 docker compose --profile test run --rm --build tests
 ```
 
