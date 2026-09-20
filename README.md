@@ -123,6 +123,8 @@ production boundary are documented in
 
 The first section is now **CARAPACE Lens**. Run the prefilled refund example to
 see a promised incoming refund compared with an actual outgoing UPI payment.
+You can also choose a QR image; supported Chromium browsers decode it locally
+and place the UPI request into the same evidence-backed comparison.
 The local demo labels its extraction as `LOCAL_RULES`; configure Vertex AI to
 use real Gemini structured output. See [docs/lens.md](docs/lens.md) and
 [docs/google-cloud-alignment.md](docs/google-cloud-alignment.md).

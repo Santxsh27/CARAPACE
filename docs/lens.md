@@ -72,6 +72,7 @@ Implemented now:
 
 - text story input;
 - decoded `upi://pay` and `upi://mandate` input;
+- user-selected QR image decoding in supported Chromium browsers;
 - structured local or Vertex intent extraction;
 - exact amount, direction and payee parsing;
 - direction, amount, identity, PIN and pressure findings;
@@ -80,7 +81,7 @@ Implemented now:
 
 Next:
 
-- camera/upload QR decoding;
+- optional live-camera QR capture with an explicit permission prompt;
 - Document AI invoice extraction;
 - Web Risk signal ingestion;
 - evidence spans and evaluation dataset;
