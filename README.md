@@ -236,7 +236,7 @@ The project works without cloud credentials. To use live Gemini, create an untra
 ```text
 CARAPACE_AI_PROVIDER=gemini
 GOOGLE_API_KEY=your-ai-studio-key
-CARAPACE_GEMINI_MODEL=gemini-2.5-flash
+CARAPACE_GEMINI_MODEL=gemini-3.6-flash
 ```
 
 ### Vertex AI
@@ -245,7 +245,7 @@ CARAPACE_GEMINI_MODEL=gemini-2.5-flash
 CARAPACE_AI_PROVIDER=vertex
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=global
-CARAPACE_GEMINI_MODEL=gemini-2.5-flash
+CARAPACE_GEMINI_MODEL=gemini-3.6-flash
 ```
 
 Restart the API after setting credentials and verify the selected mode:

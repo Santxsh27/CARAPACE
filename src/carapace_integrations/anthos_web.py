@@ -113,14 +113,19 @@ def _url_is_ready(url: str) -> bool:
         return False
 
 
-def _post_json(url: str, payload: dict[str, object], headers: dict[str, str]) -> dict[str, object]:
+def _post_json(
+    url: str,
+    payload: dict[str, object],
+    headers: dict[str, str],
+    timeout_seconds: int = 10,
+) -> dict[str, object]:
     request = Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json", **headers},
         method="POST",
     )
-    with urlopen(request, timeout=10) as response:
+    with urlopen(request, timeout=timeout_seconds) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -231,6 +236,7 @@ def create_demo_app() -> FastAPI:
                 f"{api_base_url.rstrip('/')}/v1/cases/{quote(case_id, safe='')}/analyze",
                 {},
                 headers,
+                45,
             )
         except Exception as error:
             LOGGER.exception("ProofOps incident analysis failed")

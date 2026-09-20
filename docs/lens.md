@@ -50,7 +50,7 @@ The same endpoint can use Gemini without changing the deterministic policy:
 CARAPACE_AI_PROVIDER=vertex
 GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_CLOUD_LOCATION=global
-CARAPACE_GEMINI_MODEL=gemini-2.5-flash
+CARAPACE_GEMINI_MODEL=gemini-3.6-flash
 ```
 
 ## Use the Gemini Developer API free tier
@@ -61,7 +61,7 @@ AI Studio without waiting for event Cloud credits:
 ```text
 CARAPACE_AI_PROVIDER=gemini
 GOOGLE_API_KEY=your-local-ai-studio-key
-CARAPACE_GEMINI_MODEL=gemini-2.5-flash
+CARAPACE_GEMINI_MODEL=gemini-3.6-flash
 ```
 
 Put these values in an untracked `.env` file. The API key must never appear in
