@@ -2,17 +2,17 @@
 
 ## What is connected now
 
-The local demonstration uses Google's published Bank of Anthos `ledger-db`
-container at version `v0.6.10`, pinned to its immutable image digest. Bank of
-Anthos describes itself as a sample HTTP-based banking application composed of
-independent services that run on Kubernetes. The complete upstream application
-contains a frontend, user and contacts services, ledger writer, balance reader,
-transaction history service, load generator, and two PostgreSQL databases.
+The local demonstration runs Google's published Bank of Anthos `v0.6.10`
+frontend, user service, contacts service, ledger writer, balance reader,
+transaction history service, and both PostgreSQL databases. Every official
+image is pinned to an immutable digest. The services run through Docker Compose
+on the developer's computer, so this is the full sample application rather
+than a paid GKE deployment.
 
-CARAPACE currently runs the **official ledger slice**, not that entire
-Kubernetes application. This is intentional: it creates a real external-system
-boundary on a small laptop without requiring a paid GKE cluster or pretending
-that example JSON came from a bank.
+CARAPACE runs beside the bank as a separate API, ledger adapter, and beginner
+control room. The control room embeds the real bank site and exposes the recent
+rows read from `postgresdb.public.transactions`. It never claims that web-page
+pixels are authoritative financial evidence.
 
 Upstream references:
 
@@ -35,15 +35,17 @@ Upstream references:
 6. The adapter reads both explicitly bound transaction IDs. CARAPACE returns
    `MISMATCH` and opens a persisted evidence case for a duplicate debit.
 
-Start it with:
+Start the complete local stack with:
 
 ```bash
-docker compose --profile anthos up --build anthos-demo
+docker compose --profile anthos-full up --build anthos-frontend anthos-demo
 ```
 
-Then open [http://localhost:8090](http://localhost:8090) and press **Run the
-live safety test**. Docker must remain running. The first start can take longer
-because the official image is `linux/amd64` and Apple-silicon Macs emulate it.
+Then open [http://localhost:8081](http://localhost:8081) for the official bank
+(`testuser` / `bankofanthos`) and [http://localhost:8090](http://localhost:8090)
+for the CARAPACE control room. Press **Run the bound safety test**. Docker must
+remain running. The first start can take longer because the official images are
+`linux/amd64` and Apple-silicon Macs emulate them.
 
 Stop it with `Control+C`. The artificial Anthos ledger and CARAPACE evidence
 are retained in separate Docker volumes.
@@ -86,6 +88,8 @@ only for artificial-money fault injection. In a real bank:
 - CARAPACE observes transactions but does not write, move, refund, or correct
   real funds.
 
-The later full Bank of Anthos milestone will replace the controlled writer with
-the upstream LedgerWriter and supporting services on Kubernetes. The
-deterministic verifier and adapter mapping introduced here remain usable.
+The manual Bank of Anthos interface already uses the upstream LedgerWriter and
+supporting services. The controlled CARAPACE experiment retains its direct
+test-only insert because it must capture an exact transaction ID and inject a
+known duplicate fault. A future bank SDK/processor adapter replaces that
+test-only boundary with a signed request-to-ledger binding.

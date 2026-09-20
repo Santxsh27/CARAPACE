@@ -72,6 +72,15 @@ class BankOfAnthosMappingTests(unittest.TestCase):
         self.assertEqual(row.from_account, "1000000001")
         self.assertEqual(row.to_routing, "883745000")
 
+    def test_public_explorer_record_preserves_exact_ledger_values(self) -> None:
+        record = transaction(77).as_public_record()
+
+        self.assertEqual(record["transaction_id"], 77)
+        self.assertEqual(record["from_account"], "1000000001")
+        self.assertEqual(record["to_account"], "2000000002")
+        self.assertEqual(record["amount_minor"], 4_999)
+        self.assertEqual(record["timestamp"], "2026-09-15T12:00:00Z")
+
 
 if __name__ == "__main__":
     unittest.main()

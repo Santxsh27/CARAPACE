@@ -7,6 +7,7 @@ import sqlite3
 from fastapi import Depends, FastAPI, HTTPException, status
 
 from carapace_core.canonical import request_digest
+from carapace_core.fee_policy import assess_upi_charge
 from carapace_core.verifier import verify_payment
 
 from .auth import TenantAuthenticator, TenantContext
@@ -15,6 +16,8 @@ from .models import (
     ContractResponse,
     EvidenceCaseResponse,
     ExecutionEvidence,
+    FeeShieldRequest,
+    FeeShieldResponse,
     HealthResponse,
     PaymentAssuranceContract,
     RunResponse,
@@ -55,6 +58,18 @@ def create_app(
         except sqlite3.Error as error:
             raise HTTPException(status_code=503, detail="evidence store unavailable") from error
         return HealthResponse(status="ok", service="carapace-api", version=VERSION)
+
+    @application.post(
+        "/v1/fees/upi/assess",
+        response_model=FeeShieldResponse,
+        tags=["fee-shield"],
+    )
+    async def assess_upi_fee(
+        request: FeeShieldRequest,
+        _: TenantContext = Depends(authenticate),
+    ) -> FeeShieldResponse:
+        assessment = assess_upi_charge(**request.model_dump())
+        return FeeShieldResponse.model_validate(assessment.as_dict())
 
     @application.post(
         "/v1/contracts",

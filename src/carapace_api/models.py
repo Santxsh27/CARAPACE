@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from carapace_core.fee_policy import MerchantSector, UpiPaymentKind
 
 
 class StrictModel(BaseModel):
@@ -166,3 +168,24 @@ class EvidenceCaseResponse(StrictModel):
     severity: Literal["CRITICAL"]
     failed_checks: list[str]
     created_at: datetime
+
+
+class FeeShieldRequest(StrictModel):
+    amount_minor: int = Field(gt=0)
+    initiated_on: date
+    payment_kind: UpiPaymentKind
+    customer_mdr_surcharge_minor: int = Field(ge=0)
+    actual_merchant_mdr_minor: int | None = Field(default=None, ge=0)
+    sector: MerchantSector = MerchantSector.STANDARD
+    merchant_monthly_upi_minor: int | None = Field(default=None, ge=0)
+
+
+class FeeShieldResponse(StrictModel):
+    policy_version: str
+    expected_mdr_minor: int
+    customer_mdr_surcharge_minor: int
+    customer_protected: bool
+    merchant_settlement_matches: bool | None
+    violations: list[str]
+    explanation: str
+    verdict: Literal["COMPLIANT", "VIOLATION"]

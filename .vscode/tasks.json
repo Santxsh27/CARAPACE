@@ -37,9 +37,9 @@
       "problemMatcher": []
     },
     {
-      "label": "CARAPACE: Start Bank of Anthos demo",
+      "label": "CARAPACE: Start full Bank of Anthos control room",
       "type": "shell",
-      "command": "docker compose --profile anthos up --build anthos-demo",
+      "command": "docker compose --profile anthos-full up --build anthos-frontend anthos-demo",
       "isBackground": true,
       "problemMatcher": []
     },

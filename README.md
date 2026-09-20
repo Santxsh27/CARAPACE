@@ -25,7 +25,10 @@ dashboard. It implements:
 - live, readiness, and generated OpenAPI endpoints;
 - passing and deliberately failing sample executions;
 - a real adapter for Google's official Bank of Anthos ledger database;
-- a one-click local page that writes and verifies artificial-money ledger rows;
+- the full official Bank of Anthos sample website and service stack in Docker;
+- a visual control room showing raw ledger rows, contract binding, and verdicts;
+- FeeShield: deterministic UPI MDR calculation, customer-surcharge protection,
+  and merchant-settlement reconciliation for the October 2026 India policy;
 - executable unit/API tests and command-line demonstrations.
 
 Gemini integration, the consumer Lens, the bank SDK, the remaining Ledger
@@ -78,25 +81,40 @@ CARAPACE found the seeded financial mismatch.
 
 ## See the Bank of Anthos connection
 
-This is the easiest visual demonstration for a beginner. It starts the
-CARAPACE API, Google's official Bank of Anthos ledger database, and a separate
-local explanation page:
+This is the easiest visual demonstration for a beginner. It starts Google's
+official Bank of Anthos frontend, user, contacts, balance, history and ledger
+services, both official PostgreSQL databases, the CARAPACE API, and a guided
+control room:
 
 ```bash
-docker compose --profile anthos up --build anthos-demo
+docker compose --profile anthos-full up --build anthos-frontend anthos-demo
 ```
 
-When the containers are healthy, open
-[http://localhost:8090](http://localhost:8090). Click **Run the live safety
-test**. The page creates a Payment Promise, stores one artificial payment in
-the real external ledger schema, verifies it, forces a second retry debit, and
-shows the CARAPACE incident.
+Keep that terminal open. Then use these two sites:
 
-This is a genuine integration with the official Bank of Anthos ledger slice;
-it is not yet the complete seven-service Kubernetes application. No cloud
-account, GCP billing, or real money is used. See
+- [http://localhost:8081](http://localhost:8081) — the official Bank of Anthos
+  website. Sign in with `testuser` / `bankofanthos`.
+- [http://localhost:8090](http://localhost:8090) — the CARAPACE control room.
+  It embeds the bank, identifies the exact database and table being read,
+  shows recent raw rows, and maps a Payment Promise to deterministic checks.
+
+Click **Run the bound safety test** in the control room. It creates a Payment
+Promise, stores one artificial payment in the official ledger, verifies it,
+forces a second retry debit, highlights both rows, and shows the incident and
+failed rule.
+
+This runs the official application containers locally through Docker Compose;
+it is not a GKE deployment or a production bank. No cloud account, GCP billing,
+or real money is used. A smaller ledger-only profile remains available as
+`--profile anthos` for CI and low-memory checks. See
 [docs/bank-of-anthos.md](docs/bank-of-anthos.md) for the exact boundary and the
 production upgrade path.
+
+The control room also includes a live **FeeShield check**. It submits a
+₹10,000 merchant payment with an intentionally hidden ₹40 customer MDR to the
+real CARAPACE API and shows the deterministic violation. The policy and
+production boundary are documented in
+[docs/fee-shield.md](docs/fee-shield.md).
 
 ## Run without Docker
 

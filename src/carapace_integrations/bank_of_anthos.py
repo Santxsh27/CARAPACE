@@ -57,6 +57,24 @@ class BankOfAnthosTransaction:
             "status": "POSTED",
         }
 
+    def as_public_record(self) -> dict[str, Any]:
+        """Return the exact non-secret ledger fields used by the local explorer."""
+
+        timestamp = self.timestamp
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        return {
+            "transaction_id": self.transaction_id,
+            "from_account": self.from_account,
+            "to_account": self.to_account,
+            "from_routing": self.from_routing,
+            "to_routing": self.to_routing,
+            "amount_minor": self.amount_minor,
+            "timestamp": timestamp.astimezone(timezone.utc).isoformat().replace(
+                "+00:00", "Z"
+            ),
+        }
+
 
 def _validate_identifier(value: str, expected_length: int, label: str) -> None:
     if len(value) != expected_length or not value.isdigit():
@@ -163,4 +181,24 @@ class BankOfAnthosLedger:
             found = {int(row[0]) for row in rows}
             missing = sorted(set(unique_ids) - found)
             raise RuntimeError(f"bound ledger transactions are missing: {missing}")
+        return [BankOfAnthosTransaction.from_row(row) for row in rows]
+
+    def fetch_recent_transactions(
+        self, limit: int = 20
+    ) -> list[BankOfAnthosTransaction]:
+        """Read recent authoritative rows for the beginner-facing data explorer."""
+
+        if limit < 1 or limit > 100:
+            raise ValueError("limit must be between 1 and 100")
+        with psycopg.connect(self._database_url) as connection:
+            rows = connection.execute(
+                """
+                SELECT transaction_id, from_acct, to_acct, from_route,
+                       to_route, amount, timestamp
+                FROM transactions
+                ORDER BY transaction_id DESC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
         return [BankOfAnthosTransaction.from_row(row) for row in rows]

@@ -60,6 +60,27 @@ class AssuranceApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 401)
 
+    def test_fee_shield_detects_customer_mdr_surcharge(self) -> None:
+        response = self.client.post(
+            "/v1/fees/upi/assess",
+            headers=self.bank_a,
+            json={
+                "amount_minor": 1_000_000,
+                "initiated_on": "2026-10-15",
+                "payment_kind": "P2M",
+                "customer_mdr_surcharge_minor": 4_000,
+                "actual_merchant_mdr_minor": 4_000,
+                "sector": "STANDARD",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["expected_mdr_minor"], 4_000)
+        self.assertEqual(response.json()["verdict"], "VIOLATION")
+        self.assertIn(
+            "CUSTOMER_MDR_SURCHARGE_PROHIBITED",
+            response.json()["violations"],
+        )
+
     def test_contract_is_isolated_by_tenant(self) -> None:
         contract = self.create_contract()
         own_response = self.client.get(

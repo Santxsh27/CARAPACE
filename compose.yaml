@@ -79,15 +79,15 @@ services:
         condition: service_healthy
 
   anthos-ledger:
-    profiles: ["anthos"]
+    profiles: ["anthos", "anthos-full"]
     platform: linux/amd64
     image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/ledger-db:v0.6.10@sha256:891cb7afe34f358ce7ed7002a1923b25e113b30bca44fecb10cc8b116d665a03
     environment:
       POSTGRES_DB: postgresdb
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
-      # Upstream's init script only disables seeds when this is empty.
-      USE_DEMO_DATA: ""
+      # Official sample accounts need the official artificial-money seed rows.
+      USE_DEMO_DATA: "True"
       LOCAL_ROUTING_NUM: "883745000"
     volumes:
       - anthos-ledger-data:/var/lib/postgresql/data
@@ -98,7 +98,7 @@ services:
       retries: 20
 
   anthos-demo:
-    profiles: ["anthos"]
+    profiles: ["anthos", "anthos-full"]
     build:
       context: .
       target: runtime
@@ -110,6 +110,8 @@ services:
       CARAPACE_TENANT: demo-bank
       CARAPACE_API_KEY: local-demo-key-change-me
       BOA_DATABASE_URL: postgresql://admin:password@anthos-ledger:5432/postgresdb
+      BOA_FRONTEND_URL: http://anthos-frontend:8080
+      BOA_PUBLIC_FRONTEND_URL: http://localhost:8081
       PORT: "8090"
     ports:
       - "127.0.0.1:8090:8090"
@@ -124,6 +126,248 @@ services:
       timeout: 3s
       retries: 20
 
+  anthos-key-init:
+    profiles: ["anthos-full"]
+    build:
+      context: .
+      target: runtime
+    image: carapace-core:local
+    user: "0:0"
+    read_only: true
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "FOWNER"]
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ ! -s /keys/privatekey ]; then
+          openssl genrsa -out /keys/privatekey 2048
+          openssl rsa -in /keys/privatekey -pubout -out /keys/publickey
+        fi
+        chmod 0400 /keys/privatekey
+        chmod 0444 /keys/publickey
+        chown 1000:1000 /keys/privatekey /keys/publickey
+    volumes:
+      - anthos-jwt:/keys
+
+  anthos-accounts-db:
+    profiles: ["anthos-full"]
+    platform: linux/amd64
+    image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/accounts-db:v0.6.10@sha256:d95c4094c75f69069b915ef3adc99a8f95e43077885140cdeeb90d807ea74eff
+    environment:
+      POSTGRES_DB: accounts-db
+      POSTGRES_USER: accounts-admin
+      POSTGRES_PASSWORD: accounts-pwd
+      USE_DEMO_DATA: "True"
+      LOCAL_ROUTING_NUM: "883745000"
+    volumes:
+      - anthos-accounts-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U accounts-admin -d accounts-db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  anthos-user-service:
+    profiles: ["anthos-full"]
+    platform: linux/amd64
+    image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/userservice:v0.6.10@sha256:d8c4412edc46ab105000f721788b73301651cc43b19cee7e7302739f81882dcc
+    user: "1000:1000"
+    environment:
+      VERSION: v0.6.10
+      PORT: "8080"
+      ENABLE_TRACING: "false"
+      TOKEN_EXPIRY_SECONDS: "3600"
+      PRIV_KEY_PATH: /tmp/.ssh/privatekey
+      PUB_KEY_PATH: /tmp/.ssh/publickey
+      LOCAL_ROUTING_NUM: "883745000"
+      ACCOUNTS_DB_URI: postgresql://accounts-admin:accounts-pwd@anthos-accounts-db:5432/accounts-db
+      LOG_LEVEL: info
+    volumes:
+      - anthos-jwt:/tmp/.ssh:ro
+    depends_on:
+      anthos-key-init:
+        condition: service_completed_successfully
+      anthos-accounts-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=2)"]
+      interval: 10s
+      timeout: 15s
+      retries: 30
+      start_period: 5m
+
+  anthos-contacts:
+    profiles: ["anthos-full"]
+    platform: linux/amd64
+    image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/contacts:v0.6.10@sha256:90d47594270e64f8dafa6da52c89ff70c2483cca0821dff2cc38b1450ac7a6b9
+    user: "1000:1000"
+    environment:
+      VERSION: v0.6.10
+      PORT: "8080"
+      ENABLE_TRACING: "false"
+      PUB_KEY_PATH: /tmp/.ssh/publickey
+      LOCAL_ROUTING_NUM: "883745000"
+      ACCOUNTS_DB_URI: postgresql://accounts-admin:accounts-pwd@anthos-accounts-db:5432/accounts-db
+      LOG_LEVEL: info
+    volumes:
+      - anthos-jwt:/tmp/.ssh:ro
+    depends_on:
+      anthos-key-init:
+        condition: service_completed_successfully
+      anthos-accounts-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=2)"]
+      interval: 10s
+      timeout: 15s
+      retries: 30
+      start_period: 5m
+
+  anthos-balance-reader:
+    profiles: ["anthos-full"]
+    platform: linux/amd64
+    image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/balancereader:v0.6.10@sha256:feae443c650786c253bbfa3447d0902dd1689122c13962f97ccc37068d73733b
+    hostname: balance-reader-local
+    user: "1000:1000"
+    environment:
+      VERSION: v0.6.10
+      PORT: "8080"
+      ENABLE_TRACING: "false"
+      ENABLE_METRICS: "false"
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m
+      POLL_MS: "100"
+      CACHE_SIZE: "10000"
+      PUB_KEY_PATH: /tmp/.ssh/publickey
+      LOCAL_ROUTING_NUM: "883745000"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://anthos-ledger:5432/postgresdb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+      LOG_LEVEL: info
+      NAMESPACE: local-compose
+    volumes:
+      - anthos-jwt:/tmp/.ssh:ro
+    depends_on:
+      anthos-key-init:
+        condition: service_completed_successfully
+      anthos-ledger:
+        condition: service_healthy
+
+  anthos-transaction-history:
+    profiles: ["anthos-full"]
+    platform: linux/amd64
+    image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/transactionhistory:v0.6.10@sha256:109cdad9c29a46af2708574ac4635dd73afa30cc020a4fef0266abcde87db744
+    hostname: transaction-history-local
+    user: "1000:1000"
+    environment:
+      VERSION: v0.6.10
+      PORT: "8080"
+      ENABLE_TRACING: "false"
+      ENABLE_METRICS: "false"
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m
+      POLL_MS: "100"
+      CACHE_SIZE: "1000"
+      CACHE_MINUTES: "60"
+      HISTORY_LIMIT: "100"
+      PUB_KEY_PATH: /tmp/.ssh/publickey
+      LOCAL_ROUTING_NUM: "883745000"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://anthos-ledger:5432/postgresdb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+      LOG_LEVEL: info
+      NAMESPACE: local-compose
+    volumes:
+      - anthos-jwt:/tmp/.ssh:ro
+    depends_on:
+      anthos-key-init:
+        condition: service_completed_successfully
+      anthos-ledger:
+        condition: service_healthy
+
+  anthos-ledger-writer:
+    profiles: ["anthos-full"]
+    platform: linux/amd64
+    image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/ledgerwriter:v0.6.10@sha256:eae37de0d9b28fec7534c1ea860868c87279b0a85b405f8fd66c3d7734e3e42f
+    hostname: ledger-writer-local
+    user: "1000:1000"
+    environment:
+      VERSION: v0.6.10
+      PORT: "8080"
+      ENABLE_TRACING: "false"
+      ENABLE_METRICS: "false"
+      JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m
+      PUB_KEY_PATH: /tmp/.ssh/publickey
+      LOCAL_ROUTING_NUM: "883745000"
+      BALANCES_API_ADDR: anthos-balance-reader:8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://anthos-ledger:5432/postgresdb
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+      LOG_LEVEL: info
+      NAMESPACE: local-compose
+    volumes:
+      - anthos-jwt:/tmp/.ssh:ro
+    depends_on:
+      anthos-key-init:
+        condition: service_completed_successfully
+      anthos-ledger:
+        condition: service_healthy
+      anthos-balance-reader:
+        condition: service_started
+
+  anthos-frontend:
+    profiles: ["anthos-full"]
+    platform: linux/amd64
+    image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/frontend:v0.6.10@sha256:076294ce717309f711743fa3b72a9809c7f156edf1c4fa58505fd9f436d65345
+    user: "1000:1000"
+    environment:
+      VERSION: v0.6.10
+      PORT: "8080"
+      ENABLE_TRACING: "false"
+      SCHEME: http
+      DEFAULT_USERNAME: testuser
+      DEFAULT_PASSWORD: bankofanthos
+      BANK_NAME: Bank of Anthos
+      ENV_PLATFORM: local
+      CLUSTER_NAME: local-docker
+      POD_ZONE: your-mac
+      METADATA_SERVER: 127.0.0.1:9
+      # Java services are x86 images and need extra response time under Mac emulation.
+      BACKEND_TIMEOUT: "30"
+      PUB_KEY_PATH: /tmp/.ssh/publickey
+      LOCAL_ROUTING_NUM: "883745000"
+      TRANSACTIONS_API_ADDR: anthos-ledger-writer:8080
+      BALANCES_API_ADDR: anthos-balance-reader:8080
+      HISTORY_API_ADDR: anthos-transaction-history:8080
+      CONTACTS_API_ADDR: anthos-contacts:8080
+      USERSERVICE_API_ADDR: anthos-user-service:8080
+      LOG_LEVEL: info
+    volumes:
+      - anthos-jwt:/tmp/.ssh:ro
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      anthos-key-init:
+        condition: service_completed_successfully
+      anthos-user-service:
+        condition: service_healthy
+      anthos-contacts:
+        condition: service_healthy
+      anthos-balance-reader:
+        condition: service_started
+      anthos-transaction-history:
+        condition: service_started
+      anthos-ledger-writer:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=2)"]
+      interval: 10s
+      timeout: 15s
+      retries: 30
+      start_period: 5m
+
 volumes:
   carapace-data:
   anthos-ledger-data:
+  anthos-accounts-data:
+  anthos-jwt:
