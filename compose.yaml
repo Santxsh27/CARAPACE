@@ -26,6 +26,10 @@ services:
       CARAPACE_ENV: development
       CARAPACE_DB_PATH: /data/carapace.db
       CARAPACE_TENANT_KEYS_JSON: '{"demo-bank":"local-demo-key-change-me"}'
+      CARAPACE_AI_PROVIDER: ${CARAPACE_AI_PROVIDER:-local}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-global}
+      CARAPACE_GEMINI_MODEL: ${CARAPACE_GEMINI_MODEL:-gemini-2.5-flash}
       PORT: "8080"
     ports:
       - "127.0.0.1:8080:8080"

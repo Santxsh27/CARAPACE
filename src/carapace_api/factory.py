@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import sqlite3
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from starlette.concurrency import run_in_threadpool
 
+from carapace_ai.factory import create_lens_provider
+from carapace_ai.provider import LensIntentProvider
 from carapace_core.canonical import request_digest
 from carapace_core.fee_policy import assess_upi_charge
+from carapace_core.lens import LensInputError, parse_upi_payment_uri, reconcile_intent
 from carapace_core.verifier import verify_payment
 
 from .auth import TenantAuthenticator, TenantContext
@@ -19,6 +24,8 @@ from .models import (
     FeeShieldRequest,
     FeeShieldResponse,
     HealthResponse,
+    LensAnalysisRequest,
+    LensAnalysisResponse,
     PaymentAssuranceContract,
     RunResponse,
     VerificationReportResponse,
@@ -26,17 +33,19 @@ from .models import (
 from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundError
 
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 
 def create_app(
     settings: Settings | None = None,
     store: SQLiteEvidenceStore | None = None,
+    lens_provider: LensIntentProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings.from_env()
     resolved_store = store or SQLiteEvidenceStore(resolved_settings.database_path)
     resolved_store.initialize()
     authenticate = TenantAuthenticator(resolved_settings)
+    resolved_lens_provider = lens_provider or create_lens_provider(resolved_settings)
 
     application = FastAPI(
         title="CARAPACE Assurance API",
@@ -58,6 +67,48 @@ def create_app(
         except sqlite3.Error as error:
             raise HTTPException(status_code=503, detail="evidence store unavailable") from error
         return HealthResponse(status="ok", service="carapace-api", version=VERSION)
+
+    @application.post(
+        "/v1/lens/analyze",
+        response_model=LensAnalysisResponse,
+        tags=["lens"],
+    )
+    async def analyze_payment_context(
+        request: LensAnalysisRequest,
+    ) -> LensAnalysisResponse:
+        try:
+            payment = parse_upi_payment_uri(request.payment_uri)
+        except LensInputError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+
+        try:
+            intent = await run_in_threadpool(
+                resolved_lens_provider.extract_intent,
+                request.message_text,
+                request.locale,
+            )
+        except Exception as error:
+            raise HTTPException(
+                status_code=503,
+                detail="The configured intent-analysis provider is unavailable.",
+            ) from error
+
+        assessment = reconcile_intent(intent, payment)
+        return LensAnalysisResponse.model_validate(
+            {
+                "analysis_id": f"lens_{uuid4().hex}",
+                "intent": intent.as_dict(),
+                "payment": payment.as_dict(),
+                **assessment.as_dict(),
+                "provenance": {
+                    "provider": resolved_lens_provider.provider_name,
+                    "model": resolved_lens_provider.model_name,
+                    "mode": resolved_lens_provider.mode,
+                    "ai_is_authority": False,
+                    "deterministic_policy": "lens-reconciliation-v1",
+                },
+            }
+        )
 
     @application.post(
         "/v1/fees/upi/assess",

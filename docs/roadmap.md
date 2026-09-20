@@ -24,18 +24,20 @@ Exit condition: two tenants cannot read one another's records, invalid
 contracts are rejected before storage, every submitted run receives the exact
 deterministic verdict, and every mismatch opens a durable evidence case.
 
-## Milestone 2 — Gemini context interpreter (next)
+## Milestone 2 — Gemini context interpreter (in progress)
 
-- Structured input/output schemas.
-- Prompt-injection boundary and redaction.
-- `SEND` versus `RECEIVE_EXPECTED` contradiction detection.
-- Evidence spans, confidence, and explicit uncertainty.
-- No autonomous payment decision.
+- Structured input/output schemas. **Complete for text intent.**
+- Prompt-injection boundary and strict model output. **Complete; redaction next.**
+- `SEND` versus `RECEIVE_EXPECTED` contradiction detection. **Complete.**
+- Vertex AI provider plus honest no-cost local mode. **Complete; live cloud call pending credentials.**
+- Evidence spans, evaluation dataset, confidence calibration and explicit uncertainty. **Remaining.**
+- No autonomous payment decision. **Enforced by deterministic reconciliation.**
 
 ## Milestone 3 — Consumer Lens and bank SDK demo
 
-- Firebase web application.
-- User-initiated message, QR, link, invoice, and screenshot check.
+- Beginner-facing Lens workflow in the existing Control Room. **Complete for text + decoded UPI URI.**
+- Firebase web application. **Remaining.**
+- User-initiated QR image, link, invoice, and screenshot check. **Remaining.**
 - Bank-controlled confirmation screen.
 - PAC creation and integrity verification.
 - Honest coverage levels in the UI.

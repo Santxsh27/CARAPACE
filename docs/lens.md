@@ -1,0 +1,91 @@
+# CARAPACE Lens
+
+Lens is the consumer entry point for **Check before you pay**. It accepts the
+surrounding message and a decoded UPI payment URI, then separates two jobs:
+
+1. an intent provider extracts what the message appears to promise;
+2. deterministic code parses the real UPI fields and applies named
+   contradiction rules.
+
+This separation is the security boundary. Gemini can understand phrases such
+as “we are refunding you,” but it cannot rewrite the payee, amount, direction,
+or final CARAPACE decision.
+
+## Working example
+
+```text
+Message: ABC Support says it will refund INR 4,999 and asks for a UPI PIN.
+UPI URI: upi://pay?pa=rktraders@upi&pn=R%20K%20Traders&am=4999&cu=INR
+
+AI/local extraction: RECEIVE_EXPECTED, INR 4,999, ABC Support
+Canonical URI:       SEND, INR 4,999, R K Traders
+Deterministic result: STOP
+```
+
+The result names the exact reasons: direction contradiction, payee identity
+contradiction, and PIN-to-receive deception. It does not output a mysterious
+fraud percentage.
+
+## Run the local no-cost mode
+
+The Docker configuration defaults to `CARAPACE_AI_PROVIDER=local`. This uses a
+small deterministic extraction fixture and returns provenance
+`mode=LOCAL_RULES`. It makes the complete workflow reproducible with no cloud
+account and never pretends to be Gemini.
+
+```bash
+curl -s http://localhost:8080/v1/lens/analyze \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "message_text": "ABC Support: We are refunding INR 4,999. Enter your UPI PIN now.",
+    "payment_uri": "upi://pay?pa=rktraders@upi&pn=R%20K%20Traders&am=4999&cu=INR"
+  }'
+```
+
+## Use Gemini on Vertex AI
+
+The same endpoint can use Gemini without changing the deterministic policy:
+
+```text
+CARAPACE_AI_PROVIDER=vertex
+GOOGLE_CLOUD_PROJECT=your-project-id
+GOOGLE_CLOUD_LOCATION=global
+CARAPACE_GEMINI_MODEL=gemini-2.5-flash
+```
+
+Use Application Default Credentials locally or a least-privilege service
+identity on Cloud Run. Do not commit credential files. Vertex mode fails closed
+if Gemini is unavailable; it does not silently label local rules as AI.
+
+The Vertex adapter uses:
+
+- a system instruction that treats message content as untrusted data;
+- temperature zero;
+- a strict JSON schema;
+- Pydantic validation;
+- provider/model/mode provenance in every response;
+- deterministic reconciliation after model output.
+
+## Current and next boundary
+
+Implemented now:
+
+- text story input;
+- decoded `upi://pay` and `upi://mandate` input;
+- structured local or Vertex intent extraction;
+- exact amount, direction and payee parsing;
+- direction, amount, identity, PIN and pressure findings;
+- `ALLOW`, `CAUTION`, `STOP`, or `UNVERIFIED` decisions;
+- beginner-facing Control Room workflow and API tests.
+
+Next:
+
+- camera/upload QR decoding;
+- Document AI invoice extraction;
+- Web Risk signal ingestion;
+- evidence spans and evaluation dataset;
+- rate limiting, abuse controls and consented retention;
+- bank-canonical payee resolution through PayShield.
+
+An `ALLOW` result means only that the named checks found no contradiction. It
+is never a guarantee that a recipient is honest.

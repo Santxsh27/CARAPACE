@@ -58,9 +58,11 @@ reproduce -> explain -> patch proposal -> regression -> human approval
 
 Milestones 0 and 1 implement the PAC, execution evidence, lifecycle machine,
 request digest, deterministic verifier, authenticated REST boundary,
-tenant-isolated storage, and automatic evidence-case creation. Later components
-must communicate through these versioned schemas and API contracts rather than
-bypassing them.
+tenant-isolated storage, and automatic evidence-case creation. The first Lens
+slice additionally implements a bounded Vertex Gemini adapter, an honestly
+labelled local fallback, canonical UPI URI parsing and deterministic semantic
+reconciliation. Later components must communicate through these versioned
+schemas and API contracts rather than bypassing them.
 
 ```text
 Authenticated tenant
@@ -82,6 +84,18 @@ Deterministic verifier
  MATCH    MISMATCH
    |         |
 Stored run   +--> Stored critical evidence case
+```
+
+The public Lens path is intentionally separate:
+
+```text
+Untrusted message -> structured intent extraction (Gemini or labelled local mode)
+Decoded UPI URI   -> deterministic canonical parser
+                         |
+                         v
+               deterministic contradiction policy
+                         |
+              ALLOW / CAUTION / STOP / UNVERIFIED
 ```
 
 The current SQLite adapter makes this flow real and persistent on a developer

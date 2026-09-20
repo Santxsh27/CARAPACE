@@ -81,6 +81,42 @@ class AssuranceApiTests(unittest.TestCase):
             response.json()["violations"],
         )
 
+    def test_public_lens_finds_exact_refund_payment_contradiction(self) -> None:
+        response = self.client.post(
+            "/v1/lens/analyze",
+            json={
+                "message_text": (
+                    "ABC Support: Urgent! We are refunding ₹4,999. "
+                    "Scan this QR and enter your UPI PIN now."
+                ),
+                "payment_uri": (
+                    "upi://pay?pa=rktraders@upi&pn=R%20K%20Traders"
+                    "&am=4999&cu=INR"
+                ),
+                "locale": "en-IN",
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        body = response.json()
+        self.assertEqual(body["decision"], "STOP")
+        self.assertEqual(body["intent"]["expected_direction"], "RECEIVE_EXPECTED")
+        self.assertEqual(body["payment"]["direction"], "SEND")
+        self.assertEqual(body["payment"]["amount_minor"], 499_900)
+        self.assertEqual(body["provenance"]["mode"], "LOCAL_RULES")
+        self.assertFalse(body["provenance"]["ai_is_authority"])
+        codes = {finding["code"] for finding in body["findings"]}
+        self.assertIn("DIRECTION_CONTRADICTION", codes)
+
+    def test_lens_rejects_non_upi_request(self) -> None:
+        response = self.client.post(
+            "/v1/lens/analyze",
+            json={
+                "message_text": "Please pay ₹100",
+                "payment_uri": "https://example.com/pay",
+            },
+        )
+        self.assertEqual(response.status_code, 422)
+
     def test_contract_is_isolated_by_tenant(self) -> None:
         contract = self.create_contract()
         own_response = self.client.get(

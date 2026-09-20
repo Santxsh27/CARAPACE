@@ -189,3 +189,54 @@ class FeeShieldResponse(StrictModel):
     violations: list[str]
     explanation: str
     verdict: Literal["COMPLIANT", "VIOLATION"]
+
+
+class LensAnalysisRequest(StrictModel):
+    message_text: str = Field(min_length=3, max_length=8_000)
+    payment_uri: str = Field(min_length=10, max_length=2_048)
+    locale: str = Field(default="en-IN", min_length=2, max_length=20)
+
+
+class LensIntentResponse(StrictModel):
+    expected_direction: Literal["SEND", "REQUEST", "RECEIVE_EXPECTED", "UNKNOWN"]
+    expected_amount_minor: int | None
+    currency: str
+    claimed_entity: str | None
+    urgency_detected: bool
+    asks_for_pin_to_receive: bool
+    summary: str
+
+
+class LensPaymentResponse(StrictModel):
+    direction: Literal["SEND", "REQUEST", "RECEIVE_EXPECTED", "UNKNOWN"]
+    amount_minor: int | None
+    currency: str
+    payee_id: str
+    payee_name: str | None
+    note: str | None
+    source: Literal["UPI_URI"]
+
+
+class LensFindingResponse(StrictModel):
+    code: str
+    severity: Literal["MEDIUM", "HIGH", "CRITICAL"]
+    title: str
+    explanation: str
+
+
+class LensProvenanceResponse(StrictModel):
+    provider: str
+    model: str
+    mode: Literal["LOCAL_RULES", "VERTEX_AI"]
+    ai_is_authority: Literal[False] = False
+    deterministic_policy: Literal["lens-reconciliation-v1"] = "lens-reconciliation-v1"
+
+
+class LensAnalysisResponse(StrictModel):
+    analysis_id: str
+    intent: LensIntentResponse
+    payment: LensPaymentResponse
+    decision: Literal["ALLOW", "CAUTION", "STOP", "UNVERIFIED"]
+    findings: list[LensFindingResponse]
+    plain_language_result: str
+    provenance: LensProvenanceResponse

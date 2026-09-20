@@ -29,13 +29,18 @@ dashboard. It implements:
 - a visual control room showing raw ledger rows, contract binding, and verdicts;
 - FeeShield: deterministic UPI MDR calculation, customer-surcharge protection,
   and merchant-settlement reconciliation for the October 2026 India policy;
+- CARAPACE Lens: a working message-plus-UPI-request workflow that finds exact
+  direction, amount, payee, PIN and pressure contradictions;
+- a Gemini on Vertex AI structured-output adapter with prompt-injection
+  boundaries and explicit provider/model provenance;
+- an honestly labelled no-cost local intent provider so the demo remains fully
+  runnable without cloud credentials;
 - executable unit/API tests and command-line demonstrations.
 
-Gemini integration, the consumer Lens, the bank SDK, the remaining Ledger
-Witness stages, ProofOps, and the Firebase experience will be added on top of
-these stable contracts.
-Gemini will produce proposed structured data and code changes; it will never
-replace the verifier implemented here.
+Camera QR decoding, Document AI, BigQuery analytics, the bank SDK, the remaining
+Ledger Witness stages, ProofOps, and the Firebase experience will be added on
+top of these stable contracts. Gemini produces proposed structured data and
+code changes; it never replaces the verifier implemented here.
 
 ## Open in Visual Studio Code
 
@@ -116,6 +121,12 @@ real CARAPACE API and shows the deterministic violation. The policy and
 production boundary are documented in
 [docs/fee-shield.md](docs/fee-shield.md).
 
+The first section is now **CARAPACE Lens**. Run the prefilled refund example to
+see a promised incoming refund compared with an actual outgoing UPI payment.
+The local demo labels its extraction as `LOCAL_RULES`; configure Vertex AI to
+use real Gemini structured output. See [docs/lens.md](docs/lens.md) and
+[docs/google-cloud-alignment.md](docs/google-cloud-alignment.md).
+
 ## Run without Docker
 
 Python 3.11 or newer is required.
@@ -141,6 +152,7 @@ carapace/
 ├── examples/                   Reproducible valid and failing payment evidence
 ├── schemas/                    Language-neutral JSON contracts
 ├── src/carapace_api/           Tenant-isolated assurance API and evidence store
+├── src/carapace_ai/            Gemini provider boundary and local demo provider
 ├── src/carapace_core/          Deterministic trust core
 ├── src/carapace_integrations/  Bank adapters and isolated local demo
 ├── tests/                      Executable acceptance tests
