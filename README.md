@@ -36,6 +36,11 @@ dashboard. It implements:
 - a Gemini on Vertex AI structured-output adapter with prompt-injection
   boundaries, sensitive-input redaction, explicit provider/model provenance,
   and a visible runtime-status endpoint;
+- a Gemini Developer API adapter for genuine AI Studio free-tier development,
+  with the API key confined to the backend;
+- ProofOps evidence-grounded incident reasoning and a Counterfactual Safety
+  Search algorithm that tests the smallest allowlisted repair hypothesis
+  against every deterministic financial invariant;
 - an honestly labelled no-cost local intent provider so the demo remains fully
   runnable without cloud credentials;
 - executable unit/API tests and command-line demonstrations.
@@ -136,6 +141,12 @@ and place the UPI request into the same evidence-backed comparison.
 The local demo labels its extraction as `LOCAL_RULES`; configure Vertex AI to
 use real Gemini structured output. See [docs/lens.md](docs/lens.md) and
 [docs/google-cloud-alignment.md](docs/google-cloud-alignment.md).
+
+After the bound duplicate-debit experiment, the Control Room now automatically
+runs ProofOps. It shows the model/provider that ranked the root-cause
+hypothesis, the generated regression scenarios, the number of isolated
+counterfactual experiments, and the minimal intervention independently proven
+to restore the contracts. See [docs/proofops.md](docs/proofops.md).
 
 ## Run without Docker
 

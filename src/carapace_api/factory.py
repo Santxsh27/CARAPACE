@@ -8,13 +8,15 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, HTTPException, status
 from starlette.concurrency import run_in_threadpool
 
-from carapace_ai.factory import create_lens_provider
+from carapace_ai.factory import create_incident_reasoning_provider, create_lens_provider
+from carapace_ai.incident_reasoning import build_minimised_incident_context
 from carapace_ai.provider import LensIntentProvider
 from carapace_ai.redaction import redact_for_model
 from carapace_core.canonical import request_digest
 from carapace_core.fee_policy import assess_upi_charge
 from carapace_core.lens import LensInputError, parse_upi_payment_uri, reconcile_intent
 from carapace_core.receipt import build_trust_receipt
+from carapace_core.counterfactual import search_minimal_repair
 from carapace_core.verifier import verify_payment
 
 from .auth import TenantAuthenticator, TenantContext
@@ -30,6 +32,7 @@ from .models import (
     LensAnalysisRequest,
     LensAnalysisResponse,
     PaymentAssuranceContract,
+    ProofOpsAnalysisResponse,
     RunResponse,
     TrustReceiptResponse,
     VerificationReportResponse,
@@ -37,7 +40,7 @@ from .models import (
 from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundError
 
 
-VERSION = "0.6.0"
+VERSION = "0.7.0"
 
 
 def create_app(
@@ -50,6 +53,9 @@ def create_app(
     resolved_store.initialize()
     authenticate = TenantAuthenticator(resolved_settings)
     resolved_lens_provider = lens_provider or create_lens_provider(resolved_settings)
+    resolved_incident_provider = create_incident_reasoning_provider(
+        resolved_lens_provider
+    )
 
     application = FastAPI(
         title="CARAPACE Assurance API",
@@ -67,16 +73,26 @@ def create_app(
     )
     async def ai_status() -> AIStatusResponse:
         is_vertex = resolved_lens_provider.mode == "VERTEX_AI"
+        is_gemini_api = resolved_lens_provider.mode == "GEMINI_API"
         return AIStatusResponse(
             provider=resolved_lens_provider.provider_name,
             model=resolved_lens_provider.model_name,
             mode=resolved_lens_provider.mode,
-            status="VERTEX_CONFIGURED" if is_vertex else "LOCAL_READY",
+            status=(
+                "VERTEX_CONFIGURED"
+                if is_vertex
+                else "GEMINI_API_CONFIGURED"
+                if is_gemini_api
+                else "LOCAL_READY"
+            ),
             cloud_project_configured=is_vertex,
+            external_ai_configured=is_vertex or is_gemini_api,
             message=(
                 "Gemini on Vertex AI is configured. Model calls remain advisory; deterministic policy decides."
                 if is_vertex
-                else "Local no-cost intent rules are active. Configure Vertex AI to use live Gemini."
+                else "Gemini Developer API is configured through AI Studio. Model calls remain advisory; deterministic policy decides."
+                if is_gemini_api
+                else "Local no-cost rules are active. Configure the Gemini API or Vertex AI for live model reasoning."
             ),
         )
 
@@ -281,5 +297,64 @@ def create_app(
         except StorageNotFoundError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         return EvidenceCaseResponse.model_validate(payload)
+
+    @application.post(
+        "/v1/cases/{case_id}/analyze",
+        response_model=ProofOpsAnalysisResponse,
+        tags=["proofops"],
+    )
+    async def analyze_case(
+        case_id: str,
+        tenant: TenantContext = Depends(authenticate),
+    ) -> ProofOpsAnalysisResponse:
+        try:
+            case = resolved_store.get_case(tenant.tenant_id, case_id)
+            run = resolved_store.get_run(tenant.tenant_id, case["run_id"])
+            contract = resolved_store.get_contract(
+                tenant.tenant_id, case["contract_id"]
+            )
+        except StorageNotFoundError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+        context = build_minimised_incident_context(contract, run, case)
+        try:
+            hypothesis = await run_in_threadpool(
+                resolved_incident_provider.analyze, context
+            )
+        except Exception as error:
+            raise HTTPException(
+                status_code=503,
+                detail="The configured incident-reasoning provider is unavailable.",
+            ) from error
+
+        search_result = search_minimal_repair(
+            contract,
+            run["evidence"],
+            hypothesis.ranked_interventions,
+        )
+        repaired = search_result.counterfactual_verdict == "MATCH"
+        return ProofOpsAnalysisResponse.model_validate(
+            {
+                "analysis_id": f"proofops_{uuid4().hex}",
+                "case_id": case_id,
+                "provider": resolved_incident_provider.provider_name,
+                "model": resolved_incident_provider.model_name,
+                "mode": resolved_incident_provider.mode,
+                "root_cause_summary": hypothesis.root_cause_summary,
+                "suspected_component": hypothesis.suspected_component,
+                "confidence": hypothesis.confidence,
+                "evidence_codes": hypothesis.evidence_codes,
+                "patch_strategy": hypothesis.patch_strategy,
+                "regression_scenarios": [
+                    scenario.model_dump() for scenario in hypothesis.regression_scenarios
+                ],
+                "counterfactual_search": search_result.as_dict(),
+                "verification_status": (
+                    "COUNTERFACTUAL_VERIFIED" if repaired else "NO_SAFE_REPAIR_FOUND"
+                ),
+                "release_authorized": False,
+                "human_approval_required": True,
+            }
+        )
 
     return application

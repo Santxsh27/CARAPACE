@@ -18,6 +18,7 @@ class Settings:
     database_path: Path
     tenant_keys: Mapping[str, str]
     ai_provider: str = "local"
+    google_api_key: str | None = None
     google_cloud_project: str | None = None
     google_cloud_location: str = "global"
     gemini_model: str = "gemini-2.5-flash"
@@ -52,6 +53,7 @@ class Settings:
             database_path=database_path,
             tenant_keys=tenant_keys,
             ai_provider=os.getenv("CARAPACE_AI_PROVIDER", "local").strip().lower(),
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
             google_cloud_project=os.getenv("GOOGLE_CLOUD_PROJECT"),
             google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
             gemini_model=os.getenv("CARAPACE_GEMINI_MODEL", "gemini-2.5-flash"),

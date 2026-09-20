@@ -61,6 +61,7 @@ class AssuranceApiTests(unittest.TestCase):
         self.assertEqual(response.json()["mode"], "LOCAL_RULES")
         self.assertEqual(response.json()["status"], "LOCAL_READY")
         self.assertFalse(response.json()["cloud_project_configured"])
+        self.assertFalse(response.json()["external_ai_configured"])
 
     def test_contract_endpoint_requires_authentication(self) -> None:
         response = self.client.post(
@@ -220,6 +221,27 @@ class AssuranceApiTests(unittest.TestCase):
         self.assertIn(
             "AT_MOST_ONE_POSTED_DEBIT", case.json()["failed_checks"]
         )
+
+        analysis = self.client.post(
+            f"/v1/cases/{body['case_id']}/analyze", headers=self.bank_a
+        )
+        self.assertEqual(analysis.status_code, 200, analysis.text)
+        proof = analysis.json()
+        self.assertEqual(proof["verification_status"], "COUNTERFACTUAL_VERIFIED")
+        self.assertEqual(
+            proof["counterfactual_search"]["counterfactual_verdict"], "MATCH"
+        )
+        self.assertEqual(
+            proof["counterfactual_search"]["minimal_interventions"],
+            ["DEDUPLICATE_LOGICAL_DEBITS"],
+        )
+        self.assertFalse(proof["release_authorized"])
+        self.assertTrue(proof["human_approval_required"])
+
+        hidden_analysis = self.client.post(
+            f"/v1/cases/{body['case_id']}/analyze", headers=self.bank_b
+        )
+        self.assertEqual(hidden_analysis.status_code, 404)
 
     def test_duplicate_run_id_is_rejected(self) -> None:
         self.create_contract()

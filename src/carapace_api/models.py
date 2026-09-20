@@ -263,7 +263,7 @@ class LensFindingResponse(StrictModel):
 class LensProvenanceResponse(StrictModel):
     provider: str
     model: str
-    mode: Literal["LOCAL_RULES", "VERTEX_AI"]
+    mode: Literal["LOCAL_RULES", "GEMINI_API", "VERTEX_AI"]
     ai_is_authority: Literal[False] = False
     input_redaction_applied: bool
     deterministic_policy: Literal["lens-reconciliation-v1"] = "lens-reconciliation-v1"
@@ -282,7 +282,40 @@ class LensAnalysisResponse(StrictModel):
 class AIStatusResponse(StrictModel):
     provider: str
     model: str
-    mode: Literal["LOCAL_RULES", "VERTEX_AI"]
-    status: Literal["LOCAL_READY", "VERTEX_CONFIGURED"]
+    mode: Literal["LOCAL_RULES", "GEMINI_API", "VERTEX_AI"]
+    status: Literal["LOCAL_READY", "GEMINI_API_CONFIGURED", "VERTEX_CONFIGURED"]
     cloud_project_configured: bool
+    external_ai_configured: bool
     message: str
+
+
+class DiagnosticScenarioResponse(StrictModel):
+    name: str
+    fault_injection: str
+    expected_contract: str
+
+
+class CounterfactualSearchResponse(StrictModel):
+    original_verdict: Literal["MATCH", "MISMATCH"]
+    counterfactual_verdict: Literal["MATCH", "MISMATCH"]
+    minimal_interventions: list[str]
+    experiments_run: int = Field(ge=0)
+    remaining_failed_checks: list[str]
+
+
+class ProofOpsAnalysisResponse(StrictModel):
+    analysis_id: str
+    case_id: str
+    provider: str
+    model: str
+    mode: Literal["LOCAL_RULES", "GEMINI_API", "VERTEX_AI"]
+    root_cause_summary: str
+    suspected_component: str
+    confidence: float = Field(ge=0, le=1)
+    evidence_codes: list[str]
+    patch_strategy: str
+    regression_scenarios: list[DiagnosticScenarioResponse]
+    counterfactual_search: CounterfactualSearchResponse
+    verification_status: Literal["COUNTERFACTUAL_VERIFIED", "NO_SAFE_REPAIR_FOUND"]
+    release_authorized: Literal[False] = False
+    human_approval_required: Literal[True] = True

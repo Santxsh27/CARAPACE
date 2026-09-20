@@ -53,6 +53,23 @@ GOOGLE_CLOUD_LOCATION=global
 CARAPACE_GEMINI_MODEL=gemini-2.5-flash
 ```
 
+## Use the Gemini Developer API free tier
+
+During development, the same hardened boundary can call Gemini through Google
+AI Studio without waiting for event Cloud credits:
+
+```text
+CARAPACE_AI_PROVIDER=gemini
+GOOGLE_API_KEY=your-local-ai-studio-key
+CARAPACE_GEMINI_MODEL=gemini-2.5-flash
+```
+
+Put these values in an untracked `.env` file. The API key must never appear in
+browser JavaScript, Git history, screenshots or logs; Docker passes it only to
+the backend API. AI Studio and Vertex use the same strict schema and
+deterministic reconciliation, so moving to Vertex later is configuration—not a
+product rewrite.
+
 Use Application Default Credentials locally or a least-privilege service
 identity on Cloud Run. Do not commit credential files. Vertex mode fails closed
 if Gemini is unavailable; it does not silently label local rules as AI.
