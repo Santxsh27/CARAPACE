@@ -9,7 +9,11 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from starlette.concurrency import run_in_threadpool
 
 from carapace_ai.factory import create_incident_reasoning_provider, create_lens_provider
-from carapace_ai.incident_reasoning import build_minimised_incident_context
+from carapace_ai.incident_reasoning import (
+    IncidentReasoningProvider,
+    LocalIncidentReasoningProvider,
+    build_minimised_incident_context,
+)
 from carapace_ai.provider import LensIntentProvider
 from carapace_ai.redaction import redact_for_model
 from carapace_core.canonical import request_digest
@@ -47,13 +51,14 @@ def create_app(
     settings: Settings | None = None,
     store: SQLiteEvidenceStore | None = None,
     lens_provider: LensIntentProvider | None = None,
+    incident_provider: IncidentReasoningProvider | None = None,
 ) -> FastAPI:
     resolved_settings = settings or Settings.from_env()
     resolved_store = store or SQLiteEvidenceStore(resolved_settings.database_path)
     resolved_store.initialize()
     authenticate = TenantAuthenticator(resolved_settings)
     resolved_lens_provider = lens_provider or create_lens_provider(resolved_settings)
-    resolved_incident_provider = create_incident_reasoning_provider(
+    resolved_incident_provider = incident_provider or create_incident_reasoning_provider(
         resolved_lens_provider
     )
 
@@ -317,15 +322,22 @@ def create_app(
             raise HTTPException(status_code=404, detail=str(error)) from error
 
         context = build_minimised_incident_context(contract, run, case)
+        analysis_provider = resolved_incident_provider
         try:
             hypothesis = await run_in_threadpool(
-                resolved_incident_provider.analyze, context
+                analysis_provider.analyze, context
             )
         except Exception as error:
-            raise HTTPException(
-                status_code=503,
-                detail="The configured incident-reasoning provider is unavailable.",
-            ) from error
+            if analysis_provider.mode == "LOCAL_RULES":
+                raise HTTPException(
+                    status_code=503,
+                    detail="The configured incident-reasoning provider is unavailable.",
+                ) from error
+            # External model capacity must not make deterministic incident
+            # verification unavailable.  The response identifies this honest
+            # fallback as LOCAL_RULES rather than pretending Gemini answered.
+            analysis_provider = LocalIncidentReasoningProvider()
+            hypothesis = await run_in_threadpool(analysis_provider.analyze, context)
 
         search_result = search_minimal_repair(
             contract,
@@ -337,9 +349,9 @@ def create_app(
             {
                 "analysis_id": f"proofops_{uuid4().hex}",
                 "case_id": case_id,
-                "provider": resolved_incident_provider.provider_name,
-                "model": resolved_incident_provider.model_name,
-                "mode": resolved_incident_provider.mode,
+                "provider": analysis_provider.provider_name,
+                "model": analysis_provider.model_name,
+                "mode": analysis_provider.mode,
                 "root_cause_summary": hypothesis.root_cause_summary,
                 "suspected_component": hypothesis.suspected_component,
                 "confidence": hypothesis.confidence,

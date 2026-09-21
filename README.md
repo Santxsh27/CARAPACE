@@ -54,8 +54,8 @@ It includes a nonce, request digest, idempotency key, lifecycle state and eviden
 | **Ledger Witness demo** | Reads authoritative artificial-money rows from Google’s official Bank of Anthos sample ledger; it does not scrape webpage pixels. |
 | **Trust Receipts** | Shows payment fields bound, bank posting matched, settlement pending/confirmed, mismatch or unverified. |
 | **FeeShield** | Deterministically calculates versioned UPI MDR policy and finds hidden customer surcharges or incorrect merchant deductions. |
-| **ProofOps** | Converts a confirmed mismatch into a bounded AI hypothesis, isolated counterfactual safety search and regression scenarios. |
-| **Control Room** | A visual local website that connects the bank, raw ledger rows, Promise, rules, receipts and ProofOps. |
+| **ProofOps** | Converts a confirmed mismatch into a bounded AI hypothesis, isolated counterfactual safety search and regression scenarios. If external AI is temporarily unavailable, it truthfully reports and uses the local bounded fallback rather than breaking verification or pretending Gemini answered. |
+| **Control Room** | A responsive spatial Assurance Flow connects the customer promise, bank, ledger fault, AI reasoning, deterministic repair proof and human approval. The detailed Lens, raw ledger rows, FeeShield and evidence views remain available below it. |
 
 All banking data and money in the current build are artificial and run locally through Docker.
 
@@ -204,11 +204,11 @@ The Bank of Anthos demo login is `testuser` / `bankofanthos`. It is a Google sam
 
 In the Control Room:
 
-1. Try **Check before paying** in Lens.
-2. Run the **FeeShield** policy check.
-3. Click **Run the bound safety test**.
-4. Read the Payment Promise → ledger row → rule mapping.
-5. Read the ProofOps counterfactual result below it.
+1. Click **Run live assurance story** to watch the complete evidence-backed flow.
+2. Review the plain-English result and the `MISMATCH → MATCH` deterministic replay.
+3. Try **Check before paying** in Lens.
+4. Run the **FeeShield** policy check.
+5. Inspect the Bank of Anthos ledger rows and the full ProofOps evidence below.
 
 ### Run the automated tests
 
@@ -217,7 +217,7 @@ cd CARAPACE
 docker compose --profile test run --rm --build tests
 ```
 
-The suite currently has 53 automated tests covering contracts, verification, tenant isolation, Lens safety boundaries, Gemini adapters, FeeShield, Bank of Anthos mapping, Trust Receipts and Counterfactual Safety Search.
+The suite currently has 54 automated tests covering contracts, verification, tenant isolation, Lens safety boundaries, Gemini adapters and honest provider fallback, FeeShield, Bank of Anthos mapping, Trust Receipts and Counterfactual Safety Search.
 
 ### Stop the local environment
 

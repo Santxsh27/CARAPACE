@@ -18,6 +18,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .anthos_demo import run_demo
 from .bank_of_anthos import BankOfAnthosLedger
+from .control_room_future import ASSURANCE_FLOW_HTML, FUTURE_CSS, FUTURE_JS
 
 
 LOGGER = logging.getLogger(__name__)
@@ -149,8 +150,28 @@ def create_demo_app() -> FastAPI:
 
     @application.get("/", response_class=HTMLResponse)
     async def home() -> HTMLResponse:
-        page = DEMO_HTML.replace("__BANK_URL_HTML__",html.escape(bank_public_url,quote=True)).replace("__BANK_URL_JSON__",json.dumps(bank_public_url))
-        return HTMLResponse(page,headers={"Cache-Control":"no-store","Content-Security-Policy":"default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-src http://localhost:8081 http://127.0.0.1:8081"})
+        page = (
+            DEMO_HTML
+            .replace("</style>", f"{FUTURE_CSS}</style>")
+            .replace("<main>", f"<main>{ASSURANCE_FLOW_HTML}", 1)
+            .replace("</body>", f"{FUTURE_JS}</body>")
+            .replace("__BANK_URL_HTML__", html.escape(bank_public_url, quote=True))
+            .replace("__BANK_URL_JSON__", json.dumps(bank_public_url))
+        )
+        return HTMLResponse(
+            page,
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Security-Policy": (
+                    "default-src 'self'; "
+                    "style-src 'unsafe-inline'; "
+                    "script-src 'unsafe-inline' https://cdn.jsdelivr.net; "
+                    "connect-src 'self' https://cdn.jsdelivr.net; "
+                    "img-src 'self' data:; "
+                    "frame-src http://localhost:8081 http://127.0.0.1:8081"
+                ),
+            },
+        )
 
     @application.get("/health")
     async def health() -> dict[str, str]:

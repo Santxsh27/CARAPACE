@@ -14,6 +14,15 @@ from carapace_api.factory import create_app
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class UnavailableExternalIncidentProvider:
+    provider_name = "google-gemini-api"
+    model_name = "gemini-test"
+    mode = "GEMINI_API"
+
+    def analyze(self, context: object) -> object:
+        raise RuntimeError("temporary model capacity error")
+
+
 def load_example(name: str) -> dict:
     with (ROOT / "examples" / name).open("r", encoding="utf-8") as handle:
         return json.load(handle)
@@ -27,6 +36,7 @@ class AssuranceApiTests(unittest.TestCase):
             database_path=Path(self.temporary_directory.name) / "evidence.db",
             tenant_keys={"bank-a": "key-a", "bank-b": "key-b"},
         )
+        self.settings = settings
         self.client = TestClient(create_app(settings=settings))
         self.bank_a = {
             "X-Carapace-Tenant": "bank-a",
@@ -258,6 +268,37 @@ class AssuranceApiTests(unittest.TestCase):
         )
         self.assertEqual(first.status_code, 201)
         self.assertEqual(second.status_code, 409)
+
+    def test_proofops_truthfully_falls_back_when_external_ai_is_unavailable(self) -> None:
+        with TestClient(
+            create_app(
+                settings=self.settings,
+                incident_provider=UnavailableExternalIncidentProvider(),
+            )
+        ) as fallback_client:
+            contract = load_example("payment-promise.json")
+            created = fallback_client.post(
+                "/v1/contracts", json=contract, headers=self.bank_a
+            )
+            self.assertEqual(created.status_code, 201, created.text)
+            evidence = load_example("execution-duplicate-debit.json")
+            run = fallback_client.post(
+                f"/v1/contracts/{evidence['contract_id']}/runs",
+                json=evidence,
+                headers=self.bank_a,
+            )
+            self.assertEqual(run.status_code, 201, run.text)
+            analysis = fallback_client.post(
+                f"/v1/cases/{run.json()['case_id']}/analyze",
+                headers=self.bank_a,
+            )
+
+        self.assertEqual(analysis.status_code, 200, analysis.text)
+        self.assertEqual(analysis.json()["mode"], "LOCAL_RULES")
+        self.assertEqual(analysis.json()["provider"], "carapace-local")
+        self.assertEqual(
+            analysis.json()["verification_status"], "COUNTERFACTUAL_VERIFIED"
+        )
 
 
 if __name__ == "__main__":
