@@ -60,7 +60,7 @@ DEMO_HTML = r"""<!doctype html>
   </style>
 </head>
 <body>
-  <header class="topbar"><div class="topbar-inner"><div class="brand">CARA<span>PACE</span> CONTROL ROOM</div><nav class="toplinks" aria-label="CARAPACE modules"><a href="#lens">Lens</a><a href="#bank">Bank</a><a href="#data">Ledger data</a><a href="#fees">FeeShield</a><a href="#verification">Verification</a><a href="http://localhost:8080/docs" target="_blank" rel="noopener">API docs ↗</a></nav></div></header>
+  <header class="topbar"><div class="topbar-inner"><div class="brand"><i class="ph-fill ph-shield-check"></i><div>CARA<span>PACE</span></div><small>Assurance Flow</small></div><nav class="toplinks" aria-label="CARAPACE modules"><a href="#assurance"><i class="ph ph-wave-sine"></i>Check</a><a href="#bank"><i class="ph ph-credit-card"></i>Payment</a><a href="#data"><i class="ph ph-database"></i>Witness</a><a href="#verification"><i class="ph ph-shield-check"></i>ProofOps</a></nav><div class="system-strip"><div class="system-live"><i class="pulse"></i><b>GEMINI LIVE</b><small>Evidence-bounded AI</small></div><div class="system-live"><i class="pulse"></i><b>All systems online</b><small>Bank · Ledger · AI</small></div><div class="system-avatar">SO</div></div></div></header>
   <main>
     <section class="hero"><div class="hero-main"><div class="eyebrow">Local lab · official Google sample bank · artificial money</div><h1>See the bank. See the data. See the proof.</h1><p class="lead">This workspace makes the connection visible. Use Google’s Bank of Anthos, inspect the exact rows its ledger stored, then watch CARAPACE compare those rows with one customer-approved Payment Promise.</p></div><aside class="hero-side"><h2>The whole story in plain English</h2><ol><li>A customer approves exactly one payment.</li><li>Bank of Anthos records the payment in PostgreSQL.</li><li>CARAPACE reads the server record—not the webpage.</li><li>A forced retry creates a second debit.</li><li>CARAPACE proves the mismatch and opens an incident.</li></ol></aside></section>
     <section class="statusbar" aria-label="Live system status"><div class="status"><small>Official bank website</small><strong><i id="bank-dot" class="dot"></i><span id="bank-status">Checking…</span></strong></div><div class="status"><small>Bank ledger database</small><strong><i id="ledger-dot" class="dot"></i><span id="ledger-status">Checking…</span></strong></div><div class="status"><small>CARAPACE assurance API</small><strong><i id="api-dot" class="dot"></i><span id="api-status">Checking…</span></strong></div><div class="status"><small>Money and environment</small><strong>Artificial · your Mac only</strong></div></section>
@@ -152,6 +152,7 @@ def create_demo_app() -> FastAPI:
     async def home() -> HTMLResponse:
         page = (
             DEMO_HTML
+            .replace("</head>", '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css"></head>')
             .replace("</style>", f"{FUTURE_CSS}</style>")
             .replace("<main>", f"<main>{ASSURANCE_FLOW_HTML}", 1)
             .replace("</body>", f"{FUTURE_JS}</body>")
@@ -164,7 +165,8 @@ def create_demo_app() -> FastAPI:
                 "Cache-Control": "no-store",
                 "Content-Security-Policy": (
                     "default-src 'self'; "
-                    "style-src 'unsafe-inline'; "
+                    "style-src 'unsafe-inline' https://cdn.jsdelivr.net; "
+                    "font-src 'self' https://cdn.jsdelivr.net; "
                     "script-src 'unsafe-inline' https://cdn.jsdelivr.net; "
                     "connect-src 'self' https://cdn.jsdelivr.net; "
                     "img-src 'self' data:; "
