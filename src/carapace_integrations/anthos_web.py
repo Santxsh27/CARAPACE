@@ -7,13 +7,14 @@ import json
 import logging
 import os
 from functools import partial
+from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from starlette.concurrency import run_in_threadpool
 
 from .anthos_demo import run_demo
@@ -146,6 +147,7 @@ def create_demo_app() -> FastAPI:
     api_key = os.getenv("CARAPACE_API_KEY", "local-demo-key-change-me")
     bindings: dict[int, dict[str, str | None]] = {}
     ledger = BankOfAnthosLedger(database_url)
+    depth_environment = Path(__file__).parent / "assets" / "carapace-depth-environment.png"
     application = FastAPI(title="CARAPACE Bank of Anthos Control Room",docs_url=None,redoc_url=None,openapi_url=None)
 
     @application.get("/", response_class=HTMLResponse)
@@ -174,6 +176,10 @@ def create_demo_app() -> FastAPI:
                 ),
             },
         )
+
+    @application.get("/assets/carapace-depth-environment.png", include_in_schema=False)
+    async def carapace_depth_environment() -> FileResponse:
+        return FileResponse(depth_environment, media_type="image/png")
 
     @application.get("/health")
     async def health() -> dict[str, str]:

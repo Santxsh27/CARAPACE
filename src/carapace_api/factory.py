@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -20,6 +21,10 @@ from carapace_core.canonical import request_digest
 from carapace_core.fee_policy import assess_upi_charge
 from carapace_core.lens import LensInputError, parse_upi_payment_uri, reconcile_intent
 from carapace_core.receipt import build_trust_receipt
+from carapace_core.release_passport import (
+    build_release_passport,
+    verify_release_passport,
+)
 from carapace_core.counterfactual import search_minimal_repair
 from carapace_core.verifier import verify_payment
 
@@ -37,6 +42,9 @@ from .models import (
     LensAnalysisResponse,
     PaymentAssuranceContract,
     ProofOpsAnalysisResponse,
+    ProofOpsApprovalRequest,
+    ProofOpsApprovalResponse,
+    ReleasePassportResponse,
     RunResponse,
     TrustReceiptResponse,
     VerificationReportResponse,
@@ -44,7 +52,7 @@ from .models import (
 from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundError
 
 
-VERSION = "0.7.0"
+VERSION = "0.8.0"
 
 
 def create_app(
@@ -345,8 +353,7 @@ def create_app(
             hypothesis.ranked_interventions,
         )
         repaired = search_result.counterfactual_verdict == "MATCH"
-        return ProofOpsAnalysisResponse.model_validate(
-            {
+        analysis_payload = {
                 "analysis_id": f"proofops_{uuid4().hex}",
                 "case_id": case_id,
                 "provider": analysis_provider.provider_name,
@@ -367,6 +374,99 @@ def create_app(
                 "release_authorized": False,
                 "human_approval_required": True,
             }
+        try:
+            resolved_store.put_proofops_analysis(
+                tenant.tenant_id, analysis_payload
+            )
+        except StorageConflictError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return ProofOpsAnalysisResponse.model_validate(analysis_payload)
+
+    @application.post(
+        "/v1/cases/{case_id}/approve",
+        response_model=ProofOpsApprovalResponse,
+        tags=["proofops"],
+    )
+    async def decide_verified_repair(
+        case_id: str,
+        request: ProofOpsApprovalRequest,
+        tenant: TenantContext = Depends(authenticate),
+    ) -> ProofOpsApprovalResponse:
+        try:
+            case = resolved_store.get_case(tenant.tenant_id, case_id)
+            analysis = resolved_store.get_proofops_analysis(
+                tenant.tenant_id, request.analysis_id
+            )
+        except StorageNotFoundError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        if analysis["case_id"] != case_id:
+            raise HTTPException(
+                status_code=422,
+                detail="analysis does not belong to this evidence case",
+            )
+        if (
+            request.decision == "APPROVE"
+            and analysis["verification_status"] != "COUNTERFACTUAL_VERIFIED"
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="an unverified repair cannot be approved for release",
+            )
+
+        approval = {
+            "approval_id": f"approval_{uuid4().hex[:24]}",
+            "case_id": case_id,
+            "analysis_id": request.analysis_id,
+            "reviewer_id": request.reviewer_id,
+            "candidate_reference": request.candidate_reference,
+            "decision": request.decision,
+            "rationale": request.rationale,
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+        }
+        passport = None
+        if request.decision == "APPROVE":
+            passport = build_release_passport(
+                tenant_id=tenant.tenant_id,
+                case=case,
+                analysis=analysis,
+                approval=approval,
+                signing_key=resolved_settings.passport_signing_key(
+                    tenant.tenant_id
+                ),
+            )
+        try:
+            resolved_store.put_approval(tenant.tenant_id, approval, passport)
+        except StorageConflictError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+        response_passport = None
+        if passport is not None:
+            response_passport = {**passport, "signature_valid": True}
+        return ProofOpsApprovalResponse.model_validate(
+            {"approval": approval, "release_passport": response_passport}
+        )
+
+    @application.get(
+        "/v1/release-passports/{passport_id}",
+        response_model=ReleasePassportResponse,
+        tags=["proofops"],
+    )
+    async def get_release_passport(
+        passport_id: str,
+        tenant: TenantContext = Depends(authenticate),
+    ) -> ReleasePassportResponse:
+        try:
+            passport = resolved_store.get_release_passport(
+                tenant.tenant_id, passport_id
+            )
+        except StorageNotFoundError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        signature_valid = verify_release_passport(
+            passport,
+            resolved_settings.passport_signing_key(tenant.tenant_id),
+        )
+        return ReleasePassportResponse.model_validate(
+            {**passport, "signature_valid": signature_valid}
         )
 
     return application

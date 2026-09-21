@@ -108,6 +108,9 @@ curl http://localhost:8080/v1/cases/CASE_ID \
 | `POST` | `/v1/contracts/{contract_id}/runs` | Verify and persist execution evidence |
 | `GET` | `/v1/runs/{run_id}` | Retrieve evidence and exact verdict |
 | `GET` | `/v1/cases/{case_id}` | Retrieve an automatically opened mismatch case |
+| `POST` | `/v1/cases/{case_id}/analyze` | Persist AI hypothesis plus deterministic counterfactual result |
+| `POST` | `/v1/cases/{case_id}/approve` | Record one human release decision and issue a passport only for verified approval |
+| `GET` | `/v1/release-passports/{passport_id}` | Retrieve and cryptographically re-verify a Release Passport |
 
 ## Security properties already enforced
 
@@ -118,7 +121,11 @@ curl http://localhost:8080/v1/cases/CASE_ID \
 - The URL contract ID must match the evidence contract ID.
 - Run IDs cannot be silently overwritten.
 - A mismatch and its evidence case are committed atomically.
+- ProofOps analyses are persisted before they can be approved.
+- A human decision cannot be silently overwritten.
+- Only a verified `MATCH` counterfactual plus explicit approval can produce a Release Passport.
+- Passport tampering is detected by signature verification.
 
-The API does not yet authenticate real bank workloads, verify KMS signatures,
+The API does not yet authenticate real bank workloads, use Cloud KMS signatures,
 or ingest production ledger events. Those are explicit adapters planned after
 the hackathon vertical slice, not behaviours hidden behind a mock success state.

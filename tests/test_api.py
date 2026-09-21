@@ -35,6 +35,10 @@ class AssuranceApiTests(unittest.TestCase):
             environment="test",
             database_path=Path(self.temporary_directory.name) / "evidence.db",
             tenant_keys={"bank-a": "key-a", "bank-b": "key-b"},
+            passport_signing_keys={
+                "bank-a": "bank-a-release-passport-test-key",
+                "bank-b": "bank-b-release-passport-test-key",
+            },
         )
         self.settings = settings
         self.client = TestClient(create_app(settings=settings))
@@ -247,6 +251,49 @@ class AssuranceApiTests(unittest.TestCase):
         )
         self.assertFalse(proof["release_authorized"])
         self.assertTrue(proof["human_approval_required"])
+
+        approval = self.client.post(
+            f"/v1/cases/{body['case_id']}/approve",
+            headers=self.bank_a,
+            json={
+                "analysis_id": proof["analysis_id"],
+                "reviewer_id": "bank-a-release-manager",
+                "candidate_reference": "commit-deadbee",
+                "decision": "APPROVE",
+                "rationale": "Deterministic replay passed and the regression scenario is attached.",
+            },
+        )
+        self.assertEqual(approval.status_code, 200, approval.text)
+        passport = approval.json()["release_passport"]
+        self.assertIsNotNone(passport)
+        self.assertTrue(passport["signature_valid"])
+        self.assertEqual(passport["counterfactual_verdict"], "MATCH")
+        self.assertFalse(passport["ai_provenance"]["ai_authorized_release"])
+
+        saved_passport = self.client.get(
+            f"/v1/release-passports/{passport['passport_id']}",
+            headers=self.bank_a,
+        )
+        hidden_passport = self.client.get(
+            f"/v1/release-passports/{passport['passport_id']}",
+            headers=self.bank_b,
+        )
+        self.assertEqual(saved_passport.status_code, 200, saved_passport.text)
+        self.assertTrue(saved_passport.json()["signature_valid"])
+        self.assertEqual(hidden_passport.status_code, 404)
+
+        repeated_approval = self.client.post(
+            f"/v1/cases/{body['case_id']}/approve",
+            headers=self.bank_a,
+            json={
+                "analysis_id": proof["analysis_id"],
+                "reviewer_id": "bank-a-release-manager",
+                "candidate_reference": "commit-deadbee",
+                "decision": "APPROVE",
+                "rationale": "This duplicate decision must not overwrite the first one.",
+            },
+        )
+        self.assertEqual(repeated_approval.status_code, 409)
 
         hidden_analysis = self.client.post(
             f"/v1/cases/{body['case_id']}/analyze", headers=self.bank_b

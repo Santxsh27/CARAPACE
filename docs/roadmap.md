@@ -54,11 +54,13 @@ deterministic verdict, and every mismatch opens a durable evidence case.
 
 ## Milestone 5 — ProofOps
 
-- Change-impact extraction.
-- Risk-guided adversarial scenarios.
-- Counterexample minimization.
-- Gemini cause, patch, and regression proposals.
-- Independent rerun, human approval, and Release Passport.
+- Change-impact extraction. **Remaining.**
+- Risk-guided adversarial scenarios. **Initial bounded scenarios complete; code-aware generation remaining.**
+- Counterexample minimization. **Complete for allowlisted payment-evidence interventions.**
+- Gemini cause, patch, and regression proposals. **Complete as structured advisory output.**
+- Independent rerun. **Complete using the deterministic verifier.**
+- Persisted human approval gate. **Complete.**
+- Tamper-evident Release Passport. **Complete locally; Cloud KMS signer remains.**
 
 ## Milestone 6 — Hackathon hardening
 

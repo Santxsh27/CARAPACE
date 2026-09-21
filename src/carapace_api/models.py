@@ -319,3 +319,50 @@ class ProofOpsAnalysisResponse(StrictModel):
     verification_status: Literal["COUNTERFACTUAL_VERIFIED", "NO_SAFE_REPAIR_FOUND"]
     release_authorized: Literal[False] = False
     human_approval_required: Literal[True] = True
+
+
+class ProofOpsApprovalRequest(StrictModel):
+    analysis_id: str = Field(pattern=r"^proofops_[a-f0-9]{32}$")
+    reviewer_id: str = Field(min_length=3, max_length=120)
+    candidate_reference: str = Field(min_length=7, max_length=160)
+    decision: Literal["APPROVE", "REJECT"]
+    rationale: str = Field(min_length=8, max_length=1_000)
+
+
+class HumanApprovalResponse(StrictModel):
+    approval_id: str = Field(pattern=r"^approval_[a-f0-9]{24}$")
+    case_id: str
+    analysis_id: str
+    reviewer_id: str
+    candidate_reference: str
+    decision: Literal["APPROVE", "REJECT"]
+    rationale: str
+    approved_at: datetime
+
+
+class ReleasePassportResponse(StrictModel):
+    schema_version: Literal["1.0"]
+    passport_id: str = Field(pattern=r"^passport_[a-f0-9]{24}$")
+    issued_at: datetime
+    tenant_id: str
+    case_id: str
+    run_id: str
+    contract_id: str
+    analysis_id: str
+    approval_id: str
+    reviewer_id: str
+    candidate_reference: str
+    verification_status: Literal["COUNTERFACTUAL_VERIFIED"]
+    counterfactual_verdict: Literal["MATCH"]
+    minimal_interventions: list[str]
+    regression_scenarios: list[str]
+    ai_provenance: dict[str, str | bool]
+    evidence_digest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    signature_algorithm: Literal["HMAC-SHA256-LOCAL"]
+    integrity_signature: str = Field(pattern=r"^[a-f0-9]{64}$")
+    signature_valid: bool | None = None
+
+
+class ProofOpsApprovalResponse(StrictModel):
+    approval: HumanApprovalResponse
+    release_passport: ReleasePassportResponse | None

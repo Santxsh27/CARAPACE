@@ -86,10 +86,53 @@ class SQLiteEvidenceStore:
                         REFERENCES runs (tenant_id, run_id)
                 );
 
+                CREATE TABLE IF NOT EXISTS proofops_analyses (
+                    tenant_id TEXT NOT NULL,
+                    analysis_id TEXT NOT NULL,
+                    case_id TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, analysis_id),
+                    FOREIGN KEY (tenant_id, case_id)
+                        REFERENCES evidence_cases (tenant_id, case_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS human_approvals (
+                    tenant_id TEXT NOT NULL,
+                    approval_id TEXT NOT NULL,
+                    case_id TEXT NOT NULL,
+                    analysis_id TEXT NOT NULL,
+                    decision TEXT NOT NULL CHECK (decision IN ('APPROVE', 'REJECT')),
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, approval_id),
+                    UNIQUE (tenant_id, analysis_id),
+                    FOREIGN KEY (tenant_id, case_id)
+                        REFERENCES evidence_cases (tenant_id, case_id),
+                    FOREIGN KEY (tenant_id, analysis_id)
+                        REFERENCES proofops_analyses (tenant_id, analysis_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS release_passports (
+                    tenant_id TEXT NOT NULL,
+                    passport_id TEXT NOT NULL,
+                    case_id TEXT NOT NULL,
+                    analysis_id TEXT NOT NULL,
+                    approval_id TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, passport_id),
+                    UNIQUE (tenant_id, analysis_id),
+                    FOREIGN KEY (tenant_id, approval_id)
+                        REFERENCES human_approvals (tenant_id, approval_id)
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_runs_contract
                     ON runs (tenant_id, contract_id);
                 CREATE INDEX IF NOT EXISTS idx_receipts_contract
                     ON trust_receipts (tenant_id, contract_id);
+                CREATE INDEX IF NOT EXISTS idx_proofops_case
+                    ON proofops_analyses (tenant_id, case_id);
                 """
             )
 
@@ -262,3 +305,105 @@ class SQLiteEvidenceStore:
             "failed_checks": json.loads(row["failed_checks_json"]),
             "created_at": row["created_at"],
         }
+
+    def put_proofops_analysis(
+        self, tenant_id: str, payload: Mapping[str, Any]
+    ) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    """
+                    INSERT INTO proofops_analyses (
+                        tenant_id, analysis_id, case_id, payload_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        tenant_id,
+                        payload["analysis_id"],
+                        payload["case_id"],
+                        canonical_json(payload),
+                        now,
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise StorageConflictError("ProofOps analysis already exists") from error
+
+    def get_proofops_analysis(
+        self, tenant_id: str, analysis_id: str
+    ) -> dict[str, Any]:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json FROM proofops_analyses
+                WHERE tenant_id = ? AND analysis_id = ?
+                """,
+                (tenant_id, analysis_id),
+            ).fetchone()
+        if row is None:
+            raise StorageNotFoundError("ProofOps analysis not found")
+        return json.loads(row["payload_json"])
+
+    def put_approval(
+        self,
+        tenant_id: str,
+        approval: Mapping[str, Any],
+        passport: Mapping[str, Any] | None,
+    ) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    """
+                    INSERT INTO human_approvals (
+                        tenant_id, approval_id, case_id, analysis_id, decision,
+                        payload_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        tenant_id,
+                        approval["approval_id"],
+                        approval["case_id"],
+                        approval["analysis_id"],
+                        approval["decision"],
+                        canonical_json(approval),
+                        now,
+                    ),
+                )
+                if passport is not None:
+                    connection.execute(
+                        """
+                        INSERT INTO release_passports (
+                            tenant_id, passport_id, case_id, analysis_id,
+                            approval_id, payload_json, created_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            tenant_id,
+                            passport["passport_id"],
+                            passport["case_id"],
+                            passport["analysis_id"],
+                            passport["approval_id"],
+                            canonical_json(passport),
+                            now,
+                        ),
+                    )
+        except sqlite3.IntegrityError as error:
+            raise StorageConflictError(
+                "this ProofOps analysis already has a human decision"
+            ) from error
+
+    def get_release_passport(
+        self, tenant_id: str, passport_id: str
+    ) -> dict[str, Any]:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json FROM release_passports
+                WHERE tenant_id = ? AND passport_id = ?
+                """,
+                (tenant_id, passport_id),
+            ).fetchone()
+        if row is None:
+            raise StorageNotFoundError("release passport not found")
+        return json.loads(row["payload_json"])

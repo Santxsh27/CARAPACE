@@ -33,17 +33,34 @@ is safe. Source changes, real refunds, ledger corrections and releases remain
 human-controlled and require broader regression, security and performance
 tests.
 
+## Human release gate and Release Passport
+
+Every ProofOps analysis is persisted before review. A tenant-authenticated
+reviewer can approve or reject it exactly once. Approval is accepted only when
+the counterfactual verifier reached `MATCH`; the model cannot approve its own
+proposal.
+
+An approval produces a Release Passport binding the incident, contract, run,
+analysis, candidate commit/reference, minimal intervention, regression
+scenarios and reviewer. The local build signs that canonical payload with
+HMAC-SHA256 and verifies it when read. Any field change invalidates the
+signature. A production deployment replaces only this signer with Cloud KMS.
+
 ## API
 
 After a mismatch creates an evidence case:
 
 ```text
 POST /v1/cases/{case_id}/analyze
+POST /v1/cases/{case_id}/approve
+GET  /v1/release-passports/{passport_id}
 ```
 
-The endpoint is tenant-authenticated and returns provider provenance, the
-bounded hypothesis, generated regression scenarios and the independently
-verified counterfactual result.
+These endpoints are tenant-authenticated. The first returns provider
+provenance, the bounded hypothesis, generated regression scenarios and the
+independently verified counterfactual result. The second records the human
+decision and conditionally issues the passport. The third recomputes and
+returns the passport's `signature_valid` state.
 
 ## AI modes
 

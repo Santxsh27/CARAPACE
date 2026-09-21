@@ -33,7 +33,7 @@ customer context -> payment promise -> bank execution -> anomaly/mismatch
 | Cloud Run | Lens, assurance API and witness services | API is Cloud Run-compatible; deployment pending |
 | Cloud SQL | Production contracts, incidents, approvals and receipt metadata | SQLite development adapter exists; migration pending |
 | Cloud Storage | Redacted evidence bundles and large artifacts | Planned |
-| Cloud KMS | Signed Payment Promises, Trust Receipts and Release Passports | Planned |
+| Cloud KMS | Signed Payment Promises, Trust Receipts and Release Passports | Local signing/verification boundary implemented; KMS adapter planned |
 | Cloud Build | Isolated reproduction, tests and candidate-patch verification | Planned for ProofOps |
 
 Suggested services are used only when they improve the evidence chain. The

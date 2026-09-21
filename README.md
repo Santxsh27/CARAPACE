@@ -54,7 +54,7 @@ It includes a nonce, request digest, idempotency key, lifecycle state and eviden
 | **Ledger Witness demo** | Reads authoritative artificial-money rows from Google’s official Bank of Anthos sample ledger; it does not scrape webpage pixels. |
 | **Trust Receipts** | Shows payment fields bound, bank posting matched, settlement pending/confirmed, mismatch or unverified. |
 | **FeeShield** | Deterministically calculates versioned UPI MDR policy and finds hidden customer surcharges or incorrect merchant deductions. |
-| **ProofOps** | Converts a confirmed mismatch into a bounded AI hypothesis, isolated counterfactual safety search and regression scenarios. If external AI is temporarily unavailable, it truthfully reports and uses the local bounded fallback rather than breaking verification or pretending Gemini answered. |
+| **ProofOps** | Converts a confirmed mismatch into a bounded AI hypothesis, isolated counterfactual safety search and regression scenarios. Verified candidates require a persisted human decision; approved candidates receive a tamper-evident Release Passport. If external AI is temporarily unavailable, it truthfully reports and uses the local bounded fallback. |
 | **Control Room** | A responsive spatial Assurance Flow connects the customer promise, bank, ledger fault, AI reasoning, deterministic repair proof and human approval. The detailed Lens, raw ledger rows, FeeShield and evidence views remain available below it. |
 
 All banking data and money in the current build are artificial and run locally through Docker.
@@ -71,7 +71,8 @@ The Control Room runs this end-to-end experiment:
 6. The deterministic verifier returns `MISMATCH` because two debits violated the one-debit promise.
 7. CARAPACE preserves an evidence case and a red Trust Receipt.
 8. ProofOps proposes a retry/idempotency cause, then searches isolated copies of the evidence for the smallest allowed intervention that restores every invariant.
-9. The UI shows `MISMATCH → MATCH`, the tested intervention, regression scenarios and **Human approval required**.
+9. The system persists the analysis and waits for an authenticated human reviewer; AI cannot approve itself.
+10. An approved, independently verified candidate receives a signed Release Passport binding the case, evidence digest, candidate reference, tests, reviewer and AI provenance.
 
 This is more than an AI report: AI produces a constrained, testable hypothesis and CARAPACE independently reruns the financial verifier to check it.
 
@@ -110,7 +111,7 @@ REUSE_CONTRACT_IDEMPOTENCY_KEY
 RESTORE_BOUND_PAYMENT_REQUEST
 ```
 
-Each candidate is rerun through the same deterministic financial verifier. The result records the original verdict, counterfactual verdict, number of experiments and minimal intervention. It never patches source code, modifies a real ledger, refunds money or authorises a production release.
+Each candidate is rerun through the same deterministic financial verifier. The result records the original verdict, counterfactual verdict, number of experiments and minimal intervention. A separate human decision can then create a signed Release Passport. It never modifies a real ledger, refunds money or allows Gemini to authorise a production release.
 
 ## AI and trust boundaries
 

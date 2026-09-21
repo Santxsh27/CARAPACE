@@ -3,7 +3,7 @@
 ## Visual truth and evidence
 
 - Approved target: `/Users/santosh/.codex/generated_images/01a08bb7-be0c-7b52-b8d7-6822ccaa0e37/exec-0f9b09d9-9134-497d-830b-7dc74df02d25.png`
-- Idle browser capture: `docs/control-room-faithful.png`
+- Current spatial browser capture: `docs/control-room-spatial-preview.png`
 - Live completed-state capture: `docs/control-room-complete.png`
 - Normalized comparison: `docs/design-qa-comparison.png`
 
@@ -22,6 +22,7 @@ The earlier flat-card interpretation was rejected and removed. The replacement f
 - [x] Full-width six-stage assurance timeline and Review Evidence action.
 - [x] Navy/cyan/red/mint visual semantics, glass depth, grid floor, particle field and glow.
 - [x] Responsive behaviour and reduced/manual motion controls.
+- [x] Final result card is separated from the fifth plane and raised above the evidence ribbon for readable depth.
 
 ## Functional verification
 
