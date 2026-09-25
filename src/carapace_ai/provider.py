@@ -17,6 +17,11 @@ class LensIntentProvider(Protocol):
     def extract_intent(self, message_text: str, locale: str) -> MessageIntent:
         """Extract structured claims from untrusted user-supplied content."""
 
+    def extract_intent_from_image(
+        self, image_bytes: bytes, mime_type: str, message_text: str, locale: str
+    ) -> MessageIntent:
+        """Interpret a supplied screenshot together with optional context text."""
+
 
 class LocalDemoIntentProvider:
     """Deterministic fixture so the full product works without cloud credentials.
@@ -56,7 +61,14 @@ class LocalDemoIntentProvider:
             urgency_detected=urgency,
             asks_for_pin_to_receive=asks_for_pin,
             summary="Local rules extracted the payment claim for an offline demonstration.",
+            evidence_span=next((term for term in self.RECEIVE_TERMS + self.SEND_TERMS if term in lowered), None),
         )
+
+    def extract_intent_from_image(
+        self, image_bytes: bytes, mime_type: str, message_text: str, locale: str
+    ) -> MessageIntent:
+        del image_bytes, mime_type
+        return self.extract_intent(message_text, locale)
 
 
 def _first_amount_minor(text: str) -> int | None:

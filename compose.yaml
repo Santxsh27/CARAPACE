@@ -30,7 +30,7 @@ services:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-global}
-      CARAPACE_GEMINI_MODEL: ${CARAPACE_GEMINI_MODEL:-gemini-3.6-flash}
+      CARAPACE_GEMINI_MODEL: ${CARAPACE_GEMINI_MODEL:-gemini-3.5-flash-lite}
       PORT: "8080"
     ports:
       - "127.0.0.1:8080:8080"
@@ -241,6 +241,9 @@ services:
       PORT: "8080"
       ENABLE_TRACING: "false"
       ENABLE_METRICS: "false"
+      SPRING_CLOUD_GCP_CORE_ENABLED: "false"
+      SPRING_CLOUD_GCP_TRACE_ENABLED: "false"
+      SPRING_CLOUD_GCP_METRICS_ENABLED: "false"
       JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m
       POLL_MS: "100"
       CACHE_SIZE: "10000"
@@ -258,6 +261,12 @@ services:
         condition: service_completed_successfully
       anthos-ledger:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ready"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 3m
 
   anthos-transaction-history:
     profiles: ["anthos-full"]
@@ -270,6 +279,9 @@ services:
       PORT: "8080"
       ENABLE_TRACING: "false"
       ENABLE_METRICS: "false"
+      SPRING_CLOUD_GCP_CORE_ENABLED: "false"
+      SPRING_CLOUD_GCP_TRACE_ENABLED: "false"
+      SPRING_CLOUD_GCP_METRICS_ENABLED: "false"
       JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m
       POLL_MS: "100"
       CACHE_SIZE: "1000"
@@ -289,6 +301,12 @@ services:
         condition: service_completed_successfully
       anthos-ledger:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ready"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 3m
 
   anthos-ledger-writer:
     profiles: ["anthos-full"]
@@ -301,6 +319,9 @@ services:
       PORT: "8080"
       ENABLE_TRACING: "false"
       ENABLE_METRICS: "false"
+      SPRING_CLOUD_GCP_CORE_ENABLED: "false"
+      SPRING_CLOUD_GCP_TRACE_ENABLED: "false"
+      SPRING_CLOUD_GCP_METRICS_ENABLED: "false"
       JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m
       PUB_KEY_PATH: /tmp/.ssh/publickey
       LOCAL_ROUTING_NUM: "883745000"
@@ -318,7 +339,13 @@ services:
       anthos-ledger:
         condition: service_healthy
       anthos-balance-reader:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ready"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 3m
 
   anthos-frontend:
     profiles: ["anthos-full"]
@@ -359,11 +386,11 @@ services:
       anthos-contacts:
         condition: service_healthy
       anthos-balance-reader:
-        condition: service_started
+        condition: service_healthy
       anthos-transaction-history:
-        condition: service_started
+        condition: service_healthy
       anthos-ledger-writer:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ready', timeout=2)"]
       interval: 10s

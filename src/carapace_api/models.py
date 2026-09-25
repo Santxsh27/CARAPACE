@@ -241,6 +241,7 @@ class LensIntentResponse(StrictModel):
     urgency_detected: bool
     asks_for_pin_to_receive: bool
     summary: str
+    evidence_span: str | None = None
 
 
 class LensPaymentResponse(StrictModel):

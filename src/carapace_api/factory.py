@@ -27,6 +27,7 @@ from carapace_core.release_passport import (
 )
 from carapace_core.counterfactual import search_minimal_repair
 from carapace_core.verifier import verify_payment
+from carapace_core.bank_envelope import BankEnvelopeSigner
 
 from .auth import TenantAuthenticator, TenantContext
 from .config import Settings
@@ -50,6 +51,8 @@ from .models import (
     VerificationReportResponse,
 )
 from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundError
+from .preflight import PreflightGate
+from .preflight_routes import register_preflight_routes
 
 
 VERSION = "0.8.0"
@@ -78,6 +81,19 @@ def create_app(
         redoc_url="/redoc",
     )
     application.state.store = resolved_store
+    preflight_gate = PreflightGate(resolved_settings.database_path)
+    preflight_gate.initialize()
+    signer = BankEnvelopeSigner(
+        resolved_settings.bank_signing_key_path or resolved_settings.database_path.parent / "bank-dev-ed25519.pem",
+        allow_generate=resolved_settings.environment in {"development", "test"},
+    )
+    register_preflight_routes(
+        application,
+        authenticate=authenticate,
+        gate=preflight_gate,
+        signer=signer,
+        provider=resolved_lens_provider,
+    )
 
     @application.get(
         "/v1/ai/status",

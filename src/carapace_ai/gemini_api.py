@@ -34,4 +34,4 @@ class GeminiApiIntentProvider(VertexGeminiIntentProvider):
             from google import genai
         except ImportError as error:
             raise RuntimeError("Install the google-genai dependency to use Gemini") from error
-        self._client = genai.Client(api_key=api_key)
+        self._client = genai.Client(api_key=api_key, http_options={"timeout": 20000})

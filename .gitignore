@@ -4,6 +4,7 @@ __pycache__/
 .mypy_cache/
 .venv/
 .env
+bank-dev-ed25519.pem
 dist/
 build/
 *.egg-info/

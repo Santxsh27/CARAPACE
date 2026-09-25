@@ -40,6 +40,7 @@ class MessageIntent:
     urgency_detected: bool
     asks_for_pin_to_receive: bool
     summary: str
+    evidence_span: str | None = None
 
     def as_dict(self) -> dict[str, object]:
         payload = asdict(self)

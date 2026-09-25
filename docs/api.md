@@ -1,9 +1,36 @@
-# Assurance API
+# CARAPACE API
 
-The API is the first real integration boundary for CARAPACE. A participating
-bank tenant registers what its customer confirmed, submits independently
-collected execution evidence, and receives an exact `MATCH` or `MISMATCH`.
-Mismatches automatically become evidence cases.
+The primary v3.1 path is pre-payment protection. A bank-authenticated local
+gateway signs the payment details, evaluates customer-supplied context, and
+requires the resulting decision before it can insert a synthetic transfer.
+The earlier post-payment assurance API is retained as legacy engineering work.
+
+## Milestone 1 preflight sequence
+
+All three write calls require the tenant and API-key headers shown below.
+The browser at `http://localhost:8090` calls them server-side, so it never
+exposes the key in JavaScript.
+
+1. `POST /v1/preflight/orders` with ten-digit `payer_account` and
+   `payee_account`, `payee_display_name`, positive integer `amount_minor`,
+   `currency: "INR"`, and `reference`. The response contains the canonical
+   envelope and a bank-development-key Ed25519 signature.
+2. `POST /v1/preflight/orders/{order_id}/evaluate` with `context_text` and
+   optional Base64 PNG/JPEG/WebP screenshot plus `image_mime_type`. It returns
+   `ALLOW`, `WARN`, or `HOLD`, reason codes, a customer message, actual AI
+   mode, and `live_model_called`. A provider error is an explicit `HOLD`.
+3. `POST /v1/preflight/orders/{order_id}/submit` with the stored `decision_id`.
+   The gateway rechecks both signatures, tenant, expiry and decision in one
+   SQLite transaction. `HOLD`, unresolved `WARN`, changed, expired and replayed
+   orders cannot post. An `ALLOW` posts one local synthetic transfer row.
+
+`GET /v1/preflight/orders/{order_id}` reads the signed order and decision.
+`GET /v1/preflight/transfers` reads only the authenticated bank's synthetic
+ledger rows. Neither endpoint is a real-money transfer integration. The Bank
+of Anthos sample remains a separate artificial-money environment; its official
+transfer service is not yet in the preflight gate.
+
+## Legacy assurance API
 
 ## Start the service
 
@@ -52,7 +79,8 @@ CARAPACE DEMO RESULT
   Overall: PASS
 ```
 
-Health endpoints are public. Every `/v1` endpoint requires both headers:
+Health, AI status and public Lens checks are unauthenticated. Bank-specific
+`/v1` endpoints require both headers:
 
 ```text
 X-Carapace-Tenant: demo-bank
