@@ -8,6 +8,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 from fastapi.testclient import TestClient
 
 from carapace_api.config import Settings
@@ -69,6 +72,17 @@ class PreflightTests(unittest.TestCase):
         self.client = TestClient(create_app(settings=self.settings, lens_provider=self.provider, incident_provider=LocalIncidentReasoningProvider()))
         self.bank_a = {"X-Carapace-Tenant": "bank-a", "X-Carapace-API-Key": "key-a"}
         self.bank_b = {"X-Carapace-Tenant": "bank-b", "X-Carapace-API-Key": "key-b"}
+        self.device_id = "test_device_12345"
+        self.device_key = ec.generate_private_key(ec.SECP256R1())
+        device_spki = self.device_key.public_key().public_bytes(
+            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        enrolled = self.client.post(
+            "/v1/preflight/devices", headers=self.bank_a,
+            json={"payer_account": "1000000001", "device_id": self.device_id,
+                  "public_key_spki_base64": base64.b64encode(device_spki).decode()},
+        )
+        self.assertEqual(enrolled.status_code, 201, enrolled.text)
 
     def tearDown(self) -> None:
         self.client.close()
@@ -97,6 +111,31 @@ class PreflightTests(unittest.TestCase):
             payload["image_mime_type"] = "image/png"
         response = self.client.post(
             f"/v1/preflight/orders/{order_id}/evaluate", headers=self.bank_a, json=payload
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()
+
+    def signed_choice(
+        self, order_id: str, *, choice: str = "PROCEED", key: ec.EllipticCurvePrivateKey | None = None,
+    ) -> tuple[dict, str]:
+        response = self.client.get(
+            f"/v1/preflight/orders/{order_id}/acknowledgement-challenge",
+            headers=self.bank_a, params={"device_id": self.device_id, "choice": choice},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        statement_json = response.json()["statement_json"]
+        der = (key or self.device_key).sign(statement_json.encode(), ec.ECDSA(hashes.SHA256()))
+        r, s = decode_dss_signature(der)
+        signature = base64.b64encode(r.to_bytes(32, "big") + s.to_bytes(32, "big")).decode()
+        return response.json(), signature
+
+    def confirm(self, order_id: str, *, choice: str = "PROCEED") -> dict:
+        challenge, signature = self.signed_choice(order_id, choice=choice)
+        response = self.client.post(
+            f"/v1/preflight/orders/{order_id}/acknowledge", headers=self.bank_a,
+            json={"device_id": self.device_id, "choice": choice,
+                  "statement_json": challenge["statement_json"],
+                  "signature_base64": signature},
         )
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
@@ -130,6 +169,145 @@ class PreflightTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 409)
 
+    def test_warn_requires_signed_proceed_before_synthetic_posting(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(order_id, "", image=True)
+        self.assertEqual(decision["verdict"], "WARN")
+        url = f"/v1/preflight/orders/{order_id}/submit"
+        self.assertEqual(
+            self.client.post(url, headers=self.bank_a, json={"decision_id": decision["decision_id"]}).status_code,
+            409,
+        )
+        choice = self.confirm(order_id)
+        self.assertEqual(choice["choice_recorded"], "PROCEED")
+        posted = self.client.post(url, headers=self.bank_a, json={"decision_id": decision["decision_id"]})
+        self.assertEqual(posted.status_code, 200, posted.text)
+        self.assertEqual(posted.json()["protection_bundle"]["receipt"]["customer_choice"], "PROCEED")
+
+    def test_hold_cannot_be_overridden_even_by_valid_device_key(self) -> None:
+        order = self.order()["envelope"]
+        order_id = order["order_id"]
+        decision = self.evaluate(order_id, "Refund ₹4,999 to you.")
+        self.assertEqual(decision["verdict"], "HOLD")
+        response = self.client.get(
+            f"/v1/preflight/orders/{order_id}/acknowledgement-challenge",
+            headers=self.bank_a, params={"device_id": self.device_id, "choice": "PROCEED"},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("HOLD", response.text)
+        self.confirm(order_id, choice="CANCEL")
+        self.assertEqual(
+            self.client.post(
+                f"/v1/preflight/orders/{order_id}/submit", headers=self.bank_a,
+                json={"decision_id": decision["decision_id"]},
+            ).status_code,
+            409,
+        )
+
+    def test_forged_or_changed_device_statement_cannot_record_choice(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        challenge, forged_signature = self.signed_choice(
+            order_id, key=ec.generate_private_key(ec.SECP256R1()),
+        )
+        url = f"/v1/preflight/orders/{order_id}/acknowledge"
+        forged = self.client.post(
+            url, headers=self.bank_a,
+            json={"device_id": self.device_id, "choice": "PROCEED",
+                  "statement_json": challenge["statement_json"],
+                  "signature_base64": forged_signature},
+        )
+        self.assertEqual(forged.status_code, 409)
+        self.assertIn("signature", forged.text)
+        changed = json.loads(challenge["statement_json"])
+        changed["amount_minor"] = 1
+        der = self.device_key.sign(
+            json.dumps(changed, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode(),
+            ec.ECDSA(hashes.SHA256()),
+        )
+        r, s = decode_dss_signature(der)
+        response = self.client.post(
+            url, headers=self.bank_a,
+            json={"device_id": self.device_id, "choice": "PROCEED",
+                  "statement_json": json.dumps(changed, ensure_ascii=False, separators=(",", ":"), sort_keys=True),
+                  "signature_base64": base64.b64encode(r.to_bytes(32, "big") + s.to_bytes(32, "big")).decode()},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("differs", response.text)
+        recorded = self.confirm(order_id)
+        self.assertEqual(recorded["choice_recorded"], "PROCEED")
+        challenge, signature = self.signed_choice(order_id)
+        repeated = self.client.post(
+            url, headers=self.bank_a,
+            json={"device_id": self.device_id, "choice": "PROCEED",
+                  "statement_json": challenge["statement_json"], "signature_base64": signature},
+        )
+        self.assertEqual(repeated.status_code, 409)
+
+    def test_signed_cancel_never_authorizes_payment(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        self.confirm(order_id, choice="CANCEL")
+        response = self.client.post(
+            f"/v1/preflight/orders/{order_id}/submit", headers=self.bank_a,
+            json={"decision_id": decision["decision_id"]},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.client.get("/v1/preflight/transfers", headers=self.bank_a).json()["transfers"], [])
+
+    def test_enrolled_device_key_cannot_be_silently_replaced(self) -> None:
+        replacement = ec.generate_private_key(ec.SECP256R1()).public_key().public_bytes(
+            serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        response = self.client.post(
+            "/v1/preflight/devices", headers=self.bank_a,
+            json={"payer_account": "1000000001", "device_id": self.device_id,
+                  "public_key_spki_base64": base64.b64encode(replacement).decode()},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("already enrolled", response.text)
+
+    def test_changed_acknowledgement_receipt_blocks_submission(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        acknowledged = self.confirm(order_id)
+        receipt_id = acknowledged["protection_bundle"]["receipt"]["receipt_id"]
+        with sqlite3.connect(self.db_path) as connection:
+            row = connection.execute(
+                "SELECT receipt_json FROM preflight_receipts WHERE receipt_id=?", (receipt_id,),
+            ).fetchone()
+            receipt = json.loads(row[0])
+            receipt["choice"] = "CANCEL"
+            connection.execute(
+                "UPDATE preflight_receipts SET receipt_json=? WHERE receipt_id=?",
+                (json.dumps(receipt), receipt_id),
+            )
+        response = self.client.post(
+            f"/v1/preflight/orders/{order_id}/submit", headers=self.bank_a,
+            json={"decision_id": decision["decision_id"]},
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.client.get("/v1/preflight/transfers", headers=self.bank_a).json()["transfers"], [])
+
+    def test_corrupt_witness_rolls_back_browser_choice(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        challenge, signature = self.signed_choice(order_id)
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "UPDATE preflight_witness_heads SET witness_signature='corrupt' WHERE tree_size=1"
+            )
+        response = self.client.post(
+            f"/v1/preflight/orders/{order_id}/acknowledge", headers=self.bank_a,
+            json={"device_id": self.device_id, "choice": "PROCEED",
+                  "statement_json": challenge["statement_json"],
+                  "signature_base64": signature},
+        )
+        self.assertEqual(response.status_code, 503)
+        with sqlite3.connect(self.db_path) as connection:
+            count = connection.execute("SELECT COUNT(*) FROM preflight_acknowledgements").fetchone()[0]
+        self.assertEqual(count, 0)
+
     def test_genuine_bill_posts_once_and_replay_is_blocked(self) -> None:
         order_id = self.order()["envelope"]["order_id"]
         decision = self.evaluate(
@@ -137,6 +315,11 @@ class PreflightTests(unittest.TestCase):
         )
         self.assertEqual(decision["verdict"], "ALLOW")
         url = f"/v1/preflight/orders/{order_id}/submit"
+        self.assertEqual(
+            self.client.post(url, headers=self.bank_a, json={"decision_id": decision["decision_id"]}).status_code,
+            409,
+        )
+        self.confirm(order_id)
         first = self.client.post(url, headers=self.bank_a, json={"decision_id": decision["decision_id"]})
         self.assertEqual(first.status_code, 200, first.text)
         self.assertEqual(first.json()["status"], "POSTED_SYNTHETIC")
@@ -230,6 +413,8 @@ class PreflightTests(unittest.TestCase):
 
         allowed_order = self.order()["envelope"]["order_id"]
         allowed = self.evaluate(allowed_order, "Example Power bill: Pay ₹4,999 to Example Power.")
+        acknowledgement = self.confirm(allowed_order)
+        self.assertTrue(verify_protection_bundle(acknowledgement["protection_bundle"], **pinned))
         result = self.client.post(
             f"/v1/preflight/orders/{allowed_order}/submit",
             headers=self.bank_a,
@@ -240,14 +425,14 @@ class PreflightTests(unittest.TestCase):
         self.assertTrue(verify_protection_bundle(posting, **pinned))
         self.assertEqual(posting["receipt"]["transfer_id"], result.json()["transfer"]["transfer_id"])
         self.assertEqual(posting["receipt"]["stage"], "SYNTHETIC_POSTING")
-        self.assertEqual(posting["tree_head"]["tree_size"], 3)
+        self.assertEqual(posting["tree_head"]["tree_size"], 4)
         old_again = self.client.get(
             f"/v1/preflight/receipts/{first_bundle['receipt']['receipt_id']}",
             headers=self.bank_a,
         ).json()
         self.assertTrue(old_again["local_proof_verified"])
         self.assertTrue(verify_protection_bundle(old_again["bundle"], **pinned))
-        self.assertEqual(old_again["bundle"]["tree_head"]["tree_size"], 3)
+        self.assertEqual(old_again["bundle"]["tree_head"]["tree_size"], 4)
 
     def test_corrupt_witness_fails_closed_without_saving_next_decision(self) -> None:
         first_order = self.order()["envelope"]["order_id"]
@@ -274,9 +459,10 @@ class PreflightTests(unittest.TestCase):
         order_id = self.order()["envelope"]["order_id"]
         decision = self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
         self.assertEqual(decision["verdict"], "ALLOW")
+        self.confirm(order_id)
         with sqlite3.connect(self.db_path) as connection:
             connection.execute(
-                "UPDATE preflight_witness_heads SET witness_signature='corrupt' WHERE tree_size=1"
+                "UPDATE preflight_witness_heads SET witness_signature='corrupt' WHERE tree_size=2"
             )
         response = self.client.post(
             f"/v1/preflight/orders/{order_id}/submit",

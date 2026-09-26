@@ -12,14 +12,16 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Literal
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException
+from cryptography.exceptions import UnsupportedAlgorithm
+from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from carapace_ai.provider import LensIntentProvider
 from carapace_ai.redaction import redact_for_model
 from carapace_core.bank_envelope import BankEnvelopeSigner
-from carapace_core.canonical import sha256_hex
+from carapace_core.canonical import canonical_json, sha256_hex
+from carapace_core.device_ack import build_device_statement
 from carapace_core.lens import IntentDirection, MessageIntent
 from carapace_core.protection_proof import verify_protection_bundle
 
@@ -47,6 +49,19 @@ class EvaluatePaymentOrder(BaseModel):
 
 class SubmitPaymentOrder(BaseModel):
     decision_id: str = Field(min_length=8, max_length=80)
+
+
+class RegisterTestDevice(BaseModel):
+    payer_account: str = Field(pattern=r"^[0-9]{10}$")
+    device_id: str = Field(pattern=r"^[A-Za-z0-9_-]{8,80}$")
+    public_key_spki_base64: str = Field(min_length=80, max_length=500)
+
+
+class AcknowledgePaymentOrder(BaseModel):
+    device_id: str = Field(pattern=r"^[A-Za-z0-9_-]{8,80}$")
+    choice: Literal["PROCEED", "CANCEL"]
+    statement_json: str = Field(min_length=100, max_length=6000)
+    signature_base64: str = Field(min_length=80, max_length=120)
 
 
 def _normal(value: str) -> str:
@@ -121,6 +136,14 @@ def register_preflight_routes(
     evidence_log: PreflightEvidenceLog,
     provider: LensIntentProvider,
 ) -> None:
+    def verify_decision(value: dict[str, Any]) -> bool:
+        signature = value.pop("bank_signature", None)
+        try:
+            return isinstance(signature, str) and signer.verify(value, signature)
+        finally:
+            if signature is not None:
+                value["bank_signature"] = signature
+
     def load_verified(tenant_id: str, order_id: str) -> dict[str, Any]:
         try:
             saved = gate.get_order(tenant_id, order_id)
@@ -132,6 +155,24 @@ def register_preflight_routes(
         if envelope["tenant_id"] != tenant_id:
             raise HTTPException(status_code=409, detail="bank identity mismatch")
         return saved
+
+    @application.post("/v1/preflight/devices", status_code=201, tags=["preflight"])
+    async def register_test_device(
+        request: RegisterTestDevice, tenant: TenantContext = Depends(authenticate)
+    ) -> dict[str, Any]:
+        try:
+            registered = await run_in_threadpool(
+                gate.register_device, tenant.tenant_id, request.payer_account,
+                request.device_id, request.public_key_spki_base64,
+            )
+        except (ValueError, binascii.Error, UnsupportedAlgorithm) as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except PreflightConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return {
+            **registered,
+            "enrolment_scope": "Bank-authenticated local test enrollment; not production customer identity verification.",
+        }
 
     @application.post("/v1/preflight/orders", status_code=201, tags=["preflight"])
     async def create_order(
@@ -279,20 +320,70 @@ def register_preflight_routes(
             raise HTTPException(status_code=503, detail="protection evidence is unavailable") from error
         return {**decision, "protection_bundle": bundle}
 
+    @application.get(
+        "/v1/preflight/orders/{order_id}/acknowledgement-challenge", tags=["preflight"]
+    )
+    async def acknowledgement_challenge(
+        order_id: str,
+        device_id: str = Query(pattern=r"^[A-Za-z0-9_-]{8,80}$"),
+        choice: Literal["PROCEED", "CANCEL"] = Query(),
+        tenant: TenantContext = Depends(authenticate),
+    ) -> dict[str, Any]:
+        saved = load_verified(tenant.tenant_id, order_id)
+        envelope, decision = saved["envelope"], saved["decision"]
+        if decision is None or not verify_decision(decision):
+            raise HTTPException(status_code=409, detail="signed preflight decision is unavailable")
+        if decision["order_id"] != order_id or decision["envelope_signature"] != saved["bank_signature"]:
+            raise HTTPException(status_code=409, detail="decision does not bind this payment")
+        if datetime.fromisoformat(envelope["expires_at"]) <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=409, detail="payment order expired")
+        if decision["verdict"] == "HOLD" and choice == "PROCEED":
+            raise HTTPException(status_code=409, detail="HOLD cannot be overridden by customer choice")
+        try:
+            device = gate.get_device(tenant.tenant_id, envelope["payer_account"], device_id)
+        except PreflightNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        statement = build_device_statement(
+            envelope, decision, choice=choice, device_id=device_id,
+            device_key_sha256=device["device_key_sha256"],
+        )
+        return {
+            "statement_json": canonical_json(statement),
+            "statement": statement,
+            "scope": "Signature proves key control over these bytes, not that a human saw or understood them.",
+        }
+
+    @application.post("/v1/preflight/orders/{order_id}/acknowledge", tags=["preflight"])
+    async def acknowledge_order(
+        order_id: str,
+        request: AcknowledgePaymentOrder,
+        tenant: TenantContext = Depends(authenticate),
+    ) -> dict[str, Any]:
+        try:
+            bundle = await run_in_threadpool(
+                gate.put_acknowledgement,
+                tenant.tenant_id, order_id,
+                device_id=request.device_id, choice=request.choice,
+                statement_json=request.statement_json,
+                device_signature_base64=request.signature_base64,
+                now=datetime.now(timezone.utc),
+                verify_envelope=signer.verify, verify_decision=verify_decision,
+                evidence_log=evidence_log, bank_signer=signer,
+            )
+        except PreflightNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except PreflightConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except EvidenceIntegrityError as error:
+            raise HTTPException(status_code=503, detail="protection evidence is unavailable") from error
+        return {"choice_recorded": request.choice, "protection_bundle": bundle}
+
     @application.post("/v1/preflight/orders/{order_id}/submit", tags=["preflight"])
     async def submit_order(
         order_id: str,
         request: SubmitPaymentOrder,
         tenant: TenantContext = Depends(authenticate),
     ) -> dict[str, Any]:
-        def verify_decision(value: dict[str, Any]) -> bool:
-            signature = value.pop("bank_signature", None)
-            try:
-                return isinstance(signature, str) and signer.verify(value, signature)
-            finally:
-                if signature is not None:
-                    value["bank_signature"] = signature
-
         try:
             transfer, bundle = await run_in_threadpool(
                 gate.submit, tenant.tenant_id, order_id, request.decision_id,

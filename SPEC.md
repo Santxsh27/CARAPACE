@@ -12,8 +12,8 @@ For a bank-integrated payment, CARAPACE compares the meaning of customer-supplie
 2. The customer voluntarily supplies the message, screenshot, bill or QR that influenced them. No background access to messages, calls or other banking apps is assumed.
 3. Gemini extracts structured, evidence-linked claims from that untrusted material. Deterministic code validates the claims and compares them with the signed payment envelope.
 4. The policy returns ALLOW, WARN or HOLD. A definite receive-versus-send contradiction is HOLD. AI can add a supported concern but cannot cancel a deterministic HOLD.
-5. The payment gateway requires the decision token before submitting the artificial-money transfer. HOLD cannot be submitted. ALLOW can proceed. WARN requires an explicit recorded choice under bank policy.
-6. A protection receipt binds the envelope, exact warning, choice, policy and outcome. Bank and registered-device signatures are checked independently. A later witness log makes included records tamper-evident.
+5. The test gateway requires a signed decision and a verified browser-device `PROCEED` choice before submitting an artificial-money transfer. HOLD cannot be submitted or overridden. ALLOW and WARN may proceed only after that explicit recorded choice; `CANCEL` never posts.
+6. Separate protection records bind the envelope and warning, signed browser choice, and posting outcome. Bank and local test-device signatures are checked separately. A separately keyed local witness log makes disclosed records tamper-evident within one signed checkpoint.
 7. A dispute workbench reports verified facts and uncertainty. Gemini may draft an explanation but does not determine liability.
 
 ## Trust boundaries
@@ -51,7 +51,7 @@ The local Bank of Anthos ledger is an authorised artificial-money test integrati
 
 Registered device acknowledgement, signed protection receipts, independent receipt verifier, append-only Merkle log, separately keyed witness, tamper demonstration and payment-to-decision reconciliation.
 
-**Incremental evidence state (26 September 2026):** the local gate now issues a bank-signed warning/decision record and, only for an allowed synthetic posting, a separate bank-signed posting record. Both are appended inside the same SQLite transaction as their respective decision or transfer. A second local signing key authenticates Merkle tree heads, and a verifier can check inclusion using externally pinned keys. This proves record integrity and inclusion in one checkpoint, not that the customer saw the warning, that all payments were logged, or that successive checkpoints are append-only. Device acknowledgement, consistency proofs, reconciliation and an operationally independent witness remain open Milestone 2 work.
+**Incremental evidence state (26 September 2026):** the local gate issues bank-signed decision, test-device choice and synthetic-posting records. Each is committed with its corresponding action in SQLite. A browser P-256 key signs the exact payment, warning and `PROCEED`/`CANCEL` choice. The server verifies that signature against a locally enrolled test key; it refuses posting without a valid `PROCEED`, and HOLD remains non-overridable. A second local signing key authenticates Merkle tree heads, and a verifier can check inclusion using externally pinned keys. This proves record integrity and inclusion in one checkpoint, not that the customer saw or understood the warning, that the test key belongs to a production-verified customer, that all payments were logged, or that successive checkpoints are append-only. Production enrollment, consistency proofs, reconciliation and an operationally independent witness remain open Milestone 2 work.
 
 ### Milestone 3 — learning and dispute tools
 

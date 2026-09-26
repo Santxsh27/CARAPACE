@@ -14,7 +14,7 @@ This is the short execution checklist for the existing repository. Each stage en
 - [x] A second signed decision binds the same envelope.
 - [x] Gemini Developer API accepts text plus a test screenshot; local rules are visibly labelled.
 - [x] Deterministic checks compare receive/send, amount and named payee with the signed order.
-- [x] HOLD and unresolved WARN cannot post; ALLOW posts one synthetic ledger row; replay and tampering fail.
+- [x] HOLD cannot post; the original gate allowed an ALLOW to post one synthetic ledger row. Milestone 2B now also requires a signed browser choice for ALLOW and WARN.
 - [x] Refund and bill flows are run from a plain-language browser page.
 - [x] Full Docker regression suite passes, including new gate tests.
 
@@ -24,11 +24,11 @@ Milestone 1 stops at a **CARAPACE local synthetic ledger**. The sample Bank of A
 
 1. [x] Sign the exact issued warning, order digest, verdict, policy context and input hashes in a decision protection record. Sign synthetic posting separately; commit each with its corresponding gate action.
 2. [x] Add a separately keyed **local** witness tree and inclusion proof. Verify bundles using externally supplied public keys; corrupt latest witness history fails the next write closed.
-3. [ ] Add registered-device acknowledgement and a customer-choice record without claiming that a device signature proves human understanding.
+3. [x] Add a browser-signed test-device `PROCEED`/`CANCEL` record, bound to the exact payment and warning. HOLD remains non-overridable; posting now requires signed PROCEED. Development bank-key enrollment does not prove production customer identity or human understanding.
 4. [ ] Add consistency proofs, externally monitored checkpoint history and an independently operated witness. Current inclusion proofs establish membership in one signed checkpoint only.
 5. [ ] Reconcile every completed test payment against a decision ID so missing records cannot be hidden by a valid-looking log.
 
-Current acceptance: warning/record tampering or a corrupted current witness head is detected in tests, and the write rolls back. Full milestone acceptance additionally requires choice evidence, consistency and coverage checks. See [Milestone 2A report](MILESTONE_2A_REPORT.md).
+Current acceptance: warning, choice and receipt tampering or a corrupted current witness head is detected in tests, and the relevant local write rolls back. Full milestone acceptance still requires production-grade device enrollment, independent witnessing, consistency and coverage checks. See [Milestone 2A](MILESTONE_2A_REPORT.md) and [Milestone 2B](MILESTONE_2B_REPORT.md) reports.
 
 ## 3. Stronger bank and document integration
 

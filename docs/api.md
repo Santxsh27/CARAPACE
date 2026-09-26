@@ -5,9 +5,9 @@ gateway signs the payment details, evaluates customer-supplied context, and
 requires the resulting decision before it can insert a synthetic transfer.
 The earlier post-payment assurance API is retained as legacy engineering work.
 
-## Milestone 1 preflight sequence
+## Current preflight sequence
 
-All three write calls require the tenant and API-key headers shown below.
+All write calls require the tenant and API-key headers shown below.
 The browser at `http://localhost:8090` calls them server-side, so it never
 exposes the key in JavaScript.
 
@@ -21,11 +21,25 @@ exposes the key in JavaScript.
    mode, `live_model_called`, and a bank-signed decision protection bundle. A
    provider error is an explicit `HOLD`. The bundle records what warning was
    **issued**, not proof that a customer saw or understood it.
-3. `POST /v1/preflight/orders/{order_id}/submit` with the stored `decision_id`.
-   The gateway rechecks both signatures, tenant, expiry and decision in one
-   SQLite transaction. `HOLD`, unresolved `WARN`, changed, expired and replayed
-   orders cannot post. An `ALLOW` posts one local synthetic transfer row and
-   atomically appends a separately signed synthetic-posting protection bundle.
+3. `POST /v1/preflight/devices` enrolls a P-256 SPKI public key for a test
+   payer account under the bank tenant. It rejects reuse of the same device ID.
+   This is bank-authenticated **development enrollment**, not customer identity
+   proof. The browser's private key never enters this API.
+4. `GET /v1/preflight/orders/{order_id}/acknowledgement-challenge` with
+   `device_id` and `choice=PROCEED|CANCEL` returns `statement_json`: the exact
+   canonical UTF-8 bytes to sign. The statement binds the order digest, nonce,
+   amount, direction, payee, exact bank warning, decision and device fingerprint.
+   A `HOLD` cannot request `PROCEED`.
+5. `POST /v1/preflight/orders/{order_id}/acknowledge` submits the exact
+   `statement_json` and Base64 64-byte WebCrypto P-256 ECDSA signature. The
+   server independently reconstructs the statement, verifies the enrolled
+   device key and writes a bank-signed choice record with a witness proof.
+6. `POST /v1/preflight/orders/{order_id}/submit` with the `decision_id`.
+   The gateway rechecks the bank signatures, tenant, expiry, device statement,
+   signature, signed choice receipt and replay state inside one SQLite
+   transaction. `HOLD` and `CANCEL` never post. `ALLOW` and `WARN` post only
+   with a valid `PROCEED` record. The local synthetic transfer and separate
+   posting protection record are appended atomically.
 
 Each protection bundle contains the bank-signed record, a witness-signed tree
 head, and a Merkle inclusion path. `GET /v1/preflight/receipts/{receipt_id}`

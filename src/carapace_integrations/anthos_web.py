@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import os
 import json
+import threading
+import time
 from uuid import uuid4
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
+from typing import Literal
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
 
@@ -35,17 +39,17 @@ HOME_HTML = """<!doctype html>
   </style>
 </head>
 <body>
-  <header><div><div class="brand">CARA<span>PACE</span></div><nav><a href="#how-it-works">How it works</a><a href="#scenarios">Scenarios</a><a href="http://localhost:8081/home" target="_blank" rel="noopener">Sample bank ↗</a><a href="http://localhost:8080/docs" target="_blank" rel="noopener">API docs ↗</a></nav></div></header>
+  <header><div><div class="brand">CARA<span>PACE</span></div><nav><a href="#how-it-works">How it works</a><a href="#scenarios">Scenarios</a><a href="http://localhost:8080/docs" target="_blank" rel="noopener">API docs ↗</a></nav></div></header>
   <main>
     <div class="eyebrow">Payment Intent Firewall · development workspace</div>
     <h1>Know what a payment will actually do.</h1>
     <p class="lead">CARAPACE compares the message or bill that persuaded a person to pay with the amount and recipient supplied by the bank. It can stop a dangerous contradiction before an artificial-money transfer is submitted.</p>
-    <div class="actions"><a class="button" href="#scenarios">See the two test cases</a><a class="button secondary" href="http://localhost:8081/home" target="_blank" rel="noopener">Open Bank of Anthos</a></div>
-    <div class="note"><strong>Working local path:</strong> a signed payment order, Gemini context check, enforced HOLD gate, and signed protection record. The record has a separate local witness-key inclusion proof. The demo still posts only to a synthetic test ledger—not Bank of Anthos's official transfer service or real money.</div>
+    <div class="actions"><a class="button" href="#scenarios">See the two test cases</a></div>
+    <div class="note"><strong>Working local path:</strong> a signed payment order, Gemini context check, enforced HOLD gate, browser-signed choice, and locally witnessed protection records. A valid PROCEED choice is required before a test posting. This is only a synthetic ledger—not Bank of Anthos's official transfer service or real money.</div>
     <div id="how-it-works" class="grid">
       <div class="card"><span class="step">01 · Understand</span><strong>Read the story</strong><p>Gemini extracts supported claims from a customer-shared message or screenshot.</p></div>
       <div class="card"><span class="step">02 · Compare</span><strong>Check the actual payment</strong><p>Deterministic rules compare those claims with bank-controlled amount, direction and recipient.</p></div>
-      <div class="card"><span class="step">03 · Enforce</span><strong>Stop or proceed</strong><p>The integrated test gateway refuses HOLD and permits a verified ALLOW to reach artificial money.</p></div>
+      <div class="card"><span class="step">03 · Confirm and enforce</span><strong>Stop or proceed</strong><p>The test gateway refuses HOLD. A genuine bill pauses until this browser signs an explicit PROCEED choice.</p></div>
     </div>
     <h2 id="scenarios">The first two scenarios</h2>
     <div class="example">
@@ -53,8 +57,8 @@ HOME_HTML = """<!doctype html>
       <div class="card safe"><span class="tag good">Expected: ALLOW</span><strong>Genuine bill</strong><p>The generated bill and bank-controlled payee and amount match. One synthetic transfer may post.</p><button class="button" id="run-bill" type="button">Run bill test</button></div>
     </div>
     <div id="demo-evidence" class="example" hidden><div class="card"><span class="step">What the person saw</span><strong>Customer-shared screenshot</strong><img id="context-image" class="evidence-image" alt="Generated test payment context screenshot"></div><div class="card"><span class="step">What the bank signed</span><strong>Actual payment order</strong><div id="bank-order" class="order-box"></div><p class="small">Development bank key · artificial accounts</p></div></div>
-    <div class="card" aria-live="polite"><span class="step">Live walkthrough</span><strong id="demo-title">Choose a test case above</strong><p id="demo-status">The bank gateway will sign the order, ask Gemini to read a generated screenshot, decide, and attempt submission.</p><p id="demo-reason"></p><p id="demo-proof"></p><details><summary>See technical evidence</summary><pre id="demo-output" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#334865"></pre></details></div>
-    <p>The witness proof checks record integrity using two local keys. It does not prove a person saw or understood the warning, and it is not an independently operated external witness yet.</p>
+    <div class="card" aria-live="polite"><span class="step">Live walkthrough</span><strong id="demo-title">Choose a test case above</strong><p id="demo-status">The bank gateway will sign the order, ask Gemini to read a generated screenshot, decide, and pause before submission.</p><p id="demo-reason"></p><div class="actions"><button class="button" id="confirm-payment" type="button" hidden>Confirm this artificial-money payment</button><button class="button secondary" id="cancel-payment" type="button" hidden>Cancel this test payment</button></div><p id="demo-ack"></p><p id="demo-proof"></p><details><summary>See technical evidence</summary><pre id="demo-output" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#334865"></pre></details></div>
+    <p>The browser creates a temporary test-device key when you confirm. Its signature proves control of that key over the exact bank details, warning and choice; it cannot prove a person read or understood the words. The local witness is not independently operated. Bank of Anthos's separate sample site may be unavailable and is not the payment path shown here.</p>
   </main>
   <script>
     function screenshot(scenario) {
@@ -69,8 +73,11 @@ HOME_HTML = """<!doctype html>
       lines.forEach((line,i)=>c.fillText(line,35,155+i*70));
       return canvas.toDataURL('image/png').split(',')[1];
     }
+    let pendingFlow=null;
+    function b64(buffer){return btoa(String.fromCharCode(...new Uint8Array(buffer)));}
     async function run(scenario) {
       const buttons=[document.getElementById('run-refund'),document.getElementById('run-bill')]; buttons.forEach(b=>b.disabled=true);
+      pendingFlow=null;document.getElementById('confirm-payment').hidden=true;document.getElementById('cancel-payment').hidden=true;
       const image=screenshot(scenario);
       document.getElementById('demo-evidence').hidden=false;
       document.getElementById('context-image').src='data:image/png;base64,'+image;
@@ -78,23 +85,54 @@ HOME_HTML = """<!doctype html>
       document.getElementById('demo-title').textContent='Running '+scenario+'…';
       document.getElementById('demo-status').textContent='Creating a bank-signed order and checking the screenshot.';
       document.getElementById('demo-reason').textContent='';
+      document.getElementById('demo-ack').textContent='';
       document.getElementById('demo-proof').textContent='';
       document.getElementById('demo-output').textContent='';
       try {
         const response=await fetch('/api/demo/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenario,image_base64:image})});
         const result=await response.json(); if(!response.ok) throw new Error(result.detail||'Demo failed');
-        document.getElementById('demo-title').textContent=result.verdict==='HOLD'?'Payment stopped before posting':'Payment allowed into test ledger';
+        pendingFlow=result.flow_id;
+        document.getElementById('demo-title').textContent=result.verdict==='HOLD'?'Payment stopped before posting':'Genuine bill is waiting for your confirmation';
         document.getElementById('demo-status').textContent='AI mode: '+result.ai_mode+' · Model call completed: '+result.live_model_called+' · Gateway result: '+result.gateway_result;
         document.getElementById('demo-reason').textContent=result.customer_message;
+        document.getElementById('confirm-payment').hidden=!pendingFlow;
+        document.getElementById('cancel-payment').hidden=!pendingFlow;
         document.getElementById('demo-proof').textContent=result.local_proof_verified
-          ? 'Protection record signed and included in local witness checkpoint #'+result.witness_tree_size+'. Customer acknowledgement is not yet proven.'
+          ? 'Decision record signed and included in local witness checkpoint #'+result.witness_tree_size+'.'
           : 'Protection proof unavailable or failed verification.';
         document.getElementById('demo-output').textContent=JSON.stringify(result,null,2);
       } catch(error) { document.getElementById('demo-title').textContent='Demo could not finish'; document.getElementById('demo-status').textContent=String(error); }
       finally { buttons.forEach(b=>b.disabled=false); }
     }
+    async function finishPayment(choice){
+      if(!pendingFlow)return;
+      const flowId=pendingFlow;pendingFlow=null;
+      const buttons=[document.getElementById('confirm-payment'),document.getElementById('cancel-payment')];buttons.forEach(button=>button.disabled=true);
+      document.getElementById('demo-status').textContent='Creating a temporary browser key and signing your exact '+choice+' choice…';
+      try{
+        if(!window.crypto || !crypto.subtle)throw new Error('Browser signing is unavailable in this context. Use localhost or a secure origin.');
+        const deviceId='browser_'+crypto.randomUUID().replaceAll('-','');
+        const keys=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+        const publicKey=b64(await crypto.subtle.exportKey('spki',keys.publicKey));
+        const preparedResponse=await fetch('/api/demo/prepare-confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({flow_id:flowId,device_id:deviceId,public_key_spki_base64:publicKey,choice})});
+        const prepared=await preparedResponse.json();if(!preparedResponse.ok)throw new Error(prepared.detail||'Could not prepare browser confirmation');
+        const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},keys.privateKey,new TextEncoder().encode(prepared.statement_json)));
+        const completedResponse=await fetch('/api/demo/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({flow_id:flowId,device_id:deviceId,signature_base64:signature,choice})});
+        const completed=await completedResponse.json();if(!completedResponse.ok)throw new Error(completed.detail||'Test gateway refused confirmation');
+        document.getElementById('demo-title').textContent=choice==='PROCEED'?'Confirmed and posted to the artificial-money ledger':'Cancelled; no transfer posted';
+        document.getElementById('demo-status').textContent='Gateway result: '+completed.gateway_result+(completed.synthetic_transfer_id?' · Transfer: '+completed.synthetic_transfer_id:'');
+        document.getElementById('demo-ack').textContent='This browser signed '+choice+' over the exact amount, payee and warning. The signature proves key control, not human understanding.';
+        document.getElementById('demo-proof').textContent=completed.local_proof_verified
+          ? 'Device choice'+(choice==='PROCEED'?' and synthetic posting were':' was')+' recorded; latest local witness checkpoint #'+completed.witness_tree_size+'.'
+          : 'Choice or posting proof unavailable or failed verification.';
+        document.getElementById('demo-output').textContent=JSON.stringify({prepared,completed},null,2);
+      }catch(error){document.getElementById('demo-title').textContent='Confirmation did not complete';document.getElementById('demo-status').textContent=String(error)+' Start a new bill test to try again.';}
+      finally{buttons.forEach(button=>{button.hidden=true;button.disabled=false;});}
+    }
     document.getElementById('run-refund').addEventListener('click',()=>run('refund'));
     document.getElementById('run-bill').addEventListener('click',()=>run('bill'));
+    document.getElementById('confirm-payment').addEventListener('click',()=>finishPayment('PROCEED'));
+    document.getElementById('cancel-payment').addEventListener('click',()=>finishPayment('CANCEL'));
   </script>
 </body>
 </html>"""
@@ -103,6 +141,20 @@ HOME_HTML = """<!doctype html>
 class DemoRequest(BaseModel):
     scenario: str = Field(pattern="^(refund|bill)$")
     image_base64: str = Field(min_length=1, max_length=3_000_000)
+
+
+class PrepareConfirmation(BaseModel):
+    flow_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    device_id: str = Field(pattern=r"^[A-Za-z0-9_-]{8,80}$")
+    public_key_spki_base64: str = Field(min_length=80, max_length=500)
+    choice: Literal["PROCEED", "CANCEL"]
+
+
+class CompleteConfirmation(BaseModel):
+    flow_id: str = Field(pattern=r"^[a-f0-9]{32}$")
+    device_id: str = Field(pattern=r"^[A-Za-z0-9_-]{8,80}$")
+    signature_base64: str = Field(min_length=80, max_length=120)
+    choice: Literal["PROCEED", "CANCEL"]
 
 
 def _api_call(base_url: str, path: str, method: str, body: dict | None = None) -> tuple[int, dict]:
@@ -138,6 +190,16 @@ def create_demo_app() -> FastAPI:
     api_base_url = os.getenv("CARAPACE_API_BASE_URL", "http://api:8080").rstrip("/")
     bank_internal_url = os.getenv("BOA_FRONTEND_URL", "http://anthos-frontend:8080").rstrip("/")
     application = FastAPI(title="CARAPACE Payment Intent Workspace", docs_url=None, redoc_url=None, openapi_url=None)
+    pending_flows: dict[str, dict] = {}
+    pending_lock = threading.Lock()
+
+    def pending(flow_id: str) -> dict:
+        with pending_lock:
+            flow = pending_flows.get(flow_id)
+            if flow is None or time.monotonic() - flow["created_monotonic"] > 900:
+                pending_flows.pop(flow_id, None)
+                raise RuntimeError("test confirmation expired; start a new payment")
+            return dict(flow)
 
     @application.get("/", response_class=HTMLResponse)
     async def home() -> HTMLResponse:
@@ -179,25 +241,37 @@ def create_demo_app() -> FastAPI:
             )
             if decision_code != 200:
                 raise RuntimeError(f"preflight evaluation failed: {decision}")
-            submit_code, submit = _api_call(
-                api_base_url, f"/v1/preflight/orders/{order_id}/submit", "POST",
-                {"decision_id": decision["decision_id"]},
-            )
-            expected_block = decision["verdict"] in {"HOLD", "WARN"}
-            if submit_code == 409 and not expected_block:
-                raise RuntimeError(f"allowed payment was rejected by test gateway: {submit}")
-            if submit_code not in {200, 409}:
-                raise RuntimeError(f"payment gateway failed: {submit}")
+            if request.scenario == "bill" and decision["verdict"] == "ALLOW":
+                flow_id = uuid4().hex
+                with pending_lock:
+                    for key, value in list(pending_flows.items()):
+                        if time.monotonic() - value["created_monotonic"] > 900:
+                            pending_flows.pop(key, None)
+                    pending_flows[flow_id] = {
+                        "created_monotonic": time.monotonic(),
+                        "order_id": order_id,
+                        "decision_id": decision["decision_id"],
+                        "decision_receipt_id": decision["protection_bundle"]["receipt"]["receipt_id"],
+                        "device_id": None,
+                        "choice": None,
+                        "statement_json": None,
+                    }
+            else:
+                flow_id = None
+            submit_code, submit = (None, {})
+            if flow_id is None:
+                submit_code, submit = _api_call(
+                    api_base_url, f"/v1/preflight/orders/{order_id}/submit", "POST",
+                    {"decision_id": decision["decision_id"]},
+                )
+                if submit_code != 409:
+                    raise RuntimeError(f"test gateway did not safely refuse this payment: {submit}")
             receipt_id = decision["protection_bundle"]["receipt"]["receipt_id"]
             receipt_code, proof = _api_call(
                 api_base_url, f"/v1/preflight/receipts/{receipt_id}", "GET"
             )
             if receipt_code != 200:
                 raise RuntimeError(f"protection proof unavailable: {proof}")
-            posting_id = (
-                submit["protection_bundle"]["receipt"]["receipt_id"]
-                if submit_code == 200 else None
-            )
             return {
                 "scenario": request.scenario,
                 "order_id": order_id,
@@ -209,12 +283,101 @@ def create_demo_app() -> FastAPI:
                 "customer_message": decision["customer_message"],
                 "ai_mode": decision["provider_mode"],
                 "live_model_called": decision["live_model_called"],
-                "gateway_result": "POSTED_SYNTHETIC" if submit_code == 200 else "BLOCKED",
-                "synthetic_transfer_id": submit.get("transfer", {}).get("transfer_id") if submit_code == 200 else None,
+                "gateway_result": "AWAITING_BROWSER_CONFIRMATION" if flow_id else "BLOCKED",
+                "synthetic_transfer_id": None,
                 "protection_receipt_id": receipt_id,
-                "posting_receipt_id": posting_id,
+                "posting_receipt_id": None,
+                "flow_id": flow_id,
                 "local_proof_verified": proof["local_proof_verified"],
                 "witness_tree_size": proof["bundle"]["tree_head"]["tree_size"],
+                "proof_scope": proof["verification_scope"],
+                "test_ledger_only": True,
+            }
+        return await run_in_threadpool(execute)
+
+    @application.post("/api/demo/prepare-confirm")
+    async def prepare_confirmation(request: PrepareConfirmation) -> dict:
+        def execute() -> dict:
+            flow = pending(request.flow_id)
+            if flow["device_id"] is not None:
+                raise RuntimeError("this test flow has already prepared a device")
+            code, registered = _api_call(
+                api_base_url, "/v1/preflight/devices", "POST",
+                {"payer_account": "1000000001", "device_id": request.device_id,
+                 "public_key_spki_base64": request.public_key_spki_base64},
+            )
+            if code != 201:
+                raise RuntimeError(f"test device enrollment failed: {registered}")
+            query = urlencode({"device_id": request.device_id, "choice": request.choice})
+            code, challenge = _api_call(
+                api_base_url,
+                f"/v1/preflight/orders/{flow['order_id']}/acknowledgement-challenge?{query}",
+                "GET",
+            )
+            if code != 200:
+                raise RuntimeError(f"signed payment challenge failed: {challenge}")
+            with pending_lock:
+                saved = pending_flows.get(request.flow_id)
+                if saved is None or saved["device_id"] is not None:
+                    raise RuntimeError("test flow changed during device enrollment")
+                saved["device_id"] = request.device_id
+                saved["choice"] = request.choice
+                saved["statement_json"] = challenge["statement_json"]
+            return {
+                "statement_json": challenge["statement_json"],
+                "statement": challenge["statement"],
+                "device_key_sha256": registered["device_key_sha256"],
+                "scope": challenge["scope"],
+            }
+        return await run_in_threadpool(execute)
+
+    @application.post("/api/demo/complete")
+    async def complete_confirmation(request: CompleteConfirmation) -> dict:
+        def execute() -> dict:
+            with pending_lock:
+                flow = pending_flows.pop(request.flow_id, None)
+            if flow is None or time.monotonic() - flow["created_monotonic"] > 900:
+                raise RuntimeError("test confirmation expired; start a new payment")
+            if (
+                flow["device_id"] != request.device_id
+                or flow["choice"] != request.choice
+                or flow["statement_json"] is None
+            ):
+                raise RuntimeError("test device did not prepare this payment")
+            order_id = flow["order_id"]
+            code, acknowledgement = _api_call(
+                api_base_url, f"/v1/preflight/orders/{order_id}/acknowledge", "POST",
+                {"device_id": request.device_id, "choice": request.choice,
+                 "statement_json": flow["statement_json"],
+                 "signature_base64": request.signature_base64},
+            )
+            if code != 200:
+                raise RuntimeError(f"test device acknowledgement failed: {acknowledgement}")
+            submit = None
+            if request.choice == "PROCEED":
+                code, submit = _api_call(
+                    api_base_url, f"/v1/preflight/orders/{order_id}/submit", "POST",
+                    {"decision_id": flow["decision_id"]},
+                )
+                if code != 200:
+                    raise RuntimeError(f"confirmed test payment was rejected: {submit}")
+            receipt_id = (
+                submit["protection_bundle"]["receipt"]["receipt_id"]
+                if submit else acknowledgement["protection_bundle"]["receipt"]["receipt_id"]
+            )
+            proof_code, proof = _api_call(
+                api_base_url, f"/v1/preflight/receipts/{receipt_id}", "GET"
+            )
+            if proof_code != 200:
+                raise RuntimeError(f"posting proof unavailable: {proof}")
+            return {
+                "gateway_result": "POSTED_SYNTHETIC" if submit else "CANCELLED_NO_POSTING",
+                "synthetic_transfer_id": submit["transfer"]["transfer_id"] if submit else None,
+                "acknowledgement_receipt_id": acknowledgement["protection_bundle"]["receipt"]["receipt_id"],
+                "posting_receipt_id": receipt_id if submit else None,
+                "local_proof_verified": proof["local_proof_verified"],
+                "witness_tree_size": proof["bundle"]["tree_head"]["tree_size"],
+                "device_signature_verified": True,
                 "proof_scope": proof["verification_scope"],
                 "test_ledger_only": True,
             }
