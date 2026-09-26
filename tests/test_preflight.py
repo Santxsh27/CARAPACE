@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import json
 import sqlite3
 import tempfile
@@ -13,6 +14,7 @@ from carapace_api.config import Settings
 from carapace_api.factory import create_app
 from carapace_ai.incident_reasoning import LocalIncidentReasoningProvider
 from carapace_core.lens import IntentDirection, MessageIntent
+from carapace_core.protection_proof import verify_protection_bundle
 
 
 PNG_PIXEL = base64.b64decode(
@@ -200,3 +202,89 @@ class PreflightTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 409)
         self.assertIn("signature", response.text)
+
+    def test_warning_and_posting_get_separately_signed_inclusion_proofs(self) -> None:
+        keys = self.client.get("/v1/preflight/public-keys", headers=self.bank_a).json()
+        pinned = {
+            "bank_public_key": base64.b64decode(keys["bank"]["ed25519_public_key_base64"]),
+            "witness_public_key": base64.b64decode(keys["witness"]["ed25519_public_key_base64"]),
+        }
+        self.assertNotEqual(pinned["bank_public_key"], pinned["witness_public_key"])
+        blocked_order = self.order()["envelope"]["order_id"]
+        blocked = self.evaluate(blocked_order, "Example Power refund ₹4,999: scan to receive.")
+        first_bundle = blocked["protection_bundle"]
+        self.assertTrue(verify_protection_bundle(first_bundle, **pinned))
+        self.assertEqual(first_bundle["receipt"]["acknowledgement_state"], "NOT_ACKNOWLEDGED")
+        self.assertEqual(first_bundle["receipt"]["verdict"], "HOLD")
+        self.assertEqual(first_bundle["tree_head"]["tree_size"], 1)
+        tampered = copy.deepcopy(first_bundle)
+        tampered["receipt"]["issued_warning"] = "No warning"
+        self.assertFalse(verify_protection_bundle(tampered, **pinned))
+        self.assertEqual(
+            self.client.get(
+                f"/v1/preflight/receipts/{first_bundle['receipt']['receipt_id']}",
+                headers=self.bank_b,
+            ).status_code,
+            404,
+        )
+
+        allowed_order = self.order()["envelope"]["order_id"]
+        allowed = self.evaluate(allowed_order, "Example Power bill: Pay ₹4,999 to Example Power.")
+        result = self.client.post(
+            f"/v1/preflight/orders/{allowed_order}/submit",
+            headers=self.bank_a,
+            json={"decision_id": allowed["decision_id"]},
+        )
+        self.assertEqual(result.status_code, 200, result.text)
+        posting = result.json()["protection_bundle"]
+        self.assertTrue(verify_protection_bundle(posting, **pinned))
+        self.assertEqual(posting["receipt"]["transfer_id"], result.json()["transfer"]["transfer_id"])
+        self.assertEqual(posting["receipt"]["stage"], "SYNTHETIC_POSTING")
+        self.assertEqual(posting["tree_head"]["tree_size"], 3)
+        old_again = self.client.get(
+            f"/v1/preflight/receipts/{first_bundle['receipt']['receipt_id']}",
+            headers=self.bank_a,
+        ).json()
+        self.assertTrue(old_again["local_proof_verified"])
+        self.assertTrue(verify_protection_bundle(old_again["bundle"], **pinned))
+        self.assertEqual(old_again["bundle"]["tree_head"]["tree_size"], 3)
+
+    def test_corrupt_witness_fails_closed_without_saving_next_decision(self) -> None:
+        first_order = self.order()["envelope"]["order_id"]
+        self.evaluate(first_order, "Example Power bill: Pay ₹4,999 to Example Power.")
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "UPDATE preflight_witness_heads SET witness_signature='corrupt' WHERE tree_size=1"
+            )
+        second_order = self.order()["envelope"]["order_id"]
+        response = self.client.post(
+            f"/v1/preflight/orders/{second_order}/evaluate",
+            headers=self.bank_a,
+            json={"context_text": "Example Power bill: Pay ₹4,999 to Example Power."},
+        )
+        self.assertEqual(response.status_code, 503)
+        with sqlite3.connect(self.db_path) as connection:
+            stored = connection.execute(
+                "SELECT decision_json FROM preflight_orders WHERE order_id=?",
+                (second_order,),
+            ).fetchone()
+        self.assertIsNone(stored[0])
+
+    def test_corrupt_witness_rolls_back_allowed_synthetic_transfer(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        self.assertEqual(decision["verdict"], "ALLOW")
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "UPDATE preflight_witness_heads SET witness_signature='corrupt' WHERE tree_size=1"
+            )
+        response = self.client.post(
+            f"/v1/preflight/orders/{order_id}/submit",
+            headers=self.bank_a,
+            json={"decision_id": decision["decision_id"]},
+        )
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            self.client.get("/v1/preflight/transfers", headers=self.bank_a).json()["transfers"],
+            [],
+        )

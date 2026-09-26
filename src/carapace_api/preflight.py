@@ -7,8 +7,12 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
+from uuid import uuid4
 
+from carapace_core.bank_envelope import BankEnvelopeSigner
 from carapace_core.canonical import canonical_json
+
+from .preflight_evidence import PreflightEvidenceLog
 
 
 class PreflightNotFound(Exception):
@@ -83,19 +87,37 @@ class PreflightGate:
             "decision": json.loads(row["decision_json"]) if row["decision_json"] else None,
         }
 
-    def put_decision(self, tenant_id: str, order_id: str, decision: Mapping[str, Any]) -> None:
-        with self._connect() as connection:
+    def put_decision(
+        self, tenant_id: str, order_id: str, decision: Mapping[str, Any],
+        *, receipt: Mapping[str, Any], evidence_log: PreflightEvidenceLog,
+        bank_signer: BankEnvelopeSigner,
+    ) -> dict[str, Any]:
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
             result = connection.execute(
                 "UPDATE preflight_orders SET decision_json=? WHERE tenant_id=? AND order_id=? AND decision_json IS NULL",
                 (canonical_json(decision), tenant_id, order_id),
             )
             if result.rowcount != 1:
                 raise PreflightConflict("order was already evaluated or is unavailable")
+            bundle = evidence_log.append(
+                connection, tenant_id=tenant_id, receipt=receipt,
+                bank_signer=bank_signer,
+            )
+            connection.commit()
+            return bundle
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def submit(
         self, tenant_id: str, order_id: str, decision_id: str, transfer_id: str,
         *, now: datetime, verify_envelope: Any, verify_decision: Any,
-    ) -> dict[str, Any]:
+        evidence_log: PreflightEvidenceLog, bank_signer: BankEnvelopeSigner,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Enforce decision and insert synthetic money effect in one SQLite transaction."""
         connection = self._connect()
         try:
@@ -137,8 +159,29 @@ class PreflightGate:
                  transfer["payer_account"], transfer["payee_account"],
                  transfer["amount_minor"], transfer["currency"], transfer["created_at"]),
             )
+            receipt = {
+                "schema_version": "carapace-protection-1",
+                "receipt_id": f"protection_{uuid4().hex}",
+                "stage": "SYNTHETIC_POSTING",
+                "tenant_id": tenant_id,
+                "order_id": order_id,
+                "decision_id": decision_id,
+                "decision_receipt_id": decision.get("protection_receipt_id"),
+                "gateway_outcome": "POSTED_SYNTHETIC",
+                "transfer_id": transfer_id,
+                "amount_minor": transfer["amount_minor"],
+                "currency": transfer["currency"],
+                "bank_payee": envelope["payee_display_name"],
+                "bank_payee_account_last4": envelope["payee_account"][-4:],
+                "issued_at": now.isoformat(),
+                "claim_limit": "Artificial-money posting only; not settlement evidence or customer acknowledgement.",
+            }
+            bundle = evidence_log.append(
+                connection, tenant_id=tenant_id, receipt=receipt,
+                bank_signer=bank_signer,
+            )
             connection.commit()
-            return transfer
+            return transfer, bundle
         except sqlite3.IntegrityError as error:
             connection.rollback()
             raise PreflightConflict("payment order was already submitted") from error

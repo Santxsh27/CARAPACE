@@ -52,6 +52,7 @@ from .models import (
 )
 from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundError
 from .preflight import PreflightGate
+from .preflight_evidence import PreflightEvidenceLog
 from .preflight_routes import register_preflight_routes
 
 
@@ -87,11 +88,23 @@ def create_app(
         resolved_settings.bank_signing_key_path or resolved_settings.database_path.parent / "bank-dev-ed25519.pem",
         allow_generate=resolved_settings.environment in {"development", "test"},
     )
+    witness_key_path = resolved_settings.witness_signing_key_path or resolved_settings.database_path.parent / "witness-dev-ed25519.pem"
+    bank_key_path = resolved_settings.bank_signing_key_path or resolved_settings.database_path.parent / "bank-dev-ed25519.pem"
+    if witness_key_path.resolve() == bank_key_path.resolve():
+        raise RuntimeError("bank and witness signing keys must be distinct")
+    witness_signer = BankEnvelopeSigner(
+        witness_key_path,
+        allow_generate=resolved_settings.environment in {"development", "test"},
+    )
+    evidence_log = PreflightEvidenceLog(resolved_settings.database_path, witness_signer)
+    evidence_log.initialize()
     register_preflight_routes(
         application,
         authenticate=authenticate,
         gate=preflight_gate,
         signer=signer,
+        witness_signer=witness_signer,
+        evidence_log=evidence_log,
         provider=resolved_lens_provider,
     )
 

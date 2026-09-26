@@ -20,14 +20,15 @@ This is the short execution checklist for the existing repository. Each stage en
 
 Milestone 1 stops at a **CARAPACE local synthetic ledger**. The sample Bank of Anthos site can run beside it, but its official payment path is not yet controlled by this gate. The browser supplies generated test screenshots plus their text transcription. Independent OCR is not yet present.
 
-## 2. Evidence protocol — next
+## 2. Evidence protocol — local integrity slice implemented; independent assurance next
 
-1. Define exact warning templates and customer-choice fields. Sign a protection receipt covering the order, decision, displayed warning, choice and outcome.
-2. Add registered-device acknowledgement without claiming that a device signature proves human understanding.
-3. Add an append-only Merkle log, inclusion/consistency proofs and a separately keyed witness; verify log and receipt changes in independent tests.
-4. Reconcile every completed test payment against a decision ID so missing records cannot be hidden by a valid-looking log.
+1. [x] Sign the exact issued warning, order digest, verdict, policy context and input hashes in a decision protection record. Sign synthetic posting separately; commit each with its corresponding gate action.
+2. [x] Add a separately keyed **local** witness tree and inclusion proof. Verify bundles using externally supplied public keys; corrupt latest witness history fails the next write closed.
+3. [ ] Add registered-device acknowledgement and a customer-choice record without claiming that a device signature proves human understanding.
+4. [ ] Add consistency proofs, externally monitored checkpoint history and an independently operated witness. Current inclusion proofs establish membership in one signed checkpoint only.
+5. [ ] Reconcile every completed test payment against a decision ID so missing records cannot be hidden by a valid-looking log.
 
-Acceptance: tampering with the warning, choice, order, decision, receipt or log history is detected; unsigned or missing evidence is visibly unverified.
+Current acceptance: warning/record tampering or a corrupted current witness head is detected in tests, and the write rolls back. Full milestone acceptance additionally requires choice evidence, consistency and coverage checks. See [Milestone 2A report](MILESTONE_2A_REPORT.md).
 
 ## 3. Stronger bank and document integration
 

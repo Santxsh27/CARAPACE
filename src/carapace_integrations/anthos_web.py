@@ -41,7 +41,7 @@ HOME_HTML = """<!doctype html>
     <h1>Know what a payment will actually do.</h1>
     <p class="lead">CARAPACE compares the message or bill that persuaded a person to pay with the amount and recipient supplied by the bank. It can stop a dangerous contradiction before an artificial-money transfer is submitted.</p>
     <div class="actions"><a class="button" href="#scenarios">See the two test cases</a><a class="button secondary" href="http://localhost:8081/home" target="_blank" rel="noopener">Open Bank of Anthos</a></div>
-    <div class="note"><strong>Milestone 1:</strong> bank-signed payment orders, a server-side HOLD gate, and screenshot-capable Gemini analysis are implemented. This demo posts only to a local synthetic test ledger, not the official Bank of Anthos transfer service or any real payment rail. AI mode is shown for each run.</div>
+    <div class="note"><strong>Working local path:</strong> a signed payment order, Gemini context check, enforced HOLD gate, and signed protection record. The record has a separate local witness-key inclusion proof. The demo still posts only to a synthetic test ledger—not Bank of Anthos's official transfer service or real money.</div>
     <div id="how-it-works" class="grid">
       <div class="card"><span class="step">01 · Understand</span><strong>Read the story</strong><p>Gemini extracts supported claims from a customer-shared message or screenshot.</p></div>
       <div class="card"><span class="step">02 · Compare</span><strong>Check the actual payment</strong><p>Deterministic rules compare those claims with bank-controlled amount, direction and recipient.</p></div>
@@ -53,8 +53,8 @@ HOME_HTML = """<!doctype html>
       <div class="card safe"><span class="tag good">Expected: ALLOW</span><strong>Genuine bill</strong><p>The generated bill and bank-controlled payee and amount match. One synthetic transfer may post.</p><button class="button" id="run-bill" type="button">Run bill test</button></div>
     </div>
     <div id="demo-evidence" class="example" hidden><div class="card"><span class="step">What the person saw</span><strong>Customer-shared screenshot</strong><img id="context-image" class="evidence-image" alt="Generated test payment context screenshot"></div><div class="card"><span class="step">What the bank signed</span><strong>Actual payment order</strong><div id="bank-order" class="order-box"></div><p class="small">Development bank key · artificial accounts</p></div></div>
-    <div class="card" aria-live="polite"><span class="step">Live walkthrough</span><strong id="demo-title">Choose a test case above</strong><p id="demo-status">The bank gateway will sign the order, ask Gemini to read a generated screenshot, decide, and attempt submission.</p><p id="demo-reason"></p><details><summary>See technical evidence</summary><pre id="demo-output" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#334865"></pre></details></div>
-    <p>Later, a signed protection receipt and witness will let customers and auditors verify what was recorded. A browser signature will not be presented as proof that a human understood a warning.</p>
+    <div class="card" aria-live="polite"><span class="step">Live walkthrough</span><strong id="demo-title">Choose a test case above</strong><p id="demo-status">The bank gateway will sign the order, ask Gemini to read a generated screenshot, decide, and attempt submission.</p><p id="demo-reason"></p><p id="demo-proof"></p><details><summary>See technical evidence</summary><pre id="demo-output" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#334865"></pre></details></div>
+    <p>The witness proof checks record integrity using two local keys. It does not prove a person saw or understood the warning, and it is not an independently operated external witness yet.</p>
   </main>
   <script>
     function screenshot(scenario) {
@@ -78,6 +78,7 @@ HOME_HTML = """<!doctype html>
       document.getElementById('demo-title').textContent='Running '+scenario+'…';
       document.getElementById('demo-status').textContent='Creating a bank-signed order and checking the screenshot.';
       document.getElementById('demo-reason').textContent='';
+      document.getElementById('demo-proof').textContent='';
       document.getElementById('demo-output').textContent='';
       try {
         const response=await fetch('/api/demo/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenario,image_base64:image})});
@@ -85,6 +86,9 @@ HOME_HTML = """<!doctype html>
         document.getElementById('demo-title').textContent=result.verdict==='HOLD'?'Payment stopped before posting':'Payment allowed into test ledger';
         document.getElementById('demo-status').textContent='AI mode: '+result.ai_mode+' · Model call completed: '+result.live_model_called+' · Gateway result: '+result.gateway_result;
         document.getElementById('demo-reason').textContent=result.customer_message;
+        document.getElementById('demo-proof').textContent=result.local_proof_verified
+          ? 'Protection record signed and included in local witness checkpoint #'+result.witness_tree_size+'. Customer acknowledgement is not yet proven.'
+          : 'Protection proof unavailable or failed verification.';
         document.getElementById('demo-output').textContent=JSON.stringify(result,null,2);
       } catch(error) { document.getElementById('demo-title').textContent='Demo could not finish'; document.getElementById('demo-status').textContent=String(error); }
       finally { buttons.forEach(b=>b.disabled=false); }
@@ -179,6 +183,21 @@ def create_demo_app() -> FastAPI:
                 api_base_url, f"/v1/preflight/orders/{order_id}/submit", "POST",
                 {"decision_id": decision["decision_id"]},
             )
+            expected_block = decision["verdict"] in {"HOLD", "WARN"}
+            if submit_code == 409 and not expected_block:
+                raise RuntimeError(f"allowed payment was rejected by test gateway: {submit}")
+            if submit_code not in {200, 409}:
+                raise RuntimeError(f"payment gateway failed: {submit}")
+            receipt_id = decision["protection_bundle"]["receipt"]["receipt_id"]
+            receipt_code, proof = _api_call(
+                api_base_url, f"/v1/preflight/receipts/{receipt_id}", "GET"
+            )
+            if receipt_code != 200:
+                raise RuntimeError(f"protection proof unavailable: {proof}")
+            posting_id = (
+                submit["protection_bundle"]["receipt"]["receipt_id"]
+                if submit_code == 200 else None
+            )
             return {
                 "scenario": request.scenario,
                 "order_id": order_id,
@@ -192,6 +211,11 @@ def create_demo_app() -> FastAPI:
                 "live_model_called": decision["live_model_called"],
                 "gateway_result": "POSTED_SYNTHETIC" if submit_code == 200 else "BLOCKED",
                 "synthetic_transfer_id": submit.get("transfer", {}).get("transfer_id") if submit_code == 200 else None,
+                "protection_receipt_id": receipt_id,
+                "posting_receipt_id": posting_id,
+                "local_proof_verified": proof["local_proof_verified"],
+                "witness_tree_size": proof["bundle"]["tree_head"]["tree_size"],
+                "proof_scope": proof["verification_scope"],
                 "test_ledger_only": True,
             }
         return await run_in_threadpool(execute)

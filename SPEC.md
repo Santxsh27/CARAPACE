@@ -51,6 +51,8 @@ The local Bank of Anthos ledger is an authorised artificial-money test integrati
 
 Registered device acknowledgement, signed protection receipts, independent receipt verifier, append-only Merkle log, separately keyed witness, tamper demonstration and payment-to-decision reconciliation.
 
+**Incremental evidence state (26 September 2026):** the local gate now issues a bank-signed warning/decision record and, only for an allowed synthetic posting, a separate bank-signed posting record. Both are appended inside the same SQLite transaction as their respective decision or transfer. A second local signing key authenticates Merkle tree heads, and a verifier can check inclusion using externally pinned keys. This proves record integrity and inclusion in one checkpoint, not that the customer saw the warning, that all payments were logged, or that successive checkpoints are append-only. Device acknowledgement, consistency proofs, reconciliation and an operationally independent witness remain open Milestone 2 work.
+
 ### Milestone 3 — learning and dispute tools
 
 Gemini-assisted rule proposal with deterministic held-out replay and human approval; evidence-grounded dispute summaries. These do not alter production policies or make legal determinations autonomously.

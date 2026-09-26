@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
@@ -18,10 +19,13 @@ from starlette.concurrency import run_in_threadpool
 from carapace_ai.provider import LensIntentProvider
 from carapace_ai.redaction import redact_for_model
 from carapace_core.bank_envelope import BankEnvelopeSigner
+from carapace_core.canonical import sha256_hex
 from carapace_core.lens import IntentDirection, MessageIntent
+from carapace_core.protection_proof import verify_protection_bundle
 
 from .auth import TenantAuthenticator, TenantContext
 from .preflight import PreflightConflict, PreflightGate, PreflightNotFound
+from .preflight_evidence import EvidenceIntegrityError, EvidenceNotFound, PreflightEvidenceLog
 
 
 class CreatePaymentOrder(BaseModel):
@@ -113,6 +117,8 @@ def register_preflight_routes(
     authenticate: TenantAuthenticator,
     gate: PreflightGate,
     signer: BankEnvelopeSigner,
+    witness_signer: BankEnvelopeSigner,
+    evidence_log: PreflightEvidenceLog,
     provider: LensIntentProvider,
 ) -> None:
     def load_verified(tenant_id: str, order_id: str) -> dict[str, Any]:
@@ -233,13 +239,45 @@ def register_preflight_routes(
             "input_redaction_applied": cleaned.redaction_applied,
             "envelope_signature": saved["bank_signature"],
             "created_at": datetime.now(timezone.utc).isoformat(),
+            "protection_receipt_id": f"protection_{uuid4().hex}",
         }
         decision["bank_signature"] = signer.sign(decision)
+        receipt = {
+            "schema_version": "carapace-protection-1",
+            "receipt_id": decision["protection_receipt_id"],
+            "stage": "DECISION",
+            "tenant_id": tenant.tenant_id,
+            "order_id": order_id,
+            "decision_id": decision["decision_id"],
+            "bank_order_digest": sha256_hex(saved["envelope"]),
+            "bank_order_signature": saved["bank_signature"],
+            "amount_minor": saved["envelope"]["amount_minor"],
+            "currency": saved["envelope"]["currency"],
+            "direction": saved["envelope"]["direction"],
+            "bank_payee": saved["envelope"]["payee_display_name"],
+            "bank_payee_account_last4": saved["envelope"]["payee_account"][-4:],
+            "verdict": verdict,
+            "reason_codes": reasons,
+            "issued_warning": decision["customer_message"],
+            "provider_mode": provider.mode,
+            "model": provider.model_name,
+            "live_model_called": decision["live_model_called"],
+            "context_sha256": hashlib.sha256(request.context_text.encode("utf-8")).hexdigest(),
+            "image_sha256": hashlib.sha256(image_bytes).hexdigest() if image_bytes else None,
+            "issued_at": decision["created_at"],
+            "acknowledgement_state": "NOT_ACKNOWLEDGED",
+            "claim_limit": "Bank-issued warning only; no proof the customer saw or understood it.",
+        }
         try:
-            gate.put_decision(tenant.tenant_id, order_id, decision)
+            bundle = gate.put_decision(
+                tenant.tenant_id, order_id, decision, receipt=receipt,
+                evidence_log=evidence_log, bank_signer=signer,
+            )
         except PreflightConflict as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
-        return decision
+        except EvidenceIntegrityError as error:
+            raise HTTPException(status_code=503, detail="protection evidence is unavailable") from error
+        return {**decision, "protection_bundle": bundle}
 
     @application.post("/v1/preflight/orders/{order_id}/submit", tags=["preflight"])
     async def submit_order(
@@ -256,18 +294,52 @@ def register_preflight_routes(
                     value["bank_signature"] = signature
 
         try:
-            transfer = await run_in_threadpool(
+            transfer, bundle = await run_in_threadpool(
                 gate.submit, tenant.tenant_id, order_id, request.decision_id,
                 f"synthetic_{uuid4().hex}",
                 now=datetime.now(timezone.utc),
                 verify_envelope=signer.verify,
                 verify_decision=verify_decision,
+                evidence_log=evidence_log,
+                bank_signer=signer,
             )
         except PreflightNotFound as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         except PreflightConflict as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
-        return {"status": "POSTED_SYNTHETIC", "transfer": transfer}
+        except EvidenceIntegrityError as error:
+            raise HTTPException(status_code=503, detail="protection evidence is unavailable") from error
+        return {"status": "POSTED_SYNTHETIC", "transfer": transfer, "protection_bundle": bundle}
+
+    @application.get("/v1/preflight/receipts/{receipt_id}", tags=["preflight"])
+    async def get_protection_receipt(
+        receipt_id: str, tenant: TenantContext = Depends(authenticate)
+    ) -> dict[str, Any]:
+        try:
+            bundle = await run_in_threadpool(evidence_log.get_bundle, tenant.tenant_id, receipt_id)
+        except EvidenceNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except EvidenceIntegrityError as error:
+            raise HTTPException(status_code=503, detail="protection evidence is unavailable") from error
+        return {
+            "bundle": bundle,
+            "local_proof_verified": verify_protection_bundle(
+                bundle, bank_public_key=signer.public_key_bytes,
+                witness_public_key=witness_signer.public_key_bytes,
+            ),
+            "verification_scope": "Same-operator local keys; external verifier must pin public keys independently.",
+        }
+
+    @application.get("/v1/preflight/public-keys", tags=["preflight"])
+    async def get_protection_public_keys(
+        tenant: TenantContext = Depends(authenticate)
+    ) -> dict[str, Any]:
+        del tenant
+        return {
+            "bank": {"key_id": signer.key_id, "ed25519_public_key_base64": base64.b64encode(signer.public_key_bytes).decode()},
+            "witness": {"key_id": witness_signer.key_id, "ed25519_public_key_base64": base64.b64encode(witness_signer.public_key_bytes).decode()},
+            "warning": "Pin these keys through an independent channel before trusting a disclosed receipt.",
+        }
 
     @application.get("/v1/preflight/transfers", tags=["preflight"])
     async def list_transfers(tenant: TenantContext = Depends(authenticate)) -> dict[str, Any]:

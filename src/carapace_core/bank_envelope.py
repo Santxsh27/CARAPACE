@@ -15,7 +15,7 @@ from typing import Any, Mapping
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from .canonical import canonical_json, sha256_hex
 
@@ -56,9 +56,17 @@ class BankEnvelopeSigner:
         return base64.urlsafe_b64encode(self._private.sign(data)).decode("ascii")
 
     def verify(self, envelope: Mapping[str, Any], signature: str) -> bool:
+        return self.verify_with_public_key(envelope, signature, self.public_key_bytes)
+
+    @staticmethod
+    def verify_with_public_key(
+        envelope: Mapping[str, Any], signature: str, public_key_bytes: bytes
+    ) -> bool:
         try:
             raw = base64.urlsafe_b64decode(signature.encode("ascii"))
-            self._private.public_key().verify(raw, canonical_json(envelope).encode("utf-8"))
+            Ed25519PublicKey.from_public_bytes(public_key_bytes).verify(
+                raw, canonical_json(envelope).encode("utf-8")
+            )
         except (InvalidSignature, ValueError, TypeError, UnicodeError, binascii.Error):
             return False
         return True

@@ -18,11 +18,21 @@ exposes the key in JavaScript.
 2. `POST /v1/preflight/orders/{order_id}/evaluate` with `context_text` and
    optional Base64 PNG/JPEG/WebP screenshot plus `image_mime_type`. It returns
    `ALLOW`, `WARN`, or `HOLD`, reason codes, a customer message, actual AI
-   mode, and `live_model_called`. A provider error is an explicit `HOLD`.
+   mode, `live_model_called`, and a bank-signed decision protection bundle. A
+   provider error is an explicit `HOLD`. The bundle records what warning was
+   **issued**, not proof that a customer saw or understood it.
 3. `POST /v1/preflight/orders/{order_id}/submit` with the stored `decision_id`.
    The gateway rechecks both signatures, tenant, expiry and decision in one
    SQLite transaction. `HOLD`, unresolved `WARN`, changed, expired and replayed
-   orders cannot post. An `ALLOW` posts one local synthetic transfer row.
+   orders cannot post. An `ALLOW` posts one local synthetic transfer row and
+   atomically appends a separately signed synthetic-posting protection bundle.
+
+Each protection bundle contains the bank-signed record, a witness-signed tree
+head, and a Merkle inclusion path. `GET /v1/preflight/receipts/{receipt_id}`
+returns the current proof for the authenticated tenant. `GET
+/v1/preflight/public-keys` exposes key material for pinning in this local demo;
+a verifier must obtain trusted key fingerprints through an independent channel
+in a real deployment. See [protection-proof.md](protection-proof.md).
 
 `GET /v1/preflight/orders/{order_id}` reads the signed order and decision.
 `GET /v1/preflight/transfers` reads only the authenticated bank's synthetic

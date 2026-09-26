@@ -24,6 +24,7 @@ class Settings:
     google_cloud_location: str = "global"
     gemini_model: str = "gemini-3.5-flash-lite"
     bank_signing_key_path: Path | None = None
+    witness_signing_key_path: Path | None = None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -34,6 +35,7 @@ class Settings:
         raw_keys = os.getenv("CARAPACE_TENANT_KEYS_JSON")
         raw_passport_keys = os.getenv("CARAPACE_PASSPORT_KEYS_JSON")
         raw_bank_signing_key_path = os.getenv("CARAPACE_BANK_SIGNING_KEY_PATH")
+        raw_witness_signing_key_path = os.getenv("CARAPACE_WITNESS_SIGNING_KEY_PATH")
 
         if raw_keys:
             parsed = json.loads(raw_keys)
@@ -70,6 +72,10 @@ class Settings:
             raise RuntimeError(
                 "CARAPACE_BANK_SIGNING_KEY_PATH must be explicitly provisioned outside development"
             )
+        if environment not in {"development", "test"} and not raw_witness_signing_key_path:
+            raise RuntimeError(
+                "CARAPACE_WITNESS_SIGNING_KEY_PATH must be explicitly provisioned outside development"
+            )
 
         return cls(
             environment=environment,
@@ -82,6 +88,7 @@ class Settings:
             google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
             gemini_model=os.getenv("CARAPACE_GEMINI_MODEL", "gemini-3.5-flash-lite"),
             bank_signing_key_path=Path(raw_bank_signing_key_path) if raw_bank_signing_key_path else database_path.parent / "bank-dev-ed25519.pem",
+            witness_signing_key_path=Path(raw_witness_signing_key_path) if raw_witness_signing_key_path else database_path.parent / "witness-dev-ed25519.pem",
         )
 
     def passport_signing_key(self, tenant_id: str) -> str:
