@@ -43,9 +43,9 @@ README, served homepage and this specification describe the Payment Intent Firew
 - Automated tests cover signing, tampering, HOLD non-posting, ALLOW posting, isolation, provider failure and both scenarios.
 - A simple customer page demonstrates the path and states what is simulated.
 
-The local Bank of Anthos ledger is an authorised artificial-money test integration. Until its official transfer path is wired into the gate, a controlled test adapter may write the sample ledger behind the gate; that limitation must be displayed and documented.
+The local Bank of Anthos ledger is an authorised artificial-money test integration. A controlled test bridge now writes one exact-bound sample-ledger row **after** the CARAPACE synthetic gate accepts a signed, confirmed transfer. It does not use Bank of Anthos's official LedgerWriter/payment route. That distinction must remain visible.
 
-**Implementation state (25 September 2026):** the signed local order, signed decision, enforced HOLD/ALLOW gate, screenshot-capable Gemini adapter and browser demo are implemented. The full 63-test Docker suite passed. A live Gemini 3.5 Flash Lite call held the generated refund screenshot and another allowed the generated bill. The gate currently posts to a transactionally protected **CARAPACE synthetic SQLite ledger**, not Bank of Anthos's official transfer path. Independent OCR for image-only value grounding, signed customer protection receipts and Bank of Anthos in-path posting remain open integration work.
+**Implementation state (27 September 2026):** the signed local order, signed decision, enforced HOLD/ALLOW gate, screenshot-capable Gemini adapter, browser-signed choice, signed local protection receipts and browser demo are implemented. The full 87-test Docker suite passed with one opt-in database case skipped by default; that database case also passed against the local Anthos sample ledger. A live Gemini call held the generated refund screenshot and another allowed the generated bill; a separate timed-out model call failed closed with no posting. The gate posts first to a transactionally protected **CARAPACE synthetic SQLite ledger**. The test bridge below is a separate second step, not Bank of Anthos's official transfer path. Independent OCR for image-only value grounding and an authorised bank-owned processor path remain open integration work.
 
 ### Milestone 2 — evidence protocol
 
@@ -56,6 +56,8 @@ Registered device acknowledgement, signed protection receipts, independent recei
 ### Milestone 3 — learning and dispute tools
 
 Gemini-assisted rule proposal with deterministic held-out replay and human approval; evidence-grounded dispute summaries. These do not alter production policies or make legal determinations autonomously.
+
+**Bank test-bridge increment (27 September 2026):** the local demo can verify a signed posting receipt, insert a corresponding artificial-money row into Bank of Anthos's append-only PostgreSQL `transactions` table, and atomically bind the returned transaction ID in a separate `carapace_test` table. The bridge refuses changed payment evidence, reuses the original bound row on retry, and compares the exact row's amount and accounts. If the external test ledger is unavailable after CARAPACE's own posting commits, the UI reports it as unverified rather than claiming success. This is not the official Bank of Anthos transfer API, not independent bank operation, not cross-database atomicity, and not settlement evidence. The upstream table has no currency field; the INR tag exists only in the binding table and CARAPACE evidence.
 
 ### Milestone 4 — submission
 

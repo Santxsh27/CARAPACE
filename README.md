@@ -29,7 +29,7 @@ CARAPACE does not itself move real funds. A bank must integrate its own gateway 
 | Area | Current state |
 |---|---|
 | Context analysis | Existing Lens parses user-supplied text and UPI request fields. Gemini Developer API and Vertex AI adapters exist, with an honestly labelled local fallback. |
-| Bank test environment | The Bank of Anthos PostgreSQL test ledger and CARAPACE demo run locally with artificial data. Its optional full banking website is a separate sample and is **not** the current in-path payment gate. |
+| Bank test environment | After a signed, confirmed CARAPACE test posting, a test-only bridge can insert one exact-bound row into Bank of Anthos's artificial-money PostgreSQL ledger and read it back. A repeat request reuses the same row. This is a **direct test insert**, not Bank of Anthos's official transfer service or a production bank integration. |
 | Deterministic verification | Existing contract, receipt and test modules remain in the repository as reusable engineering foundations. |
 | Milestone 1 | Ed25519-signed bank payment order, signed decision, server-side `HOLD` gate, one-time synthetic transfer, screenshot-capable Gemini adapter, and two interactive cases are implemented. A successful live Google call is reported separately from provider configuration. |
 | Evidence slices | The gate atomically issues bank-signed decision, browser-choice and posting records. A temporary P-256 browser key signs the exact test statement; a second local key signs Merkle tree heads. RFC 9162 consistency proofs let a separate checker compare a new signed head with one it retained. A read-only audit verifies every observed CARAPACE synthetic posting has its signed decision, choice and posting evidence. This does not prove human comprehension, complete outside-rail coverage or production customer identity. |
@@ -45,7 +45,7 @@ Docker Desktop is recommended. Start the reliable Milestone 1 path first:
 docker compose --profile anthos up --build
 ```
 
-Open [CARAPACE's local page](http://localhost:8090) and the [API documentation](http://localhost:8080/docs). Run **Fake refund** and **Genuine bill**. Each creates a signed order and sends a generated screenshot plus fixture text to Gemini or the visibly labelled local fallback. The refund must be blocked. The bill waits for you to click **Confirm this artificial-money payment**; only then does the browser sign a test-device choice and one row post to the **CARAPACE local synthetic ledger**. The gate is not wired to Bank of Anthos's official transfer service.
+Open [CARAPACE's local page](http://localhost:8090) and the [API documentation](http://localhost:8080/docs). Run **Fake refund** and **Genuine bill**. Each creates a signed order and sends a generated screenshot plus fixture text to Gemini or the visibly labelled local fallback. The refund must be blocked. The bill waits for you to click **Confirm this artificial-money payment**; only then does the browser sign a test-device choice and one row post to the **CARAPACE local synthetic ledger**. With the `anthos` Compose profile, a test-only bridge then writes and verifies one exact-bound row in Bank of Anthos's artificial-money PostgreSQL ledger. The result distinguishes `MATCH` from `UNAVAILABLE`; it is not the official Bank of Anthos transfer route.
 
 The optional full sample bank can be started with `docker compose --profile anthos-full up --build` and opened at [localhost:8081](http://localhost:8081) using `testuser` / `bankofanthos`. Its x86 Java services can be slow or unavailable on an Apple Silicon Docker host; if the balance-reader is unhealthy, use the CARAPACE path above and do not count the separate bank website as a Milestone 1 integration result.
 
@@ -73,6 +73,7 @@ The prototype uses synthetic financial data and clearly labelled integration lim
 - [Milestone 2A protection-proof report](docs/MILESTONE_2A_REPORT.md)
 - [Milestone 2B device-choice report](docs/MILESTONE_2B_REPORT.md)
 - [Milestone 2C checkpoint and audit report](docs/MILESTONE_2C_REPORT.md)
+- [Milestone 3A Anthos test-ledger bridge report](docs/MILESTONE_3A_REPORT.md)
 - [Protection-proof guarantees and limits](docs/protection-proof.md)
 - [Milestone 1 implementation decisions](docs/DECISIONS.md)
 - [Existing Bank of Anthos integration boundary](docs/bank-of-anthos.md)

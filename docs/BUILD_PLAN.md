@@ -34,9 +34,10 @@ Current acceptance: warning, choice and receipt tampering or a corrupted current
 ## 3. Stronger bank and document integration
 
 1. Add independent image OCR (Google Cloud Vision or Document AI after project access) and ground model-extracted values against OCR spans.
-2. Put the gate in front of an authorised Bank of Anthos transfer path, or a bank-controlled processor adapter, rather than only CARAPACE's local ledger.
-3. Replace local API keys and signing files with bank identity and managed KMS keys; define privacy retention, consent and failure policies.
-4. Build a labelled adversarial corpus including mismatched payee, amount, refund direction, low-quality images, prompt injection and benign lookalikes. Measure detection and false holds.
+2. [x] Add a **test-only** bridge after the CARAPACE gate: exact-bind the confirmed synthetic transfer to one direct-insert row in Bank of Anthos's artificial-money PostgreSQL ledger. Verify the amount and account fields and make retries idempotent. This is not the official transfer service and not a production bank-owned feed.
+3. [ ] Put the gate in front of an authorised Bank of Anthos LedgerWriter/payment path, or a bank-controlled processor adapter, with a durable request-to-ledger reference that is not created solely by CARAPACE's test harness.
+4. Replace local API keys and signing files with bank identity and managed KMS keys; define privacy retention, consent and failure policies.
+5. Build a labelled adversarial corpus including mismatched payee, amount, refund direction, low-quality images, prompt injection and benign lookalikes. Measure detection and false holds.
 
 Acceptance: end-to-end test shows a held payment never reaches the bank's processor and an allowed test payment reaches it exactly once. Image-only values are either independently grounded or clearly unverified.
 

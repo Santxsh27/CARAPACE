@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import json
+import base64
 import threading
 import time
 from uuid import uuid4
@@ -17,6 +18,8 @@ from pydantic import BaseModel, Field
 from typing import Literal
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
+
+from .anthos_preflight_bridge import AnthosPreflightBridge
 
 
 HOME_HTML = """<!doctype html>
@@ -45,7 +48,7 @@ HOME_HTML = """<!doctype html>
     <h1>Know what a payment will actually do.</h1>
     <p class="lead">CARAPACE compares the message or bill that persuaded a person to pay with the amount and recipient supplied by the bank. It can stop a dangerous contradiction before an artificial-money transfer is submitted.</p>
     <div class="actions"><a class="button" href="#scenarios">See the two test cases</a></div>
-    <div class="note"><strong>Working local path:</strong> a signed payment order, Gemini context check, enforced HOLD gate, browser-signed choice, and locally witnessed protection records. A valid PROCEED choice is required before a test posting. This is only a synthetic ledger—not Bank of Anthos's official transfer service or real money.</div>
+    <div class="note"><strong>Working local path:</strong> a signed payment order, Gemini context check, enforced HOLD gate, browser-signed choice, and locally witnessed protection records. A valid PROCEED choice is required before a test posting. When configured, the demo then binds that posting to one exact row in Bank of Anthos's artificial-money PostgreSQL ledger. This does not use Anthos's official transfer service or real money.</div>
     <div id="how-it-works" class="grid">
       <div class="card"><span class="step">01 · Understand</span><strong>Read the story</strong><p>Gemini extracts supported claims from a customer-shared message or screenshot.</p></div>
       <div class="card"><span class="step">02 · Compare</span><strong>Check the actual payment</strong><p>Deterministic rules compare those claims with bank-controlled amount, direction and recipient.</p></div>
@@ -58,7 +61,7 @@ HOME_HTML = """<!doctype html>
     </div>
     <div id="demo-evidence" class="example" hidden><div class="card"><span class="step">What the person saw</span><strong>Customer-shared screenshot</strong><img id="context-image" class="evidence-image" alt="Generated test payment context screenshot"></div><div class="card"><span class="step">What the bank signed</span><strong>Actual payment order</strong><div id="bank-order" class="order-box"></div><p class="small">Development bank key · artificial accounts</p></div></div>
     <div class="card" aria-live="polite"><span class="step">Live walkthrough</span><strong id="demo-title">Choose a test case above</strong><p id="demo-status">The bank gateway will sign the order, ask Gemini to read a generated screenshot, decide, and pause before submission.</p><p id="demo-reason"></p><div class="actions"><button class="button" id="confirm-payment" type="button" hidden>Confirm this artificial-money payment</button><button class="button secondary" id="cancel-payment" type="button" hidden>Cancel this test payment</button></div><p id="demo-ack"></p><p id="demo-proof"></p><details><summary>See technical evidence</summary><pre id="demo-output" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;color:#334865"></pre></details></div>
-    <p>The browser creates a temporary test-device key when you confirm. Its signature proves control of that key over the exact bank details, warning and choice; it cannot prove a person read or understood the words. The local witness is not independently operated. Bank of Anthos's separate sample site may be unavailable and is not the payment path shown here.</p>
+    <p>The browser creates a temporary test-device key when you confirm. Its signature proves control of that key over the exact bank details, warning and choice; it cannot prove a person read or understood the words. The local witness is not independently operated. The optional Anthos ledger bridge is a direct artificial-money test insert with an exact ID binding, not its official payment API.</p>
   </main>
   <script>
     function screenshot(scenario) {
@@ -119,11 +122,12 @@ HOME_HTML = """<!doctype html>
         const signature=b64(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},keys.privateKey,new TextEncoder().encode(prepared.statement_json)));
         const completedResponse=await fetch('/api/demo/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({flow_id:flowId,device_id:deviceId,signature_base64:signature,choice})});
         const completed=await completedResponse.json();if(!completedResponse.ok)throw new Error(completed.detail||'Test gateway refused confirmation');
-        document.getElementById('demo-title').textContent=choice==='PROCEED'?'Confirmed and posted to the artificial-money ledger':'Cancelled; no transfer posted';
+        const anthos=completed.anthos_test_ledger;
+        document.getElementById('demo-title').textContent=choice==='CANCEL'?'Cancelled; no transfer posted':anthos?.status==='MATCH'?'Confirmed; two test ledgers match':'Confirmed locally; Anthos test check pending';
         document.getElementById('demo-status').textContent='Gateway result: '+completed.gateway_result+(completed.synthetic_transfer_id?' · Transfer: '+completed.synthetic_transfer_id:'');
         document.getElementById('demo-ack').textContent='This browser signed '+choice+' over the exact amount, payee and warning. The signature proves key control, not human understanding.';
         document.getElementById('demo-proof').textContent=completed.local_proof_verified
-          ? 'Device choice'+(choice==='PROCEED'?' and synthetic posting were':' was')+' recorded; latest local witness checkpoint #'+completed.witness_tree_size+'.'
+          ? 'Device choice'+(choice==='PROCEED'?' and synthetic posting were':' was')+' recorded; latest local witness checkpoint #'+completed.witness_tree_size+'.'+(anthos?.status==='MATCH'?' Exact Bank of Anthos test-ledger row #'+anthos.anthos_transaction_id+' matched amount and accounts.':choice==='PROCEED'?' Anthos test-ledger check is '+(anthos?.status||'UNAVAILABLE')+'; do not treat it as verified.':'')
           : 'Choice or posting proof unavailable or failed verification.';
         document.getElementById('demo-output').textContent=JSON.stringify({prepared,completed},null,2);
       }catch(error){document.getElementById('demo-title').textContent='Confirmation did not complete';document.getElementById('demo-status').textContent=String(error)+' Start a new bill test to try again.';}
@@ -189,6 +193,10 @@ def create_demo_app() -> FastAPI:
         raise RuntimeError("CARAPACE_DEMO_ENABLED=true is required")
     api_base_url = os.getenv("CARAPACE_API_BASE_URL", "http://api:8080").rstrip("/")
     bank_internal_url = os.getenv("BOA_FRONTEND_URL", "http://anthos-frontend:8080").rstrip("/")
+    anthos_database_url = os.getenv("BOA_DATABASE_URL", "")
+    test_bridge = AnthosPreflightBridge(
+        anthos_database_url, allow_test_writes=True,
+    ) if anthos_database_url else None
     application = FastAPI(title="CARAPACE Payment Intent Workspace", docs_url=None, redoc_url=None, openapi_url=None)
     pending_flows: dict[str, dict] = {}
     pending_lock = threading.Lock()
@@ -354,6 +362,7 @@ def create_demo_app() -> FastAPI:
             if code != 200:
                 raise RuntimeError(f"test device acknowledgement failed: {acknowledgement}")
             submit = None
+            anthos_test_ledger = None
             if request.choice == "PROCEED":
                 code, submit = _api_call(
                     api_base_url, f"/v1/preflight/orders/{order_id}/submit", "POST",
@@ -361,6 +370,28 @@ def create_demo_app() -> FastAPI:
                 )
                 if code != 200:
                     raise RuntimeError(f"confirmed test payment was rejected: {submit}")
+                if test_bridge is None:
+                    anthos_test_ledger = {"status": "NOT_CONFIGURED", "reason_codes": ["BOA_DATABASE_URL_MISSING"]}
+                elif not submit["protection_bundle"].get("head_signature"):
+                    anthos_test_ledger = {"status": "UNAVAILABLE", "reason_codes": ["POSTING_PROOF_MISSING"]}
+                else:
+                    try:
+                        key_code, keys = _api_call(api_base_url, "/v1/preflight/public-keys", "GET")
+                        if key_code != 200:
+                            raise RuntimeError("test public keys unavailable")
+                        anthos_test_ledger = test_bridge.post_once_and_reconcile(
+                            submit["transfer"], submit["protection_bundle"],
+                            bank_public_key=base64.b64decode(keys["bank"]["ed25519_public_key_base64"], validate=True),
+                            witness_public_key=base64.b64decode(keys["witness"]["ed25519_public_key_base64"], validate=True),
+                        )
+                    except Exception as error:
+                        # The CARAPACE local posting already committed. Never claim
+                        # an external match or silently retry with a new transfer.
+                        anthos_test_ledger = {
+                            "status": "UNAVAILABLE",
+                            "reason_codes": ["ANTHOS_TEST_BRIDGE_FAILED"],
+                            "error_type": type(error).__name__,
+                        }
             receipt_id = (
                 submit["protection_bundle"]["receipt"]["receipt_id"]
                 if submit else acknowledgement["protection_bundle"]["receipt"]["receipt_id"]
@@ -380,6 +411,7 @@ def create_demo_app() -> FastAPI:
                 "device_signature_verified": True,
                 "proof_scope": proof["verification_scope"],
                 "test_ledger_only": True,
+                "anthos_test_ledger": anthos_test_ledger,
             }
         return await run_in_threadpool(execute)
 

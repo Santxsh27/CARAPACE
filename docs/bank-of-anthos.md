@@ -1,6 +1,12 @@
 # Bank of Anthos integration
 
-## What is connected now
+## Current v3.1 test bridge
+
+The primary page at `http://localhost:8090/` runs the Payment Intent Firewall. A fake refund is held before either ledger receives a posting. A genuine bill must receive an `ALLOW` decision and browser-signed `PROCEED` choice before CARAPACE writes its own synthetic transfer. The new test-only bridge then verifies that posting receipt, inserts one artificial-money row directly into Bank of Anthos's PostgreSQL `transactions` table, stores the exact returned ID in `carapace_test.preflight_bindings` in the same PostgreSQL transaction, and reads that exact row back. Repeating the same transfer ID with the same evidence returns the existing row; changed evidence is rejected.
+
+This is **not** the official Bank of Anthos LedgerWriter or customer-facing transfer API. CARAPACE's SQLite posting and the Anthos PostgreSQL insert are not one atomic transaction. If the second step fails, the page says the Anthos test check is unavailable, not matched. The upstream `transactions` table has no currency column, so the INR tag is only in CARAPACE's evidence and the companion binding table. A row here is not external settlement proof. See [Milestone 3A](MILESTONE_3A_REPORT.md).
+
+## Earlier engineering experiment (not the current homepage)
 
 The local demonstration runs Google's published Bank of Anthos `v0.6.10`
 frontend, user service, contacts service, ledger writer, balance reader,
@@ -9,10 +15,10 @@ image is pinned to an immutable digest. The services run through Docker Compose
 on the developer's computer, so this is the full sample application rather
 than a paid GKE deployment.
 
-CARAPACE runs beside the bank as a separate API, ledger adapter, and beginner
-control room. The control room embeds the real bank site and exposes the recent
-rows read from `postgresdb.public.transactions`. It never claims that web-page
-pixels are authoritative financial evidence.
+CARAPACE also retains an earlier engineering experiment beside the bank as a
+separate API and ledger adapter. Its old control-room design is not the current
+homepage or the v3.1 judging path. Web-page pixels are not authoritative
+financial evidence.
 
 Upstream references:
 
@@ -21,7 +27,7 @@ Upstream references:
 - [Official ledger database schema](https://github.com/GoogleCloudPlatform/bank-of-anthos/blob/main/src/ledger/ledger-db/initdb/0_init_tables.sql)
 - [Official LedgerWriter transaction model](https://github.com/GoogleCloudPlatform/bank-of-anthos/blob/main/src/ledger/ledger-writer/src/main/java/anthos/samples/bankofanthos/ledgerwriter/entities/Transaction.java)
 
-## What one click actually does
+## What the earlier bound safety test did
 
 1. The demo creates a fresh CARAPACE Payment Assurance Contract for a $49.99
    artificial-money transfer.
@@ -41,11 +47,13 @@ Start the complete local stack with:
 docker compose --profile anthos-full up --build anthos-frontend anthos-demo
 ```
 
-Then open [http://localhost:8081](http://localhost:8081) for the official bank
-(`testuser` / `bankofanthos`) and [http://localhost:8090](http://localhost:8090)
-for the CARAPACE control room. Press **Run the bound safety test**. Docker must
-remain running. The first start can take longer because the official images are
-`linux/amd64` and Apple-silicon Macs emulate them.
+Then open [http://localhost:8081](http://localhost:8081) for the optional
+official sample-bank website (`testuser` / `bankofanthos`) and
+[http://localhost:8090](http://localhost:8090) for CARAPACE's current payment
+intent page. Use **Fake refund** and **Genuine bill** on the CARAPACE page; the
+earlier bound-safety experiment remains code-level history, not a button on
+that page. Docker must remain running. The full bank services are `linux/amd64`
+and may be slow on Apple-silicon Macs.
 
 Stop it with `Control+C`. The artificial Anthos ledger and CARAPACE evidence
 are retained in separate Docker volumes.

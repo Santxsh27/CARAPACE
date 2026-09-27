@@ -7,12 +7,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
+
+# Dependency installation is cached across source-only edits. Changes to
+# pyproject.toml or README.md invalidate this layer and reinstall packages.
+# Ordinary code edits rebuild only the small local wheel.
+RUN python -c 'import subprocess,sys,tomllib; deps=tomllib.load(open("pyproject.toml","rb"))["project"]["dependencies"]; subprocess.check_call([sys.executable,"-m","pip","install","--no-cache-dir","setuptools>=68",*deps])'
+
 COPY src ./src
 COPY schemas ./schemas
 COPY examples ./examples
 COPY tests ./tests
 
-RUN python -m pip install --no-cache-dir . \
+RUN python -m pip install --no-cache-dir --no-deps --no-build-isolation . \
     && groupadd --gid 10001 carapace \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin carapace \
     && mkdir -p /data \
