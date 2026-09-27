@@ -14,7 +14,9 @@ from typing import Any, Mapping
 
 from carapace_core.bank_envelope import BankEnvelopeSigner
 from carapace_core.canonical import canonical_json
-from carapace_core.protection_proof import inclusion_path, leaf_hash, merkle_root
+from carapace_core.protection_proof import (
+    consistency_path, inclusion_path, leaf_hash, merkle_root,
+)
 
 
 class EvidenceNotFound(Exception):
@@ -169,3 +171,64 @@ class PreflightEvidenceLog:
                     node.hex() for node in inclusion_path(leaves, leaf_index)
                 ],
             }
+
+    def get_checkpoint(self, from_size: int = 0) -> dict[str, Any]:
+        """Return signed heads and an RFC 9162 append-only proof, without receipts.
+
+        An external monitor must compare the prior head to one it retained; a
+        head supplied by this endpoint alone cannot establish history.
+        """
+        if type(from_size) is not int or from_size < 0:
+            raise ValueError("from_size must be a non-negative integer")
+        with self._connect() as connection:
+            connection.execute("BEGIN")
+            rows = connection.execute(
+                "SELECT leaf_index, leaf_hash FROM preflight_witness_leaves ORDER BY leaf_index"
+            ).fetchall()
+            if not rows:
+                raise EvidenceNotFound("no witness checkpoint has been issued")
+            if from_size > len(rows):
+                raise ValueError("from_size is newer than the witness checkpoint")
+            try:
+                if any(row["leaf_index"] != index for index, row in enumerate(rows)):
+                    raise EvidenceIntegrityError("witness leaf sequence is incomplete")
+                leaves = [bytes.fromhex(row["leaf_hash"]) for row in rows]
+                if any(len(item) != 32 for item in leaves):
+                    raise EvidenceIntegrityError("witness leaf hash has invalid length")
+
+                def signed_head(size: int) -> tuple[dict[str, Any], str]:
+                    row = connection.execute(
+                        "SELECT head_json, witness_signature FROM preflight_witness_heads WHERE tree_size=?",
+                        (size,),
+                    ).fetchone()
+                    if row is None:
+                        raise EvidenceIntegrityError("witness checkpoint is missing")
+                    head = json.loads(row["head_json"])
+                    signature = row["witness_signature"]
+                    if (
+                        head.get("schema_version") != "carapace-tree-head-1"
+                        or head.get("tree_size") != size
+                        or head.get("root_hash") != merkle_root(leaves[:size]).hex()
+                        or head.get("witness_key_id") != self._witness_signer.key_id
+                        or not self._witness_signer.verify(head, signature)
+                    ):
+                        raise EvidenceIntegrityError("witness checkpoint is invalid")
+                    return head, signature
+
+                current_head, current_signature = signed_head(len(leaves))
+                previous_head, previous_signature = (
+                    signed_head(from_size) if from_size else (None, None)
+                )
+                return {
+                    "schema_version": "carapace-consistency-1",
+                    "current_head": current_head,
+                    "current_signature": current_signature,
+                    "previous_head": previous_head,
+                    "previous_signature": previous_signature,
+                    "consistency_path": (
+                        [node.hex() for node in consistency_path(leaves, from_size)]
+                        if from_size else []
+                    ),
+                }
+            except (ValueError, TypeError, KeyError, AttributeError) as error:
+                raise EvidenceIntegrityError("witness checkpoint is malformed") from error

@@ -48,6 +48,23 @@ returns the current proof for the authenticated tenant. `GET
 a verifier must obtain trusted key fingerprints through an independent channel
 in a real deployment. See [protection-proof.md](protection-proof.md).
 
+`GET /v1/preflight/log/checkpoint?from_size=N` is public and contains only a
+current signed head, the signed head at `N`, and an append-only consistency
+path. `N=0` is a first bootstrap; a monitor should use its **retained** tree
+size on later calls, verify against its independently pinned witness key, and
+advance its saved state only if the proof passes. No receipts or account data
+are returned. `carapace-witness-audit --url http://localhost:8080
+--state-file ./witness-state.json --witness-public-key-file ./pinned-witness-key.txt`
+performs that client check. The key file contains the raw Ed25519 public key
+in base64, never the private key. A real monitor must keep this key and state
+under separate operational control and share checkpoints with other monitors.
+
+`GET /v1/preflight/audit` requires bank authentication. It reads the local
+synthetic ledger and verifies each observed posting against the signed order,
+decision, registered-device choice, and included evidence receipts. `PASS`
+means no mismatch among those observed local records; `NO_POSTINGS` is not a
+pass. It cannot see payments outside this controlled gateway/database.
+
 `GET /v1/preflight/orders/{order_id}` reads the signed order and decision.
 `GET /v1/preflight/transfers` reads only the authenticated bank's synthetic
 ledger rows. Neither endpoint is a real-money transfer integration. The Bank

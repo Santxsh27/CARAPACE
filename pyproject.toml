@@ -27,6 +27,7 @@ carapace-api = "carapace_api.__main__:main"
 carapace-demo = "carapace_core.api_demo:main"
 carapace-anthos-demo = "carapace_integrations.anthos_demo:main"
 carapace-anthos-web = "carapace_integrations.anthos_web:main"
+carapace-witness-audit = "carapace_core.checkpoint_monitor:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

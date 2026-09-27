@@ -17,6 +17,7 @@ from carapace_api.config import Settings
 from carapace_api.factory import create_app
 from carapace_ai.incident_reasoning import LocalIncidentReasoningProvider
 from carapace_core.lens import IntentDirection, MessageIntent
+from carapace_core.checkpoint_monitor import CheckpointRejected, verify_checkpoint_response
 from carapace_core.protection_proof import verify_protection_bundle
 
 
@@ -433,6 +434,111 @@ class PreflightTests(unittest.TestCase):
         self.assertTrue(old_again["local_proof_verified"])
         self.assertTrue(verify_protection_bundle(old_again["bundle"], **pinned))
         self.assertEqual(old_again["bundle"]["tree_head"]["tree_size"], 4)
+
+    def test_public_checkpoint_proves_history_without_exposing_receipts(self) -> None:
+        self.assertEqual(self.client.get("/v1/preflight/log/checkpoint").status_code, 404)
+        key_info = self.client.get(
+            "/v1/preflight/public-keys", headers=self.bank_a,
+        ).json()
+        witness_key = base64.b64decode(key_info["witness"]["ed25519_public_key_base64"])
+        first_order = self.order()["envelope"]["order_id"]
+        self.evaluate(first_order, "Example Power refund ₹4,999: scan to receive.")
+        first_response = self.client.get("/v1/preflight/log/checkpoint")
+        self.assertEqual(first_response.status_code, 200, first_response.text)
+        self.assertNotIn("payer_account", first_response.text)
+        self.assertNotIn("issued_warning", first_response.text)
+        saved = verify_checkpoint_response(
+            first_response.json(), previous_state=None, witness_public_key=witness_key,
+        )
+        second_order = self.order()["envelope"]["order_id"]
+        self.evaluate(second_order, "Example Power bill: Pay ₹4,999 to Example Power.")
+        next_response = self.client.get(
+            "/v1/preflight/log/checkpoint", params={"from_size": 1},
+        )
+        self.assertEqual(next_response.status_code, 200, next_response.text)
+        newer = verify_checkpoint_response(
+            next_response.json(), previous_state=saved, witness_public_key=witness_key,
+        )
+        self.assertEqual(newer["head"]["tree_size"], 2)
+        self.assertEqual(
+            self.client.get("/v1/preflight/log/checkpoint", params={"from_size": 3}).status_code,
+            422,
+        )
+        tampered = copy.deepcopy(next_response.json())
+        tampered["previous_head"]["root_hash"] = "00" * 32
+        with self.assertRaises(CheckpointRejected):
+            verify_checkpoint_response(
+                tampered, previous_state=saved, witness_public_key=witness_key,
+            )
+
+    def test_corrupt_checkpoint_is_not_published_as_valid(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "UPDATE preflight_witness_heads SET witness_signature='corrupt' WHERE tree_size=1"
+            )
+        response = self.client.get("/v1/preflight/log/checkpoint")
+        self.assertEqual(response.status_code, 503)
+
+    def test_synthetic_posting_coverage_audit_detects_missing_evidence(self) -> None:
+        empty = self.client.get("/v1/preflight/audit", headers=self.bank_a)
+        self.assertEqual(empty.json()["status"], "NO_POSTINGS")
+        self.assertEqual(
+            self.client.get("/v1/preflight/audit").status_code, 401,
+        )
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(
+            order_id, "Example Power bill: Pay ₹4,999 to Example Power.",
+        )
+        self.confirm(order_id)
+        submitted = self.client.post(
+            f"/v1/preflight/orders/{order_id}/submit", headers=self.bank_a,
+            json={"decision_id": decision["decision_id"]},
+        )
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+        passed = self.client.get("/v1/preflight/audit", headers=self.bank_a)
+        self.assertEqual(passed.status_code, 200, passed.text)
+        self.assertEqual(passed.json()["status"], "PASS")
+        self.assertEqual(passed.json()["observed_transfer_count"], 1)
+        self.assertEqual(
+            self.client.get("/v1/preflight/audit", headers=self.bank_b).json()["status"],
+            "NO_POSTINGS",
+        )
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "DELETE FROM preflight_receipts WHERE receipt_id=?",
+                (submitted.json()["protection_bundle"]["receipt"]["receipt_id"],),
+            )
+        failed = self.client.get("/v1/preflight/audit", headers=self.bank_a)
+        self.assertEqual(failed.json()["status"], "FAIL")
+        self.assertIn(
+            "POSTING_RECEIPT_COUNT_MISMATCH",
+            {item["code"] for item in failed.json()["issues"]},
+        )
+
+    def test_synthetic_posting_audit_detects_changed_amount(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(
+            order_id, "Example Power bill: Pay ₹4,999 to Example Power.",
+        )
+        self.confirm(order_id)
+        submitted = self.client.post(
+            f"/v1/preflight/orders/{order_id}/submit", headers=self.bank_a,
+            json={"decision_id": decision["decision_id"]},
+        )
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "UPDATE preflight_transfers SET amount_minor=499901 WHERE order_id=?",
+                (order_id,),
+            )
+        failed = self.client.get("/v1/preflight/audit", headers=self.bank_a).json()
+        self.assertEqual(failed["status"], "FAIL")
+        self.assertIn(
+            "POSTING_FIELDS_DIFFER_FROM_BANK_ORDER",
+            {item["code"] for item in failed["issues"]},
+        )
 
     def test_corrupt_witness_fails_closed_without_saving_next_decision(self) -> None:
         first_order = self.order()["envelope"]["order_id"]

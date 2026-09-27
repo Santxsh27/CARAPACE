@@ -106,6 +106,7 @@ def create_app(
         witness_signer=witness_signer,
         evidence_log=evidence_log,
         provider=resolved_lens_provider,
+        database_path=resolved_settings.database_path,
     )
 
     @application.get(

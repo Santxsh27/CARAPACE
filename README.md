@@ -4,7 +4,7 @@
 
 **Know what a payment will actually do. Stop a dangerous mismatch. Keep fair evidence of the warning.**
 
-CARAPACE is a bank-integration product for authorised-push-payment scam prevention. Before a transfer, it compares the story that persuaded a customer to pay—a message, bill, QR or screenshot—with the amount, direction and recipient supplied by the bank's payment gateway. Gemini interprets the untrusted story; deterministic rules decide whether the bank's gateway may proceed. The local gate signs a decision record; a temporary browser key signs an explicit test-device choice; and both enter a separately keyed local witness tree. Independent witness operation and production customer identity are future work.
+CARAPACE is a bank-integration product for authorised-push-payment scam prevention. Before a transfer, it compares the story that persuaded a customer to pay—a message, bill, QR or screenshot—with the amount, direction and recipient supplied by the bank's payment gateway. Gemini interprets the untrusted story; deterministic rules decide whether the bank's gateway may proceed. The local gate signs a decision record; a temporary browser key signs an explicit test-device choice; and both enter a separately keyed local witness tree. A checkpoint monitor can retain and verify append-only history, while a read-only audit checks the synthetic transfer-to-evidence chain. Independent witness operation and production customer identity are future work.
 
 This repository is being repositioned from earlier financial-assurance experiments. **Milestone 1 now has a working local pre-payment gate**, but it is not a completed bank deployment. All current accounts and money are synthetic. CARAPACE has no access to live banks, UPI funds or customer accounts.
 
@@ -32,8 +32,8 @@ CARAPACE does not itself move real funds. A bank must integrate its own gateway 
 | Bank test environment | The Bank of Anthos PostgreSQL test ledger and CARAPACE demo run locally with artificial data. Its optional full banking website is a separate sample and is **not** the current in-path payment gate. |
 | Deterministic verification | Existing contract, receipt and test modules remain in the repository as reusable engineering foundations. |
 | Milestone 1 | Ed25519-signed bank payment order, signed decision, server-side `HOLD` gate, one-time synthetic transfer, screenshot-capable Gemini adapter, and two interactive cases are implemented. A successful live Google call is reported separately from provider configuration. |
-| Evidence slices | The gate atomically issues bank-signed decision, browser-choice and posting records. A temporary P-256 browser key signs the exact test statement; a second local key signs Merkle tree heads. A test posting requires a verified `PROCEED` choice. This does not prove human comprehension or production customer identity. |
-| Later milestones | Authenticated device enrollment, independent witness operation and consistency auditing, coverage reconciliation, dispute workbench, and human-approved rule learning. |
+| Evidence slices | The gate atomically issues bank-signed decision, browser-choice and posting records. A temporary P-256 browser key signs the exact test statement; a second local key signs Merkle tree heads. RFC 9162 consistency proofs let a separate checker compare a new signed head with one it retained. A read-only audit verifies every observed CARAPACE synthetic posting has its signed decision, choice and posting evidence. This does not prove human comprehension, complete outside-rail coverage or production customer identity. |
+| Later milestones | Production identity-bound device enrollment, independently operated witness and monitor, reconciliation against a bank-owned payment rail, dispute workbench, and human-approved rule learning. |
 
 Earlier research modules are retained while the new payment path is built; they are not the product's homepage or judging story. No feature is described as live merely because an adapter or mock exists.
 
@@ -57,7 +57,7 @@ docker compose --profile test run --rm --build tests
 
 The local AI provider is deliberately labelled `LOCAL_RULES`. To use live Gemini, configure an untracked `.env` from [.env.example](.env.example); never commit an API key. `/v1/ai/status` reports the configured provider. A configured provider alone is not proof that a successful live model call has occurred.
 
-The bank API requires the tenant headers documented in [docs/api.md](docs/api.md). The current sequence is signed order → evaluation → test-device enrollment and exact-statement challenge → browser signature and recorded choice → submission. The browser page calls the bank API through its local server so no bank API key is exposed to JavaScript. `GET /v1/preflight/transfers` shows artificial-money effects; protection bundles are described in [docs/protection-proof.md](docs/protection-proof.md). These development credentials and enrollment rules must be replaced before any hosted pilot.
+The bank API requires the tenant headers documented in [docs/api.md](docs/api.md). The current sequence is signed order → evaluation → test-device enrollment and exact-statement challenge → browser signature and recorded choice → submission. The browser page calls the bank API through its local server so no bank API key is exposed to JavaScript. `GET /v1/preflight/transfers` shows artificial-money effects; `GET /v1/preflight/audit` checks their evidence chain. The public hash-only checkpoint endpoint and independent monitor are described in [docs/protection-proof.md](docs/protection-proof.md). These development credentials and enrollment rules must be replaced before any hosted pilot.
 
 ## Hackathon submission target
 
@@ -72,6 +72,7 @@ The prototype uses synthetic financial data and clearly labelled integration lim
 - [Milestone 1 implementation report](docs/MILESTONE_1_REPORT.md)
 - [Milestone 2A protection-proof report](docs/MILESTONE_2A_REPORT.md)
 - [Milestone 2B device-choice report](docs/MILESTONE_2B_REPORT.md)
+- [Milestone 2C checkpoint and audit report](docs/MILESTONE_2C_REPORT.md)
 - [Protection-proof guarantees and limits](docs/protection-proof.md)
 - [Milestone 1 implementation decisions](docs/DECISIONS.md)
 - [Existing Bank of Anthos integration boundary](docs/bank-of-anthos.md)

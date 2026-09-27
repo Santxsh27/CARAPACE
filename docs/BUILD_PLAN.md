@@ -20,15 +20,16 @@ This is the short execution checklist for the existing repository. Each stage en
 
 Milestone 1 stops at a **CARAPACE local synthetic ledger**. The sample Bank of Anthos site can run beside it, but its official payment path is not yet controlled by this gate. The browser supplies generated test screenshots plus their text transcription. Independent OCR is not yet present.
 
-## 2. Evidence protocol — local integrity slice implemented; independent assurance next
+## 2. Evidence protocol — local integrity and audit slice implemented; independent assurance next
 
 1. [x] Sign the exact issued warning, order digest, verdict, policy context and input hashes in a decision protection record. Sign synthetic posting separately; commit each with its corresponding gate action.
 2. [x] Add a separately keyed **local** witness tree and inclusion proof. Verify bundles using externally supplied public keys; corrupt latest witness history fails the next write closed.
 3. [x] Add a browser-signed test-device `PROCEED`/`CANCEL` record, bound to the exact payment and warning. HOLD remains non-overridable; posting now requires signed PROCEED. Development bank-key enrollment does not prove production customer identity or human understanding.
-4. [ ] Add consistency proofs, externally monitored checkpoint history and an independently operated witness. Current inclusion proofs establish membership in one signed checkpoint only.
-5. [ ] Reconcile every completed test payment against a decision ID so missing records cannot be hidden by a valid-looking log.
+4. [x] Add RFC 9162 consistency proofs and a separate monitor that retains its last signed checkpoint with a pinned witness key. This is runnable local monitoring, not yet separately operated or gossiped across monitors.
+5. [x] Audit every observed CARAPACE synthetic posting against its signed decision, browser choice, posting receipt and inclusion proof. Missing or altered records fail the audit. This cannot see an outside bank payment or detect a transfer and all of its records deleted from the same database.
+6. [ ] Operate the witness/monitor under separate control, share checkpoints between observers, and reconcile with a bank-owned payment rail or settlement feed.
 
-Current acceptance: warning, choice and receipt tampering or a corrupted current witness head is detected in tests, and the relevant local write rolls back. Full milestone acceptance still requires production-grade device enrollment, independent witnessing, consistency and coverage checks. See [Milestone 2A](MILESTONE_2A_REPORT.md) and [Milestone 2B](MILESTONE_2B_REPORT.md) reports.
+Current acceptance: warning, choice and receipt tampering or a corrupted current witness head is detected in tests, and the relevant local write rolls back. Retained-head consistency and synthetic posting coverage are also tested. Full milestone acceptance still requires production-grade device enrollment, independent operations and outside-rail coverage. See [Milestone 2A](MILESTONE_2A_REPORT.md), [Milestone 2B](MILESTONE_2B_REPORT.md) and [Milestone 2C](MILESTONE_2C_REPORT.md).
 
 ## 3. Stronger bank and document integration
 

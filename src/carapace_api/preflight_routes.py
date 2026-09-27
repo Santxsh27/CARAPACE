@@ -9,6 +9,7 @@ import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -28,6 +29,7 @@ from carapace_core.protection_proof import verify_protection_bundle
 from .auth import TenantAuthenticator, TenantContext
 from .preflight import PreflightConflict, PreflightGate, PreflightNotFound
 from .preflight_evidence import EvidenceIntegrityError, EvidenceNotFound, PreflightEvidenceLog
+from .preflight_audit import audit_synthetic_postings
 
 
 class CreatePaymentOrder(BaseModel):
@@ -135,6 +137,7 @@ def register_preflight_routes(
     witness_signer: BankEnvelopeSigner,
     evidence_log: PreflightEvidenceLog,
     provider: LensIntentProvider,
+    database_path: Path,
 ) -> None:
     def verify_decision(value: dict[str, Any]) -> bool:
         signature = value.pop("bank_signature", None)
@@ -421,6 +424,20 @@ def register_preflight_routes(
             "verification_scope": "Same-operator local keys; external verifier must pin public keys independently.",
         }
 
+    @application.get("/v1/preflight/log/checkpoint", tags=["preflight"])
+    async def get_witness_checkpoint(
+        from_size: int = Query(default=0, ge=0),
+    ) -> dict[str, Any]:
+        """Publish hashes and signatures only; never customer/payment receipts."""
+        try:
+            return await run_in_threadpool(evidence_log.get_checkpoint, from_size)
+        except EvidenceNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        except EvidenceIntegrityError as error:
+            raise HTTPException(status_code=503, detail="witness checkpoint is unavailable") from error
+
     @application.get("/v1/preflight/public-keys", tags=["preflight"])
     async def get_protection_public_keys(
         tenant: TenantContext = Depends(authenticate)
@@ -435,3 +452,12 @@ def register_preflight_routes(
     @application.get("/v1/preflight/transfers", tags=["preflight"])
     async def list_transfers(tenant: TenantContext = Depends(authenticate)) -> dict[str, Any]:
         return {"ledger": "CARAPACE_LOCAL_SYNTHETIC", "transfers": gate.list_transfers(tenant.tenant_id)}
+
+    @application.get("/v1/preflight/audit", tags=["preflight"])
+    async def audit_postings(tenant: TenantContext = Depends(authenticate)) -> dict[str, Any]:
+        return await run_in_threadpool(
+            audit_synthetic_postings, database_path, tenant.tenant_id,
+            bank_public_key=signer.public_key_bytes,
+            witness_public_key=witness_signer.public_key_bytes,
+            evidence_log=evidence_log,
+        )

@@ -1,8 +1,8 @@
-"""Domain-separated SHA-256 inclusion proofs for signed protection records.
+"""Domain-separated SHA-256 Merkle proofs for signed protection records.
 
-The tree shape follows RFC 9162 Section 2.1. A valid inclusion proof establishes
-membership in one signed tree head; it does not establish complete logging or
-append-only consistency between different heads.
+The tree shape and proof algorithms follow RFC 9162 Section 2.1. Inclusion
+establishes membership in one tree head; consistency proves a later head is
+an append-only extension of a previously saved head. Neither proves coverage.
 """
 
 from __future__ import annotations
@@ -46,6 +46,67 @@ def inclusion_path(leaves: Sequence[bytes], index: int) -> list[bytes]:
     if index < split:
         return inclusion_path(leaves[:split], index) + [merkle_root(leaves[split:])]
     return inclusion_path(leaves[split:], index - split) + [merkle_root(leaves[:split])]
+
+
+def consistency_path(leaves: Sequence[bytes], first_size: int) -> list[bytes]:
+    """RFC 9162 SUBPROOF for 0 < first_size <= len(leaves)."""
+    if not 0 < first_size <= len(leaves):
+        raise ValueError("first tree size is outside the current tree")
+    if first_size == len(leaves):
+        return []
+
+    def subproof(first: int, current: Sequence[bytes], known: bool) -> list[bytes]:
+        if first == len(current):
+            return [] if known else [merkle_root(current)]
+        split = _split_point(len(current))
+        if first <= split:
+            return subproof(first, current[:split], known) + [merkle_root(current[split:])]
+        return subproof(first - split, current[split:], False) + [merkle_root(current[:split])]
+
+    return subproof(first_size, leaves, True)
+
+
+def verify_consistency(
+    first_size: int, second_size: int, first_root: bytes,
+    second_root: bytes, path: Sequence[bytes],
+) -> bool:
+    """Verify RFC 9162 Section 2.1.4.2 without access to the leaves."""
+    if (
+        type(first_size) is not int or type(second_size) is not int
+        or first_size < 1 or first_size > second_size
+        or len(first_root) != 32 or len(second_root) != 32
+        or any(len(node) != 32 for node in path)
+    ):
+        return False
+    if first_size == second_size:
+        return not path and first_root == second_root
+    nodes = list(path)
+    if first_size & (first_size - 1) == 0:
+        nodes.insert(0, first_root)
+    if not nodes:
+        return False
+    first_index, second_index = first_size - 1, second_size - 1
+    while first_index & 1:
+        first_index >>= 1
+        second_index >>= 1
+    first_hash = second_hash = nodes[0]
+    for node in nodes[1:]:
+        if second_index == 0:
+            return False
+        if first_index & 1 or first_index == second_index:
+            first_hash = _node_hash(node, first_hash)
+            second_hash = _node_hash(node, second_hash)
+            if not first_index & 1:
+                while first_index != 0 and not first_index & 1:
+                    first_index >>= 1
+                    second_index >>= 1
+        else:
+            second_hash = _node_hash(second_hash, node)
+        first_index >>= 1
+        second_index >>= 1
+    return (
+        second_index == 0 and first_hash == first_root and second_hash == second_root
+    )
 
 
 def verify_inclusion(
