@@ -132,6 +132,45 @@ class AnthosPreflightBridge:
             )
         """)
 
+    def reconcile_existing(
+        self, transfer: Mapping[str, Any], bundle: Mapping[str, Any], *,
+        bank_public_key: bytes, witness_public_key: bytes,
+    ) -> dict[str, Any]:
+        """Read an existing exact binding without creating a financial effect."""
+        digest = validate_bridge_input(
+            transfer, bundle, bank_public_key=bank_public_key,
+            witness_public_key=witness_public_key,
+        )
+        with psycopg.connect(self._database_url, connect_timeout=3) as connection:
+            row = connection.execute("""
+                SELECT carapace_transfer_id, order_id, decision_id,
+                       posting_receipt_id, payer_account, payee_account,
+                       amount_minor, currency, request_digest, transaction_id
+                FROM carapace_test.preflight_bindings
+                WHERE carapace_transfer_id=%s
+            """, (transfer["transfer_id"],)).fetchone()
+            if row is None:
+                return reconcile_bound_row(transfer, None, None)
+            if str(row[8]).strip() != digest:
+                raise BridgeRejected("test binding differs from signed payment evidence")
+            transaction_id = int(row[9]) if row[9] is not None else None
+            ledger_row = connection.execute("""
+                SELECT transaction_id, from_acct, to_acct, from_route,
+                       to_route, amount, timestamp
+                FROM public.transactions WHERE transaction_id=%s
+            """, (transaction_id,)).fetchone() if transaction_id is not None else None
+            binding = {
+                "carapace_transfer_id": str(row[0]), "order_id": str(row[1]),
+                "decision_id": str(row[2]), "posting_receipt_id": str(row[3]),
+                "payer_account": str(row[4]).strip(),
+                "payee_account": str(row[5]).strip(), "amount_minor": int(row[6]),
+                "currency": str(row[7]).strip(), "transaction_id": transaction_id,
+            }
+            return reconcile_bound_row(
+                transfer, binding,
+                BankOfAnthosTransaction.from_row(ledger_row) if ledger_row else None,
+            )
+
     def post_once_and_reconcile(
         self, transfer: Mapping[str, Any], bundle: Mapping[str, Any], *,
         bank_public_key: bytes, witness_public_key: bytes,
@@ -140,7 +179,7 @@ class AnthosPreflightBridge:
             transfer, bundle, bank_public_key=bank_public_key,
             witness_public_key=witness_public_key,
         )
-        with psycopg.connect(self._database_url, autocommit=True) as connection:
+        with psycopg.connect(self._database_url, autocommit=True, connect_timeout=3) as connection:
             self._initialize(connection)
             with connection.transaction():
                 inserted = connection.execute("""

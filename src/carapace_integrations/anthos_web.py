@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import json
-import base64
 import threading
 import time
 from uuid import uuid4
@@ -13,14 +12,14 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Literal
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
-
-from .anthos_preflight_bridge import AnthosPreflightBridge
-
+from .operations_ui import OPERATIONS_HTML
+from carapace_api.operations_routes import ResolveRequest
+from carapace_integrations.operations_fixtures import CASES
 
 HOME_HTML = """<!doctype html>
 <html lang="en">
@@ -42,13 +41,13 @@ HOME_HTML = """<!doctype html>
   </style>
 </head>
 <body>
-  <header><div><div class="brand">CARA<span>PACE</span></div><nav><a href="#how-it-works">How it works</a><a href="#scenarios">Scenarios</a><a href="http://localhost:8080/docs" target="_blank" rel="noopener">API docs ↗</a></nav></div></header>
+  <header><div><div class="brand">CARA<span>PACE</span></div><nav><a href="/">Operations</a><a href="#how-it-works">How it works</a><a href="#scenarios">Scenarios</a><a href="http://localhost:8080/docs" target="_blank" rel="noopener">API docs ↗</a></nav></div></header>
   <main>
     <div class="eyebrow">Payment Intent Firewall · development workspace</div>
     <h1>Know what a payment will actually do.</h1>
     <p class="lead">CARAPACE compares the message or bill that persuaded a person to pay with the amount and recipient supplied by the bank. It can stop a dangerous contradiction before an artificial-money transfer is submitted.</p>
     <div class="actions"><a class="button" href="#scenarios">See the two test cases</a></div>
-    <div class="note"><strong>Working local path:</strong> a signed payment order, Gemini context check, enforced HOLD gate, browser-signed choice, and locally witnessed protection records. A valid PROCEED choice is required before a test posting. When configured, the demo then binds that posting to one exact row in Bank of Anthos's artificial-money PostgreSQL ledger. This does not use Anthos's official transfer service or real money.</div>
+    <div class="note"><strong>Working local path:</strong> a signed payment order, Gemini context check, enforced HOLD gate, browser-signed choice, and locally witnessed protection records. A valid PROCEED choice is required before a test posting. A saved delivery item lets the local worker retry if Bank of Anthos's artificial-money test ledger is temporarily unavailable. This does not use Anthos's official transfer service or real money.</div>
     <div id="how-it-works" class="grid">
       <div class="card"><span class="step">01 · Understand</span><strong>Read the story</strong><p>Gemini extracts supported claims from a customer-shared message or screenshot.</p></div>
       <div class="card"><span class="step">02 · Compare</span><strong>Check the actual payment</strong><p>Deterministic rules compare those claims with bank-controlled amount, direction and recipient.</p></div>
@@ -80,7 +79,7 @@ HOME_HTML = """<!doctype html>
     function b64(buffer){return btoa(String.fromCharCode(...new Uint8Array(buffer)));}
     async function run(scenario) {
       const buttons=[document.getElementById('run-refund'),document.getElementById('run-bill')]; buttons.forEach(b=>b.disabled=true);
-      pendingFlow=null;document.getElementById('confirm-payment').hidden=true;document.getElementById('cancel-payment').hidden=true;
+      pendingFlow=null;activeTransferId=null;document.getElementById('confirm-payment').hidden=true;document.getElementById('cancel-payment').hidden=true;
       const image=screenshot(scenario);
       document.getElementById('demo-evidence').hidden=false;
       document.getElementById('context-image').src='data:image/png;base64,'+image;
@@ -107,6 +106,7 @@ HOME_HTML = """<!doctype html>
       } catch(error) { document.getElementById('demo-title').textContent='Demo could not finish'; document.getElementById('demo-status').textContent=String(error); }
       finally { buttons.forEach(b=>b.disabled=false); }
     }
+    let activeTransferId=null;
     async function finishPayment(choice){
       if(!pendingFlow)return;
       const flowId=pendingFlow;pendingFlow=null;
@@ -123,6 +123,7 @@ HOME_HTML = """<!doctype html>
         const completedResponse=await fetch('/api/demo/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({flow_id:flowId,device_id:deviceId,signature_base64:signature,choice})});
         const completed=await completedResponse.json();if(!completedResponse.ok)throw new Error(completed.detail||'Test gateway refused confirmation');
         const anthos=completed.anthos_test_ledger;
+        activeTransferId=completed.synthetic_transfer_id;
         document.getElementById('demo-title').textContent=choice==='CANCEL'?'Cancelled; no transfer posted':anthos?.status==='MATCH'?'Confirmed; two test ledgers match':'Confirmed locally; Anthos test check pending';
         document.getElementById('demo-status').textContent='Gateway result: '+completed.gateway_result+(completed.synthetic_transfer_id?' · Transfer: '+completed.synthetic_transfer_id:'');
         document.getElementById('demo-ack').textContent='This browser signed '+choice+' over the exact amount, payee and warning. The signature proves key control, not human understanding.';
@@ -130,8 +131,26 @@ HOME_HTML = """<!doctype html>
           ? 'Device choice'+(choice==='PROCEED'?' and synthetic posting were':' was')+' recorded; latest local witness checkpoint #'+completed.witness_tree_size+'.'+(anthos?.status==='MATCH'?' Exact Bank of Anthos test-ledger row #'+anthos.anthos_transaction_id+' matched amount and accounts.':choice==='PROCEED'?' Anthos test-ledger check is '+(anthos?.status||'UNAVAILABLE')+'; do not treat it as verified.':'')
           : 'Choice or posting proof unavailable or failed verification.';
         document.getElementById('demo-output').textContent=JSON.stringify({prepared,completed},null,2);
+        if(choice==='PROCEED' && anthos?.status!=='MATCH' && anthos?.status!=='NOT_CONFIGURED'){
+          watchDelivery(completed.synthetic_transfer_id);
+        }
       }catch(error){document.getElementById('demo-title').textContent='Confirmation did not complete';document.getElementById('demo-status').textContent=String(error)+' Start a new bill test to try again.';}
       finally{buttons.forEach(button=>{button.hidden=true;button.disabled=false;});}
+    }
+    async function watchDelivery(transferId){
+      for(let attempt=0;attempt<12 && activeTransferId===transferId;attempt++){
+        await new Promise(resolve=>setTimeout(resolve,5000));
+        try{
+          const response=await fetch('/api/demo/delivery/'+encodeURIComponent(transferId));
+          if(!response.ok)continue;
+          const delivery=await response.json();
+          if(activeTransferId===transferId && delivery.status==='MATCH'){
+            document.getElementById('demo-title').textContent='Recovered; two test ledgers match';
+            document.getElementById('demo-proof').textContent='The retry worker matched exact Bank of Anthos test-ledger row #'+delivery.anthos_transaction_id+'. This is artificial money, not settlement.';
+            return;
+          }
+        }catch(_error){/* Keep the result pending if the status endpoint is unavailable. */}
+      }
     }
     document.getElementById('run-refund').addEventListener('click',()=>run('refund'));
     document.getElementById('run-bill').addEventListener('click',()=>run('bill'));
@@ -161,7 +180,7 @@ class CompleteConfirmation(BaseModel):
     choice: Literal["PROCEED", "CANCEL"]
 
 
-def _api_call(base_url: str, path: str, method: str, body: dict | None = None) -> tuple[int, dict]:
+def _api_call(base_url: str, path: str, method: str, body: dict | None = None, timeout: int = 45) -> tuple[int, dict]:
     payload = json.dumps(body).encode("utf-8") if body is not None else None
     request = Request(
         base_url + path,
@@ -174,7 +193,7 @@ def _api_call(base_url: str, path: str, method: str, body: dict | None = None) -
         },
     )
     try:
-        with urlopen(request, timeout=45) as response:
+        with urlopen(request, timeout=timeout) as response:
             return response.status, json.load(response)
     except HTTPError as error:
         return error.code, json.loads(error.read().decode("utf-8"))
@@ -193,11 +212,7 @@ def create_demo_app() -> FastAPI:
         raise RuntimeError("CARAPACE_DEMO_ENABLED=true is required")
     api_base_url = os.getenv("CARAPACE_API_BASE_URL", "http://api:8080").rstrip("/")
     bank_internal_url = os.getenv("BOA_FRONTEND_URL", "http://anthos-frontend:8080").rstrip("/")
-    anthos_database_url = os.getenv("BOA_DATABASE_URL", "")
-    test_bridge = AnthosPreflightBridge(
-        anthos_database_url, allow_test_writes=True,
-    ) if anthos_database_url else None
-    application = FastAPI(title="CARAPACE Payment Intent Workspace", docs_url=None, redoc_url=None, openapi_url=None)
+    application = FastAPI(title="CARAPACE Financial Operations Workspace", docs_url=None, redoc_url=None, openapi_url=None)
     pending_flows: dict[str, dict] = {}
     pending_lock = threading.Lock()
 
@@ -211,7 +226,36 @@ def create_demo_app() -> FastAPI:
 
     @application.get("/", response_class=HTMLResponse)
     async def home() -> HTMLResponse:
+        return HTMLResponse(OPERATIONS_HTML, headers={"Cache-Control": "no-store"})
+
+    @application.get("/payment-check", response_class=HTMLResponse)
+    async def payment_check() -> HTMLResponse:
         return HTMLResponse(HOME_HTML, headers={"Cache-Control": "no-store"})
+
+    @application.get("/api/operations/cases")
+    async def operation_cases():
+        code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/operations/cases", "GET")
+        if code != 200:
+            raise HTTPException(code, "Operations API unavailable")
+        return result
+
+    @application.post("/api/operations/cases/{case_id}/resolve")
+    async def resolve_operation(case_id: str, request: ResolveRequest):
+        if case_id not in CASES:
+            raise HTTPException(404, "case not found")
+        code, result = await run_in_threadpool(_api_call, api_base_url, f"/v1/operations/cases/{case_id}/resolve", "POST", request.model_dump(), 120)
+        if code != 200:
+            raise HTTPException(code, "Operations investigation unavailable")
+        return result
+
+    @application.get("/api/operations/runs/{run_id}")
+    async def operation_run(run_id: str):
+        if not run_id.startswith("ops_") or len(run_id) != 36 or any(c not in "0123456789abcdef" for c in run_id[4:]):
+            raise HTTPException(404, "run not found")
+        code, result = await run_in_threadpool(_api_call, api_base_url, f"/v1/operations/runs/{run_id}", "GET")
+        if code != 200:
+            raise HTTPException(code, "run not found")
+        return result
 
     @application.get("/health")
     async def health() -> dict[str, str]:
@@ -370,28 +414,24 @@ def create_demo_app() -> FastAPI:
                 )
                 if code != 200:
                     raise RuntimeError(f"confirmed test payment was rejected: {submit}")
-                if test_bridge is None:
-                    anthos_test_ledger = {"status": "NOT_CONFIGURED", "reason_codes": ["BOA_DATABASE_URL_MISSING"]}
-                elif not submit["protection_bundle"].get("head_signature"):
-                    anthos_test_ledger = {"status": "UNAVAILABLE", "reason_codes": ["POSTING_PROOF_MISSING"]}
-                else:
-                    try:
-                        key_code, keys = _api_call(api_base_url, "/v1/preflight/public-keys", "GET")
-                        if key_code != 200:
-                            raise RuntimeError("test public keys unavailable")
-                        anthos_test_ledger = test_bridge.post_once_and_reconcile(
-                            submit["transfer"], submit["protection_bundle"],
-                            bank_public_key=base64.b64decode(keys["bank"]["ed25519_public_key_base64"], validate=True),
-                            witness_public_key=base64.b64decode(keys["witness"]["ed25519_public_key_base64"], validate=True),
-                        )
-                    except Exception as error:
-                        # The CARAPACE local posting already committed. Never claim
-                        # an external match or silently retry with a new transfer.
+                try:
+                    attempt_code, anthos_test_ledger = _api_call(
+                        api_base_url,
+                        f"/v1/preflight/test-deliveries/{submit['transfer']['transfer_id']}/attempt",
+                        "POST",
+                    )
+                    if attempt_code != 200:
                         anthos_test_ledger = {
-                            "status": "UNAVAILABLE",
-                            "reason_codes": ["ANTHOS_TEST_BRIDGE_FAILED"],
-                            "error_type": type(error).__name__,
+                            "status": "NOT_CONFIGURED" if attempt_code == 503 else "UNAVAILABLE",
+                            "reason_codes": ["TEST_DELIVERY_ATTEMPT_UNAVAILABLE"],
                         }
+                except Exception as error:
+                    # The durable outbox remains pending after a failed call.
+                    anthos_test_ledger = {
+                        "status": "UNAVAILABLE",
+                        "reason_codes": ["TEST_DELIVERY_ATTEMPT_UNAVAILABLE"],
+                        "error_type": type(error).__name__,
+                    }
             receipt_id = (
                 submit["protection_bundle"]["receipt"]["receipt_id"]
                 if submit else acknowledgement["protection_bundle"]["receipt"]["receipt_id"]
@@ -414,6 +454,18 @@ def create_demo_app() -> FastAPI:
                 "anthos_test_ledger": anthos_test_ledger,
             }
         return await run_in_threadpool(execute)
+
+    @application.get("/api/demo/delivery/{transfer_id}")
+    async def delivery_status(transfer_id: str) -> dict:
+        if not transfer_id.startswith("synthetic_") or len(transfer_id) != 42:
+            raise HTTPException(status_code=422, detail="invalid synthetic transfer ID")
+        code, result = await run_in_threadpool(
+            _api_call, api_base_url,
+            f"/v1/preflight/test-deliveries/{transfer_id}", "GET",
+        )
+        if code != 200:
+            raise HTTPException(status_code=code, detail="test delivery status unavailable")
+        return result
 
     return application
 

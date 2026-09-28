@@ -1,4 +1,24 @@
-# CARAPACE v3.1 build sequence
+# CARAPACE build sequence
+
+## Current increment — autonomous financial operations
+
+The 27 September direction extends the existing foundations into everyday investigation and resolution. Older checklists below describe retained components.
+
+- [x] Bounded Gemini plans and explicit no-model comparison mode.
+- [x] Evidence lookup boundary, obligation graph and exact financial constraints.
+- [x] Development mandate, atomic synthetic execution, signed result and concurrency protection.
+- [x] Six runnable cases, saved investigations and a plain-language homepage.
+- [x] Boundary tests and reproducible local retrieval comparison.
+- [x] Gemini-generated typed resolution programs with bounded correction from verifier feedback.
+- [x] Independent action checks, six negative guard challenges, atomic resolution journal and signed outcome readback.
+- [x] Outcome-first result screen: completed actions, outstanding obligation and next step; expandable technical evidence.
+- [ ] Authorised accounting connector and document upload with grounded extraction.
+- [ ] Multiple obligations and contradictory evidence; compare AI with adaptive rules on unseen cases.
+- [ ] Resume interrupted investigations and move durable state out of SQLite before Cloud Run scaling.
+- [ ] Configure the user's GCP identity/project and measure Vertex AI.
+- [ ] Deployed demo, deck, video and authenticated dashboard deadline verification.
+
+See [operations milestone](OPERATIONS_MILESTONE_1.md) and [research boundaries](RESEARCH_AND_DIFFERENTIATION.md).
 
 This is the short execution checklist for the existing repository. Each stage ends with a demonstrated behaviour and a test report; a checked code item is not a claim of production readiness.
 
@@ -35,9 +55,10 @@ Current acceptance: warning, choice and receipt tampering or a corrupted current
 
 1. Add independent image OCR (Google Cloud Vision or Document AI after project access) and ground model-extracted values against OCR spans.
 2. [x] Add a **test-only** bridge after the CARAPACE gate: exact-bind the confirmed synthetic transfer to one direct-insert row in Bank of Anthos's artificial-money PostgreSQL ledger. Verify the amount and account fields and make retries idempotent. This is not the official transfer service and not a production bank-owned feed.
-3. [ ] Put the gate in front of an authorised Bank of Anthos LedgerWriter/payment path, or a bank-controlled processor adapter, with a durable request-to-ledger reference that is not created solely by CARAPACE's test harness.
-4. Replace local API keys and signing files with bank identity and managed KMS keys; define privacy retention, consent and failure policies.
-5. Build a labelled adversarial corpus including mismatched payee, amount, refund direction, low-quality images, prompt injection and benign lookalikes. Measure detection and false holds.
+3. [x] Commit a local delivery outbox with each synthetic posting, retry the test bridge after failure, and re-read its exact row before displaying a recovered match. This is a same-operator development recovery mechanism, not settlement assurance.
+4. [ ] Put the gate in front of an authorised Bank of Anthos LedgerWriter/payment path, or a bank-controlled processor adapter, with a durable request-to-ledger reference that is not created solely by CARAPACE's test harness.
+5. Replace local API keys and signing files with bank identity and managed KMS keys; define privacy retention, consent and failure policies.
+6. Build a labelled adversarial corpus including mismatched payee, amount, refund direction, low-quality images, prompt injection and benign lookalikes. Measure detection and false holds.
 
 Acceptance: end-to-end test shows a held payment never reaches the bank's processor and an allowed test payment reaches it exactly once. Image-only values are either independently grounded or clearly unverified.
 

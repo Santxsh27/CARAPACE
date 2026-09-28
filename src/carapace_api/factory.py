@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import sqlite3
+import threading
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -16,6 +20,7 @@ from carapace_ai.incident_reasoning import (
     build_minimised_incident_context,
 )
 from carapace_ai.provider import LensIntentProvider
+from carapace_ai.operations import create_operations_planner
 from carapace_ai.redaction import redact_for_model
 from carapace_core.canonical import request_digest
 from carapace_core.fee_policy import assess_upi_charge
@@ -54,9 +59,14 @@ from .store import SQLiteEvidenceStore, StorageConflictError, StorageNotFoundErr
 from .preflight import PreflightGate
 from .preflight_evidence import PreflightEvidenceLog
 from .preflight_routes import register_preflight_routes
+from .test_delivery_worker import TestDeliveryWorker
+from .operations import OperationsService
+from .operations_routes import register_operations_routes
+from carapace_integrations.anthos_preflight_bridge import AnthosPreflightBridge
 
 
 VERSION = "0.8.0"
+LOGGER = logging.getLogger(__name__)
 
 
 def create_app(
@@ -74,12 +84,37 @@ def create_app(
         resolved_lens_provider
     )
 
+    test_delivery_worker: TestDeliveryWorker | None = None
+
+    @asynccontextmanager
+    async def lifespan(_application: FastAPI):
+        stop = threading.Event()
+        thread: threading.Thread | None = None
+        if test_delivery_worker is not None:
+            def replay_loop() -> None:
+                while not stop.is_set():
+                    try:
+                        test_delivery_worker.drain_once()
+                    except Exception as error:
+                        LOGGER.warning("test bridge replay loop failed: %s", type(error).__name__)
+                    stop.wait(5)
+
+            thread = threading.Thread(target=replay_loop, name="carapace-test-bridge", daemon=True)
+            thread.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            if thread is not None:
+                thread.join(timeout=4)
+
     application = FastAPI(
         title="CARAPACE Assurance API",
         summary="Bind payment intent, verify execution, and preserve mismatches.",
         version=VERSION,
         docs_url="/docs",
         redoc_url="/redoc",
+        lifespan=lifespan,
     )
     application.state.store = resolved_store
     preflight_gate = PreflightGate(resolved_settings.database_path)
@@ -98,6 +133,21 @@ def create_app(
     )
     evidence_log = PreflightEvidenceLog(resolved_settings.database_path, witness_signer)
     evidence_log.initialize()
+    if os.getenv("CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED", "false").lower() == "true":
+        if resolved_settings.environment not in {"development", "test"}:
+            raise RuntimeError("direct Anthos sample-ledger bridge is forbidden outside development/test")
+        database_url = os.getenv("BOA_DATABASE_URL", "")
+        test_delivery_worker = TestDeliveryWorker(
+            preflight_gate, evidence_log,
+            AnthosPreflightBridge(database_url, allow_test_writes=True),
+            bank_public_key=signer.public_key_bytes,
+            witness_public_key=witness_signer.public_key_bytes,
+        )
+    application.state.test_delivery_worker = test_delivery_worker
+    if resolved_settings.environment in {"development", "test"}:
+        operations = OperationsService(resolved_settings.database_path, signer, create_operations_planner(resolved_lens_provider))
+        application.state.operations = operations
+        register_operations_routes(application, operations, authenticate)
     register_preflight_routes(
         application,
         authenticate=authenticate,
@@ -107,6 +157,7 @@ def create_app(
         evidence_log=evidence_log,
         provider=resolved_lens_provider,
         database_path=resolved_settings.database_path,
+        test_delivery_worker=test_delivery_worker,
     )
 
     @application.get(

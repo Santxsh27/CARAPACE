@@ -6,13 +6,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml ./
 
-# Dependency installation is cached across source-only edits. Changes to
-# pyproject.toml or README.md invalidate this layer and reinstall packages.
-# Ordinary code edits rebuild only the small local wheel.
+# Dependency installation is cached across source and README-only edits.
+# Only pyproject.toml changes invalidate this expensive layer.
 RUN python -c 'import subprocess,sys,tomllib; deps=tomllib.load(open("pyproject.toml","rb"))["project"]["dependencies"]; subprocess.check_call([sys.executable,"-m","pip","install","--no-cache-dir","setuptools>=68",*deps])'
 
+COPY README.md ./
 COPY src ./src
 COPY schemas ./schemas
 COPY examples ./examples

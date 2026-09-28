@@ -30,6 +30,7 @@ from .auth import TenantAuthenticator, TenantContext
 from .preflight import PreflightConflict, PreflightGate, PreflightNotFound
 from .preflight_evidence import EvidenceIntegrityError, EvidenceNotFound, PreflightEvidenceLog
 from .preflight_audit import audit_synthetic_postings
+from .test_delivery_worker import TestDeliveryWorker
 
 
 class CreatePaymentOrder(BaseModel):
@@ -138,6 +139,7 @@ def register_preflight_routes(
     evidence_log: PreflightEvidenceLog,
     provider: LensIntentProvider,
     database_path: Path,
+    test_delivery_worker: TestDeliveryWorker | None = None,
 ) -> None:
     def verify_decision(value: dict[str, Any]) -> bool:
         signature = value.pop("bank_signature", None)
@@ -452,6 +454,45 @@ def register_preflight_routes(
     @application.get("/v1/preflight/transfers", tags=["preflight"])
     async def list_transfers(tenant: TenantContext = Depends(authenticate)) -> dict[str, Any]:
         return {"ledger": "CARAPACE_LOCAL_SYNTHETIC", "transfers": gate.list_transfers(tenant.tenant_id)}
+
+    @application.get("/v1/preflight/test-deliveries/{transfer_id}", tags=["preflight"])
+    async def get_test_delivery(
+        transfer_id: str, tenant: TenantContext = Depends(authenticate),
+    ) -> dict[str, Any]:
+        try:
+            delivery = await run_in_threadpool(
+                gate.get_test_delivery, tenant.tenant_id, transfer_id,
+            )
+        except PreflightNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        checked = (
+            await run_in_threadpool(test_delivery_worker.status, tenant.tenant_id, transfer_id)
+            if test_delivery_worker is not None else
+            {"status": "UNVERIFIED" if delivery["status"] == "MATCH" else "PENDING",
+             "anthos_transaction_id": None}
+        )
+        return {
+            "transfer_id": transfer_id,
+            "status": checked["status"],
+            "anthos_transaction_id": checked["anthos_transaction_id"],
+            "attempt_count": delivery["attempt_count"],
+            "last_error_type": delivery["last_error_type"],
+            "bridge_configured": test_delivery_worker is not None,
+            "scope": "Local artificial-money test bridge only; MATCH is re-read from the exact row, not settlement evidence.",
+        }
+
+    @application.post("/v1/preflight/test-deliveries/{transfer_id}/attempt", tags=["preflight"])
+    async def attempt_test_delivery(
+        transfer_id: str, tenant: TenantContext = Depends(authenticate),
+    ) -> dict[str, Any]:
+        if test_delivery_worker is None:
+            raise HTTPException(status_code=503, detail="local Anthos test bridge is not configured")
+        try:
+            return await run_in_threadpool(
+                test_delivery_worker.attempt, tenant.tenant_id, transfer_id,
+            )
+        except PreflightNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
 
     @application.get("/v1/preflight/audit", tags=["preflight"])
     async def audit_postings(tenant: TenantContext = Depends(authenticate)) -> dict[str, Any]:

@@ -1,72 +1,69 @@
-# CARAPACE v3.1 — Payment Intent Firewall & Proof of Protection
+# CARAPACE — Autonomous financial operations guardian
 
-Status: approved product direction; implementation is incremental. This document is the single product specification for the existing CARAPACE repository. It describes intended behaviour, not a claim that every capability already exists.
+Version 3.2 · updated 28 September 2026 · incremental implementation in the existing repository.
 
-## Product promise
+## Purpose
 
-For a bank-integrated payment, CARAPACE compares the meaning of customer-supplied context with bank-controlled payment details, enforces a deterministic pre-payment decision, and preserves a verifiable record of the warning and choice. It does not move real funds, guarantee that a person understood a warning, or decide legal liability.
+Resolve financial requests with executable, independently checked action plans. Establish the supported obligation, resolve routine exceptions within an agreed mandate and verify the resulting action. Investigation supports execution; it is not the product's final outcome. The everyday problem is the work and risk between a request for money and the records that justify it. Bank downtime is a supporting resilience concern, not the primary use case.
 
-## One end-to-end path
+Initial users are business finance teams and, later, banks serving those businesses. CARAPACE is not a universal consumer banking overlay and has no ability to inspect unrelated banking apps.
 
-1. An authenticated bank gateway creates a canonical payment envelope: transaction ID, customer reference, amount in minor units, currency, direction, recipient ID, expiry, nonce and policy version. A bank-controlled signing key signs the envelope.
-2. The customer voluntarily supplies the message, screenshot, bill or QR that influenced them. No background access to messages, calls or other banking apps is assumed.
-3. Gemini extracts structured, evidence-linked claims from that untrusted material. Deterministic code validates the claims and compares them with the signed payment envelope.
-4. The policy returns ALLOW, WARN or HOLD. A definite receive-versus-send contradiction is HOLD. AI can add a supported concern but cannot cancel a deterministic HOLD.
-5. The test gateway requires a signed decision and a verified browser-device `PROCEED` choice before submitting an artificial-money transfer. HOLD cannot be submitted or overridden. ALLOW and WARN may proceed only after that explicit recorded choice; `CANCEL` never posts.
-6. Separate protection records bind the envelope and warning, signed browser choice, and posting outcome. Bank and local test-device signatures are checked separately. A separately keyed local witness log makes disclosed records tamper-evident within one signed checkpoint; consistency proofs let a monitor check whether a newer head extends a retained one. A read-only audit checks the observed synthetic postings against their evidence chain.
-7. A dispute workbench reports verified facts and uncertainty. Gemini may draft an explanation but does not determine liability.
+## End-to-end product
 
-## Trust boundaries
+1. An authorised connector receives an invoice or financial request.
+2. Document extraction links claims to their source locations; Gemini interprets ambiguous descriptions and relationships. This extraction stage is still planned.
+3. A bounded investigator chooses evidence lookups from enrolled supplier, procurement, warehouse and accounting systems.
+4. An exact obligation engine reports contradictions and the remaining evidence needed. An AI explanation is never a financial fact.
+5. The investigator retrieves further evidence until the obligation is supported, contradicted, unavailable or the investigation budget is exhausted.
+6. Gemini generates a typed resolution program. The verifier checks supported amounts, identity, evidence citations, required steps, ordering and the balancing of the obligation. One correction attempt can use explicit verification errors; persistent errors or model failure stop execution.
+7. A scoped mandate permits routine actions. A separate executor validates current evidence, recipient, amount, currency, limits and original operation identity before acting. It executes only allowlisted verbs, never model-generated Python, SQL, shell commands or arbitrary URLs.
+8. The executor checks the recorded result and preserves the evidence and signed receipt. Unknown outcomes require reconciliation before retrying a non-idempotent operation.
+9. Unsupported identity changes or unresolved contradictions remain held. Bank-required authorisation and business approval policies are not bypassed.
 
-- Bank payment fields originate from the bank gateway, never from the message or customer-controlled web fields. The gateway pins the bank signing key and checks the decision token against the same envelope before moving artificial funds.
-- Untrusted context is data, never instructions to the model or policy engine. Values used in a customer warning need source evidence and deterministic grounding.
-- Browser-device signing proves that a registered device key acknowledged bytes. It does not prove a human saw, understood, or freely chose them. Local development keys are not production identity assurance.
-- A Merkle inclusion proof proves inclusion in a particular signed tree head. A consistency proof checks append-only growth relative to a previously retained head. Neither proves that all payments were logged. Complete coverage requires reconciliation with a bank-owned payment rail outside this database.
-- The demo witness is separately keyed and can reject inconsistent history, but is not operationally independent while run by the same team.
-- A receipt holder may disclose a full evidence bundle; public verification endpoints expose hashes and proofs, not private context or payment details.
+## Implemented operations slice
 
-## Core algorithm: Intent-to-Instruction Engine
+The homepage exposes six cases: routine, redirected beneficiary, partial delivery plus credit, missing delivery evidence, conflicting delivery evidence, and instructions embedded in an invoice. Data comes from server-owned Python fixtures, not real companies or external connectors.
 
-Gemini converts supplied context into claims `{action, amount, entity, urgency, authority, evidence_span}`. The parser output is schema-validated. A deterministic normaliser checks each cited span against the supplied text or OCR result; unsupported values are discarded. The comparison engine forms named contradictions between supported claims and the signed envelope: receive versus send; stated versus actual amount; represented entity versus bank-verified recipient; QR payload versus canonical order. Each rule produces a reason code and severity. The final verdict is the maximum severity and cannot be reduced by an AI output or a customer answer. In degraded mode, deterministic checks continue and the limitation is shown.
+The invoice is already structured. Gemini plans read-only evidence lookups with cited observed source keys and a bounded rationale. Each request's output schema limits lookups to missing sources and citations to already observed sources. Unknown tools, repeated tools and invented citations are rejected before execution; one bounded planning correction can use explicit error feedback, after which invalid output stops the run. Successful schema-parsed model responses are counted; this is not a billing-call count, and rejected responses may still incur provider cost. Configured-provider failures do not silently fall back. Explicit LOCAL_RULES mode uses a deterministic comparison planner.
 
-## Milestones
+The graph has typed evidence nodes and links to one invoice; it is not a full enterprise knowledge graph or learned causal model. Rule-specific conflict witnesses list records establishing a contradiction, not globally minimal unsatisfiable cores.
 
-### Milestone 0 — repositioning
+The single-line-item payable is: received quantity × agreed unit price − approved invoice-specific credits − prior allocations. Amounts use integer minor units. Checks bind supplier, order, invoice, currency and beneficiary. Partial payment requires explicit agreed terms. Taxes, FX, rounding, withholding, multiple line items and split allocations are not yet implemented.
 
-README, served homepage and this specification describe the Payment Intent Firewall as the primary product. Earlier engineering demonstrations remain available only as legacy code until safely retired. No prior claim of a working pre-payment gate is made.
+A resolution program has up to four positive, evidence-linked actions: DEFER_UNDELIVERED, APPLY_APPROVED_CREDIT, RECOGNISE_PRIOR_PAYMENT and POST_PAYMENT. The exact verifier independently derives supported amounts from source records and requires the necessary actions exactly once in order. Six bounded negative guard tests check changed destinations, excess amount, missing delivery evidence, changed supplier identity, repeated payment and an omitted action. These are not a complete bank simulation or universal safety proof. A rule-generated program remains available as an explicitly labelled baseline; the live Gemini path does not receive that program as its answer.
 
-### Milestone 1 — working pre-payment protection
+A fixed development mandate permits only the enrolled supplier/account in INR with per-payment and aggregate limits. A separate SQLite operations gate rechecks the source snapshot and constraints, serialises posting with BEGIN IMMEDIATE, deduplicates tenant/invoice identity, signs the result and reads back the posting. The action journal, signed resolution receipt, posting and completed run commit together. An existing posting and action journal are checked against current evidence and their signatures before reuse; retries do not reapply credits. Signing or journal failure rolls the transaction back. A deferral is outstanding debt, not a saving or write-off.
 
-- Bank-signed canonical payment envelope, verified before evaluation and again at submission.
-- A bank-controlled artificial-money transfer gate that refuses HOLD, rejects changed/expired/replayed envelopes, and records a successful ALLOW transfer.
-- One live Gemini context check for a refund screenshot or supplied image; a genuine bill case passes. Local fallback remains explicitly labelled and must never masquerade as a live call.
-- Automated tests cover signing, tampering, HOLD non-posting, ALLOW posting, isolation, provider failure and both scenarios.
-- A simple customer page demonstrates the path and states what is simulated.
+This gate writes only the OPERATIONS_SYNTHETIC_LEDGER and SYNTHETIC_RESOLUTION_JOURNAL. It does not mutate warehouse records or external accounting systems. It is not the previous browser-confirmation gate, Anthos payment path, real bank transfer, settlement or production mandate service. Development routes are absent outside development/test environments.
 
-The local Bank of Anthos ledger is an authorised artificial-money test integration. A controlled test bridge now writes one exact-bound sample-ledger row **after** the CARAPACE synthetic gate accepts a signed, confirmed transfer. It does not use Bank of Anthos's official LedgerWriter/payment route. That distinction must remain visible.
+Progress is saved in SQLite. Interrupted investigations remain incomplete; background resume, distributed job leases and cloud queue delivery are future work. Real connectors need versioned reads, freshness policies and write-side preconditions.
 
-**Implementation state (27 September 2026):** the signed local order, signed decision, enforced HOLD/ALLOW gate, screenshot-capable Gemini adapter, browser-signed choice, signed local protection receipts and browser demo are implemented. The full 87-test Docker suite passed with one opt-in database case skipped by default; that database case also passed against the local Anthos sample ledger. A live Gemini call held the generated refund screenshot and another allowed the generated bill; a separate timed-out model call failed closed with no posting. The gate posts first to a transactionally protected **CARAPACE synthetic SQLite ledger**. The test bridge below is a separate second step, not Bank of Anthos's official transfer path. Independent OCR for image-only value grounding and an authorised bank-owned processor path remain open integration work.
+## Existing foundations retained
 
-### Milestone 2 — evidence protocol
+/payment-check retains the v3.1 experiment: bank-signed order, Gemini context extraction, enforced HOLD, browser-signed PROCEED/CANCEL, synthetic posting, separate local witness, Merkle inclusion/consistency checks and posting audit. Browser signing proves key control over bytes, not comprehension. The witness is not independently operated.
 
-Registered device acknowledgement, signed protection receipts, independent receipt verifier, append-only Merkle log, separately keyed witness, tamper demonstration and payment-to-decision reconciliation.
+The optional Anthos bridge directly inserts and reads an exact-bound row in its artificial-money PostgreSQL sample ledger. A transactional outbox recovers interrupted delivery. It does not use the official LedgerWriter route or currently receive operations-workbench postings. These are distinct test integrations.
 
-**Incremental evidence state (26 September 2026):** the local gate issues bank-signed decision, test-device choice and synthetic-posting records. Each is committed with its corresponding action in SQLite. A browser P-256 key signs the exact payment, warning and `PROCEED`/`CANCEL` choice. The server verifies that signature against a locally enrolled test key; it refuses posting without a valid `PROCEED`, and HOLD remains non-overridable. A second local signing key authenticates Merkle heads. An inclusion verifier checks disclosed records, and a separate monitor can retain a signed head and verify an RFC 9162 consistency proof before advancing its state. A read-only audit checks every observed CARAPACE synthetic transfer against the signed decision, device choice, posting receipt and witness proof. This still does not prove customer comprehension, production identity, independent witness operation, or coverage of payments outside this controlled gateway/database. Those remain Milestone 2 pilot work.
+Previous fault analysis, counterfactual and release-passport modules remain research foundations. Autonomous production code repair and bank-ledger correction are not implemented.
 
-### Milestone 3 — learning and dispute tools
+## Research contribution to test
 
-Gemini-assisted rule proposal with deterministic held-out replay and human approval; evidence-grounded dispute summaries. These do not alter production policies or make legal determinations autonomously.
+Can a constraint-driven evidence frontier reduce investigation work while retaining financial correctness under conflicting, missing and malicious evidence? Compare fixed complete retrieval, adaptive rules and Gemini-guided retrieval using identical gates, sources and budgets. Measure correct resolutions, false holds, unsupported execution, evidence calls, latency, cost and manual escalations.
 
-**Bank test-bridge increment (27 September 2026):** the local demo can verify a signed posting receipt, insert a corresponding artificial-money row into Bank of Anthos's append-only PostgreSQL `transactions` table, and atomically bind the returned transaction ID in a separate `carapace_test` table. The bridge refuses changed payment evidence, reuses the original bound row on retry, and compares the exact row's amount and accounts. If the external test ledger is unavailable after CARAPACE's own posting commits, the UI reports it as unverified rather than claiming success. This is not the official Bank of Anthos transfer API, not independent bank operation, not cross-database atomicity, and not settlement evidence. The upstream table has no currency field; the INR tag exists only in the binding table and CARAPACE evidence.
+Novelty, commercial advantage and patentability are unproven. Accounts-payable automation, fraud detection, evidence graphs and tool-using agents already exist. See [research and differentiation](docs/RESEARCH_AND_DIFFERENTIATION.md).
 
-### Milestone 4 — submission
+## Google technology and deployment
 
-Deploy a working Google-AI-powered prototype to Cloud Run or Firebase, measure on a labelled corpus, document limitations, and provide a public repository, PDF deck and video under three minutes. Published prototype submission deadline: 18 October 2026; verify the team's binding date in the Hack2skill dashboard.
+Use Gemini Developer API now, the existing Vertex AI adapter after project/identity setup, and Document AI when actual document ingestion is built. Cloud Run can host APIs and workers; select durable external storage first. The current SQLite file is not durable shared Cloud Run storage. Queue delivery, secret management and managed signing remain integration work.
 
-## Technology choice
+No GCP billing or paid deployment is enabled by this milestone. Free-tier eligibility and costs need checking against the actual project. The team's binding deadline still needs confirmation in its authenticated Hack2skill dashboard.
 
-Keep the existing Python/FastAPI, Docker and Bank of Anthos test environment. Use the existing Gemini provider abstraction. Add a small browser UI; do not rewrite the repository into a new language solely for presentation. Local signing uses an isolated development key; a hosted bank pilot requires managed signing keys, authenticated device enrolment, durable storage, independent witness operations, privacy review and security assessment. Suggested Google Cloud services are selected only when they serve a real role; Gemini plus Cloud Run are essential to the hackathon submission.
+## Acceptance and next milestones
 
-## Claims we will not make
+1. Operations foundation: all six visible cases resolve or hold correctly; supported cases have a generated, verified and executed program; unsupported cases never post; retries, concurrency, malformed model output, model failure, tampering, atomic rollback and tenant isolation have tests. UI leads with completed outcomes and outstanding work, with evidence available on demand.
+2. Real input: consented upload, grounded extraction and one authorised accounting connector. Model claims remain separate from connector authority.
+3. Deeper reasoning: multiple obligations, partial allocations, contradictory versions and targeted evidence acquisition. Demonstrate improvements over deterministic baselines on unseen cases.
+4. Durable automation: resumable jobs, managed identity, versioned mandates, external persistence and an authorised payment-provider sandbox.
+5. Submission: deployed Google-AI workflow, measured evaluation, architecture/limits, video, deck and current README.
 
-No zero-fraud promise; no claim of access to a real bank or UPI rail; no statement that browser signing proves human comprehension; no assertion that a missing log entry proves a warning was absent; no automatic legal verdict; no guaranteed patent novelty, prize or zero cloud cost. Show only measured performance numbers.
+No zero-fraud, guaranteed recovery, universal safety proof, autonomous production patching, guaranteed prize or patent claim is part of the product promise.

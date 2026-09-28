@@ -15,7 +15,12 @@ from fastapi.testclient import TestClient
 
 from carapace_api.config import Settings
 from carapace_api.factory import create_app
+from carapace_api.preflight import PreflightGate
+from carapace_api.preflight_evidence import PreflightEvidenceLog
+from carapace_api.test_delivery_worker import TestDeliveryWorker
 from carapace_ai.incident_reasoning import LocalIncidentReasoningProvider
+from carapace_core.bank_envelope import BankEnvelopeSigner
+from carapace_integrations.anthos_preflight_bridge import validate_bridge_input
 from carapace_core.lens import IntentDirection, MessageIntent
 from carapace_core.checkpoint_monitor import CheckpointRejected, verify_checkpoint_response
 from carapace_core.protection_proof import verify_protection_bundle
@@ -580,3 +585,121 @@ class PreflightTests(unittest.TestCase):
             self.client.get("/v1/preflight/transfers", headers=self.bank_a).json()["transfers"],
             [],
         )
+
+    def test_test_delivery_outbox_is_atomic_and_tenant_scoped(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        self.confirm(order_id)
+        submitted = self.client.post(
+            f"/v1/preflight/orders/{order_id}/submit", headers=self.bank_a,
+            json={"decision_id": decision["decision_id"]},
+        )
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+        transfer_id = submitted.json()["transfer"]["transfer_id"]
+        delivery = self.client.get(
+            f"/v1/preflight/test-deliveries/{transfer_id}", headers=self.bank_a,
+        )
+        self.assertEqual(delivery.json()["status"], "PENDING")
+        self.assertFalse(delivery.json()["bridge_configured"])
+        self.assertEqual(
+            self.client.get(
+                f"/v1/preflight/test-deliveries/{transfer_id}", headers=self.bank_b,
+            ).status_code, 404,
+        )
+        self.assertEqual(
+            self.client.post(
+                f"/v1/preflight/test-deliveries/{transfer_id}/attempt", headers=self.bank_a,
+            ).status_code, 503,
+        )
+        with sqlite3.connect(self.db_path) as connection:
+            row = connection.execute(
+                "SELECT posting_receipt_id FROM preflight_test_deliveries WHERE transfer_id=?",
+                (transfer_id,),
+            ).fetchone()
+        self.assertEqual(
+            row[0], submitted.json()["protection_bundle"]["receipt"]["receipt_id"],
+        )
+
+    def test_failed_outbox_insert_rolls_back_money_and_posting_proof(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        self.confirm(order_id)
+        with sqlite3.connect(self.db_path) as connection:
+            before = connection.execute("SELECT COUNT(*) FROM preflight_witness_leaves").fetchone()[0]
+            connection.execute(
+                "CREATE TRIGGER reject_test_delivery BEFORE INSERT ON preflight_test_deliveries "
+                "BEGIN SELECT RAISE(ABORT, 'test outbox failure'); END"
+            )
+        response = self.client.post(
+            f"/v1/preflight/orders/{order_id}/submit", headers=self.bank_a,
+            json={"decision_id": decision["decision_id"]},
+        )
+        self.assertEqual(response.status_code, 409)
+        with sqlite3.connect(self.db_path) as connection:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM preflight_transfers").fetchone()[0], 0)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM preflight_test_deliveries").fetchone()[0], 0)
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM preflight_witness_leaves").fetchone()[0], before)
+
+    def test_worker_replays_after_failure_and_restart_without_new_posting(self) -> None:
+        order_id = self.order()["envelope"]["order_id"]
+        decision = self.evaluate(order_id, "Example Power bill: Pay ₹4,999 to Example Power.")
+        self.confirm(order_id)
+        submitted = self.client.post(
+            f"/v1/preflight/orders/{order_id}/submit", headers=self.bank_a,
+            json={"decision_id": decision["decision_id"]},
+        ).json()
+        transfer_id = submitted["transfer"]["transfer_id"]
+        bank = BankEnvelopeSigner(Path(self.temporary.name) / "bank-dev-ed25519.pem", allow_generate=False)
+        witness = BankEnvelopeSigner(Path(self.temporary.name) / "witness-dev-ed25519.pem", allow_generate=False)
+
+        class FlakyTestBridge:
+            calls = 0
+            broken_readback = False
+
+            def post_once_and_reconcile(self, transfer, bundle, *, bank_public_key, witness_public_key):
+                validate_bridge_input(
+                    transfer, bundle, bank_public_key=bank_public_key,
+                    witness_public_key=witness_public_key,
+                )
+                self.calls += 1
+                if self.calls == 1:
+                    raise ConnectionError("local test ledger unavailable")
+                return {"status": "MATCH", "anthos_transaction_id": 451,
+                        "reason_codes": [], "inserted_now": self.calls == 2}
+
+            def reconcile_existing(self, transfer, bundle, *, bank_public_key, witness_public_key):
+                validate_bridge_input(
+                    transfer, bundle, bank_public_key=bank_public_key,
+                    witness_public_key=witness_public_key,
+                )
+                return {"status": "MISMATCH" if self.broken_readback else "MATCH",
+                        "anthos_transaction_id": 451}
+
+        bridge = FlakyTestBridge()
+        def new_worker():
+            return TestDeliveryWorker(
+                PreflightGate(self.db_path), PreflightEvidenceLog(self.db_path, witness),
+                bridge, bank_public_key=bank.public_key_bytes,
+                witness_public_key=witness.public_key_bytes,
+            )
+
+        self.assertEqual(new_worker().attempt("bank-a", transfer_id)["status"], "UNAVAILABLE")
+        self.assertEqual(PreflightGate(self.db_path).get_test_delivery("bank-a", transfer_id)["status"], "PENDING")
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "UPDATE preflight_test_deliveries SET next_attempt_at='2000-01-01T00:00:00+00:00' "
+                "WHERE transfer_id=?", (transfer_id,),
+            )
+        self.assertEqual(new_worker().drain_once()[0]["status"], "MATCH")
+        self.assertEqual(new_worker().attempt("bank-a", transfer_id)["anthos_transaction_id"], 451)
+        status = self.client.get(
+            f"/v1/preflight/test-deliveries/{transfer_id}", headers=self.bank_a,
+        ).json()
+        # This API instance has no bridge: a saved MATCH is not a fresh readback.
+        self.assertEqual(status["status"], "UNVERIFIED")
+        self.assertFalse(status["bridge_configured"])
+        self.assertIsNone(status["anthos_transaction_id"])
+        self.assertEqual(new_worker().status("bank-a", transfer_id)["status"], "MATCH")
+        bridge.broken_readback = True
+        self.assertEqual(new_worker().status("bank-a", transfer_id)["status"], "MISMATCH")
+        self.assertEqual(len(self.client.get("/v1/preflight/transfers", headers=self.bank_a).json()["transfers"]), 1)

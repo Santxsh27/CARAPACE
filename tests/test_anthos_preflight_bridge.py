@@ -132,3 +132,8 @@ class AnthosPreflightBridgeTests(unittest.TestCase):
         self.assertEqual(second["status"], "MATCH")
         self.assertFalse(second["inserted_now"])
         self.assertEqual(first["anthos_transaction_id"], second["anthos_transaction_id"])
+        checked = bridge.reconcile_existing(
+            transfer, bundle, bank_public_key=bank_key, witness_public_key=witness_key,
+        )
+        self.assertEqual(checked["status"], "MATCH")
+        self.assertEqual(checked["anthos_transaction_id"], first["anthos_transaction_id"])

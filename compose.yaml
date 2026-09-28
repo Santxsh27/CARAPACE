@@ -31,6 +31,8 @@ services:
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-global}
       CARAPACE_GEMINI_MODEL: ${CARAPACE_GEMINI_MODEL:-gemini-3.5-flash-lite}
+      CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED: "true"
+      BOA_DATABASE_URL: postgresql://admin:password@anthos-ledger:5432/postgresdb
       PORT: "8080"
     ports:
       - "127.0.0.1:8080:8080"
@@ -114,7 +116,6 @@ services:
       CARAPACE_API_BASE_URL: http://api:8080
       CARAPACE_TENANT: demo-bank
       CARAPACE_API_KEY: local-demo-key-change-me
-      BOA_DATABASE_URL: postgresql://admin:password@anthos-ledger:5432/postgresdb
       BOA_FRONTEND_URL: http://anthos-frontend:8080
       BOA_PUBLIC_FRONTEND_URL: http://localhost:8081
       PORT: "8090"

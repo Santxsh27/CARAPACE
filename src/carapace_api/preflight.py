@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
 from uuid import uuid4
@@ -88,6 +88,23 @@ class PreflightGate:
                     FOREIGN KEY (tenant_id, order_id)
                         REFERENCES preflight_orders (tenant_id, order_id)
                 );
+                CREATE TABLE IF NOT EXISTS preflight_test_deliveries (
+                    tenant_id TEXT NOT NULL,
+                    transfer_id TEXT NOT NULL,
+                    posting_receipt_id TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'PENDING'
+                        CHECK (status IN ('PENDING', 'MATCH')),
+                    anthos_transaction_id INTEGER,
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    last_error_type TEXT,
+                    next_attempt_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (tenant_id, transfer_id),
+                    FOREIGN KEY (tenant_id, transfer_id)
+                        REFERENCES preflight_transfers (tenant_id, transfer_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_preflight_test_deliveries_due
+                    ON preflight_test_deliveries (status, next_attempt_at);
                 """
             )
 
@@ -358,6 +375,12 @@ class PreflightGate:
                 connection, tenant_id=tenant_id, receipt=receipt,
                 bank_signer=bank_signer,
             )
+            connection.execute(
+                "INSERT INTO preflight_test_deliveries "
+                "(tenant_id, transfer_id, posting_receipt_id, next_attempt_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (tenant_id, transfer_id, receipt["receipt_id"], now.isoformat(), now.isoformat()),
+            )
             connection.commit()
             return transfer, bundle
         except sqlite3.IntegrityError as error:
@@ -376,3 +399,80 @@ class PreflightGate:
                 (tenant_id,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def get_test_delivery(self, tenant_id: str, transfer_id: str) -> dict[str, Any]:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT d.*, t.order_id, t.decision_id, t.payer_account, "
+                "t.payee_account, t.amount_minor, t.currency, t.created_at "
+                "FROM preflight_test_deliveries d JOIN preflight_transfers t "
+                "ON t.tenant_id=d.tenant_id AND t.transfer_id=d.transfer_id "
+                "WHERE d.tenant_id=? AND d.transfer_id=?",
+                (tenant_id, transfer_id),
+            ).fetchone()
+        if row is None:
+            raise PreflightNotFound("test delivery not found")
+        result = dict(row)
+        result["transfer"] = {
+            field: result[field] for field in (
+                "transfer_id", "order_id", "decision_id", "payer_account",
+                "payee_account", "amount_minor", "currency", "created_at",
+            )
+        }
+        result["transfer"]["ledger"] = "CARAPACE_LOCAL_SYNTHETIC"
+        return result
+
+    def pending_test_deliveries(self, limit: int = 20) -> list[tuple[str, str]]:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT tenant_id, transfer_id FROM preflight_test_deliveries "
+                "WHERE status='PENDING' AND next_attempt_at<=? "
+                "ORDER BY next_attempt_at, transfer_id LIMIT ?",
+                (now, limit),
+            ).fetchall()
+        return [(row["tenant_id"], row["transfer_id"]) for row in rows]
+
+    def record_test_delivery_match(
+        self, tenant_id: str, transfer_id: str, transaction_id: int,
+    ) -> None:
+        if type(transaction_id) is not int or transaction_id <= 0:
+            raise PreflightConflict("invalid Anthos test transaction ID")
+        with self._connect() as connection:
+            updated = connection.execute(
+                "UPDATE preflight_test_deliveries SET status='MATCH', "
+                "anthos_transaction_id=?, last_error_type=NULL, attempt_count=attempt_count+1, "
+                "updated_at=? WHERE tenant_id=? AND transfer_id=? "
+                "AND (status='PENDING' OR (status='MATCH' AND anthos_transaction_id=?))",
+                (transaction_id, datetime.now(timezone.utc).isoformat(),
+                 tenant_id, transfer_id, transaction_id),
+            )
+            if updated.rowcount != 1:
+                exists = connection.execute(
+                    "SELECT 1 FROM preflight_test_deliveries WHERE tenant_id=? AND transfer_id=?",
+                    (tenant_id, transfer_id),
+                ).fetchone()
+                if exists is None:
+                    raise PreflightNotFound("test delivery not found")
+                raise PreflightConflict("test delivery was matched to another row")
+
+    def record_test_delivery_failure(
+        self, tenant_id: str, transfer_id: str, error_type: str,
+    ) -> None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT attempt_count FROM preflight_test_deliveries "
+                "WHERE tenant_id=? AND transfer_id=? AND status='PENDING'",
+                (tenant_id, transfer_id),
+            ).fetchone()
+            if row is None:
+                return
+            now = datetime.now(timezone.utc)
+            delay_seconds = min(300, 2 ** min(int(row["attempt_count"]) + 1, 8))
+            connection.execute(
+                "UPDATE preflight_test_deliveries SET attempt_count=attempt_count+1, "
+                "last_error_type=?, next_attempt_at=?, updated_at=? "
+                "WHERE tenant_id=? AND transfer_id=? AND status='PENDING'",
+                (error_type[:80], (now + timedelta(seconds=delay_seconds)).isoformat(),
+                 now.isoformat(), tenant_id, transfer_id),
+            )
