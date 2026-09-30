@@ -132,7 +132,7 @@ class ExecutionEvidence(StrictModel):
 
 class HealthResponse(StrictModel):
     status: Literal["ok"]
-    service: Literal["carapace-api"]
+    service: Literal["financial-friday-api"]
     version: str
 
 

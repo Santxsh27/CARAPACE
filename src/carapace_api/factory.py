@@ -21,6 +21,7 @@ from carapace_ai.incident_reasoning import (
 )
 from carapace_ai.provider import LensIntentProvider
 from carapace_ai.operations import create_operations_planner
+from carapace_ai.financial_friday import create_financial_friday_planner
 from carapace_ai.redaction import redact_for_model
 from carapace_core.canonical import request_digest
 from carapace_core.fee_policy import assess_upi_charge
@@ -62,10 +63,12 @@ from .preflight_routes import register_preflight_routes
 from .test_delivery_worker import TestDeliveryWorker
 from .operations import OperationsService
 from .operations_routes import register_operations_routes
+from .financial_friday import FinancialFridayService
+from .financial_friday_routes import register_financial_friday_routes
 from carapace_integrations.anthos_preflight_bridge import AnthosPreflightBridge
 
 
-VERSION = "0.8.0"
+VERSION = "0.9.2"
 LOGGER = logging.getLogger(__name__)
 
 
@@ -109,8 +112,8 @@ def create_app(
                 thread.join(timeout=4)
 
     application = FastAPI(
-        title="CARAPACE Assurance API",
-        summary="Bind payment intent, verify execution, and preserve mismatches.",
+        title="Financial Friday Assurance API",
+        summary="AI-planned financial tasks with deterministic safety and one-time execution.",
         version=VERSION,
         docs_url="/docs",
         redoc_url="/redoc",
@@ -148,6 +151,13 @@ def create_app(
         operations = OperationsService(resolved_settings.database_path, signer, create_operations_planner(resolved_lens_provider))
         application.state.operations = operations
         register_operations_routes(application, operations, authenticate)
+        financial_friday = FinancialFridayService(
+            resolved_settings.database_path,
+            signer,
+            create_financial_friday_planner(resolved_lens_provider),
+        )
+        application.state.financial_friday = financial_friday
+        register_financial_friday_routes(application, financial_friday, authenticate)
     register_preflight_routes(
         application,
         authenticate=authenticate,
@@ -192,7 +202,7 @@ def create_app(
 
     @application.get("/health/live", response_model=HealthResponse, tags=["health"])
     async def live() -> HealthResponse:
-        return HealthResponse(status="ok", service="carapace-api", version=VERSION)
+        return HealthResponse(status="ok", service="financial-friday-api", version=VERSION)
 
     @application.get("/health/ready", response_model=HealthResponse, tags=["health"])
     async def ready() -> HealthResponse:
@@ -200,7 +210,7 @@ def create_app(
             resolved_store.ping()
         except sqlite3.Error as error:
             raise HTTPException(status_code=503, detail="evidence store unavailable") from error
-        return HealthResponse(status="ok", service="carapace-api", version=VERSION)
+        return HealthResponse(status="ok", service="financial-friday-api", version=VERSION)
 
     @application.post(
         "/v1/lens/analyze",

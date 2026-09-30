@@ -1,69 +1,173 @@
-# CARAPACE — Autonomous financial operations guardian
+# Financial Friday — Product and Engineering Specification
 
-Version 3.2 · updated 28 September 2026 · incremental implementation in the existing repository.
+Version 1.0 · 30 September 2026
 
-## Purpose
+## Product statement
 
-Resolve financial requests with executable, independently checked action plans. Establish the supported obligation, resolve routine exceptions within an agreed mandate and verify the resulting action. Investigation supports execution; it is not the product's final outcome. The everyday problem is the work and risk between a request for money and the records that justify it. Bank downtime is a supporting resilience concern, not the primary use case.
+Financial Friday is a bounded AI operator for everyday financial tasks. A person delegates an outcome and constraints; Gemini creates or repairs a typed plan; an independent deterministic kernel proves the plan stays within those constraints; a restricted provider adapter performs the allowed action; and reconciliation verifies what actually happened.
 
-Initial users are business finance teams and, later, banks serving those businesses. CARAPACE is not a universal consumer banking overlay and has no ability to inspect unrelated banking apps.
+The product removes routine work without asking a person to trust a chatbot or give an LLM unrestricted financial authority.
 
-## End-to-end product
+## The one problem
 
-1. An authorised connector receives an invoice or financial request.
-2. Document extraction links claims to their source locations; Gemini interprets ambiguous descriptions and relationships. This extraction stage is still planned.
-3. A bounded investigator chooses evidence lookups from enrolled supplier, procurement, warehouse and accounting systems.
-4. An exact obligation engine reports contradictions and the remaining evidence needed. An AI explanation is never a financial fact.
-5. The investigator retrieves further evidence until the obligation is supported, contradicted, unavailable or the investigation budget is exhausted.
-6. Gemini generates a typed resolution program. The verifier checks supported amounts, identity, evidence citations, required steps, ordering and the balancing of the obligation. One correction attempt can use explicit verification errors; persistent errors or model failure stop execution.
-7. A scoped mandate permits routine actions. A separate executor validates current evidence, recipient, amount, currency, limits and original operation identity before acting. It executes only allowlisted verbs, never model-generated Python, SQL, shell commands or arbitrary URLs.
-8. The executor checks the recorded result and preserves the evidence and signed receipt. Unknown outcomes require reconciliation before retrying a non-idempotent operation.
-9. Unsupported identity changes or unresolved contradictions remain held. Bank-required authorisation and business approval policies are not bypassed.
+Existing financial assistants can explain, classify or recommend. Existing payment systems can execute a precise instruction. The dangerous gap is between them: translating a human goal into reliable financial actions while preserving recipient, amount, fee, cadence, privacy and retry constraints.
 
-## Implemented operations slice
+Financial Friday closes that gap with **proof-carrying financial programs**: the AI proposal cannot execute until ordinary code independently validates its effects against the user's immutable goal and authoritative provider evidence.
 
-The homepage exposes six cases: routine, redirected beneficiary, partial delivery plus credit, missing delivery evidence, conflicting delivery evidence, and instructions embedded in an invoice. Data comes from server-owned Python fixtures, not real companies or external connectors.
+## First complete journey
 
-The invoice is already structured. Gemini plans read-only evidence lookups with cited observed source keys and a bounded rationale. Each request's output schema limits lookups to missing sources and citations to already observed sources. Unknown tools, repeated tools and invented citations are rejected before execution; one bounded planning correction can use explicit error feedback, after which invalid output stops the run. Successful schema-parsed model responses are counted; this is not a billing-call count, and rejected responses may still incur provider cost. Configured-provider failures do not silently fall back. Explicit LOCAL_RULES mode uses a deterministic comparison planner.
+The user delegates:
 
-The graph has typed evidence nodes and links to one invoice; it is not a full enterprise knowledge graph or learned causal model. Rule-specific conflict witnesses list records establishing a contradiction, not globally minimal unsatisfiable cores.
+> Pay this verified ₹1,999 electricity bill once, with no subscription or extra fee.
 
-The single-line-item payable is: received quantity × agreed unit price − approved invoice-specific credits − prior allocations. Amounts use integer minor units. Checks bind supplier, order, invoice, currency and beneficiary. Partial payment requires explicit agreed terms. Taxes, FX, rounding, withholding, multiple line items and split allocations are not yet implemented.
+Financial Friday:
 
-A resolution program has up to four positive, evidence-linked actions: DEFER_UNDELIVERED, APPLY_APPROVED_CREDIT, RECOGNISE_PRIOR_PAYMENT and POST_PAYMENT. The exact verifier independently derives supported amounts from source records and requires the necessary actions exactly once in order. Six bounded negative guard tests check changed destinations, excess amount, missing delivery evidence, changed supplier identity, repeated payment and an omitted action. These are not a complete bank simulation or universal safety proof. A rule-generated program remains available as an explicitly labelled baseline; the live Gemini path does not receive that program as its answer.
+1. Resolves the enrolled biller and current obligation from an authorised connector.
+2. Gives Gemini only the bounded goal, connector evidence and typed action vocabulary.
+3. Receives a structured `FinancialProgram`, not prose or generated code.
+4. Checks provider, payee, amount, fee, currency, cadence, data disclosure, evidence and prior operation state.
+5. Feeds only safe validation error codes back for one repair attempt when the AI proposal is invalid.
+6. Runs adversarial mutations against the same guard.
+7. Executes through a provider sandbox with the original idempotency identity.
+8. Reads back or reconciles the provider outcome.
+9. Returns a signed receipt that says exactly what was proven and what remains outside scope.
 
-A fixed development mandate permits only the enrolled supplier/account in INR with per-payment and aggregate limits. A separate SQLite operations gate rechecks the source snapshot and constraints, serialises posting with BEGIN IMMEDIATE, deduplicates tenant/invoice identity, signs the result and reads back the posting. The action journal, signed resolution receipt, posting and completed run commit together. An existing posting and action journal are checked against current evidence and their signatures before reuse; retries do not reapply credits. Signing or journal failure rolls the transaction back. A deferral is outstanding debt, not a saving or write-off.
+## Demonstration cases
 
-This gate writes only the OPERATIONS_SYNTHETIC_LEDGER and SYNTHETIC_RESOLUTION_JOURNAL. It does not mutate warehouse records or external accounting systems. It is not the previous browser-confirmation gate, Anthos payment path, real bank transfer, settlement or production mandate service. Development routes are absent outside development/test environments.
+### Genuine bill
 
-Progress is saved in SQLite. Interrupted investigations remain incomplete; background resume, distributed job leases and cloud queue delivery are future work. Real connectors need versioned reads, freshness policies and write-side preconditions.
+A verified one-time obligation matches the goal. One artificial-money operation is created. Repeating the run returns the existing signed receipt rather than creating another payment.
 
-## Existing foundations retained
+### Misleading subscription offer
 
-/payment-check retains the v3.1 experiment: bank-signed order, Gemini context extraction, enforced HOLD, browser-signed PROCEED/CANCEL, synthetic posting, separate local witness, Merkle inclusion/consistency checks and posting audit. Browser signing proves key control over bytes, not comprehension. The witness is not independently operated.
+The provider highlights a cheaper recurring offer but also exposes an authenticated one-time option. Gemini selects the one-time route and the safety kernel verifies that choice. If only recurring options exist, no AI proposal can make the task executable without new customer authority.
 
-The optional Anthos bridge directly inserts and reads an exact-bound row in its artificial-money PostgreSQL sample ledger. A transactional outbox recovers interrupted delivery. It does not use the official LedgerWriter route or currently receive operations-workbench postings. These are distinct test integrations.
+### Recipient swap
 
-Previous fault analysis, counterfactual and release-passport modules remain research foundations. Autonomous production code repair and bank-ledger correction are not implemented.
+The connector's recipient differs from the approved recipient. The kernel emits `EVIDENCE_PAYEE_MISMATCH`. AI explanation has no authority to override it.
 
-## Research contribution to test
+### Unknown network outcome
 
-Can a constraint-driven evidence frontier reduce investigation work while retaining financial correctness under conflicting, missing and malicious evidence? Compare fixed complete retrieval, adaptive rules and Gemini-guided retrieval using identical gates, sources and budgets. Measure correct resolutions, false holds, unsupported execution, evidence calls, latency, cost and manual escalations.
+An earlier provider call timed out after submission. The only valid plan is `RECONCILE_EXISTING → CONFIRM_RESULT`. If the provider reports success, Financial Friday completes without issuing a retry.
 
-Novelty, commercial advantage and patentability are unproven. Accounts-payable automation, fraud detection, evidence graphs and tool-using agents already exist. See [research and differentiation](docs/RESEARCH_AND_DIFFERENTIATION.md).
+## Technical layers
 
-## Google technology and deployment
+### 1. Immutable goal contract
 
-Use Gemini Developer API now, the existing Vertex AI adapter after project/identity setup, and Document AI when actual document ingestion is built. Cloud Run can host APIs and workers; select durable external storage first. The current SQLite file is not durable shared Cloud Run storage. Queue delivery, secret management and managed signing remain integration work.
+The goal binds the task ID, instruction, enrolled provider, recipient, currency, total ceiling, fee ceiling, one-time cadence, allowed data fields and idempotency identity.
 
-No GCP billing or paid deployment is enabled by this milestone. Free-tier eligibility and costs need checking against the actual project. The team's binding deadline still needs confirmation in its authenticated Hack2skill dashboard.
+### 2. Authoritative evidence
 
-## Acceptance and next milestones
+Evidence comes from enrolled server-side connectors. Model text is never promoted to an authoritative amount, recipient, provider status or payment result.
 
-1. Operations foundation: all six visible cases resolve or hold correctly; supported cases have a generated, verified and executed program; unsupported cases never post; retries, concurrency, malformed model output, model failure, tampering, atomic rollback and tenant isolation have tests. UI leads with completed outcomes and outstanding work, with evidence available on demand.
-2. Real input: consented upload, grounded extraction and one authorised accounting connector. Model claims remain separate from connector authority.
-3. Deeper reasoning: multiple obligations, partial allocations, contradictory versions and targeted evidence acquisition. Demonstrate improvements over deterministic baselines on unseen cases.
-4. Durable automation: resumable jobs, managed identity, versioned mandates, external persistence and an authorised payment-provider sandbox.
-5. Submission: deployed Google-AI workflow, measured evaluation, architecture/limits, video, deck and current README.
+### 3. Gemini planner
 
-No zero-fraud, guaranteed recovery, universal safety proof, autonomous production patching, guaranteed prize or patent claim is part of the product promise.
+Gemini on Vertex AI maps the goal and evidence to a schema-constrained action program. It may explain the plan and repair a rejected candidate using fixed error codes. It has no executor or arbitrary tools.
+
+### 4. Deterministic safety kernel
+
+Pure code verifies the program and derives the authorised total. The model cannot change this verdict. The kernel fails closed on missing, contradictory or unknown evidence.
+
+### 5. Adversarial challenge stage
+
+Before execution, deterministic mutations test whether the same guard rejects an extra unit, changed recipient, excess data field, recurring mandate, duplicate financial action and missing confirmation.
+
+### 6. Restricted executor
+
+Only fixed verbs can reach the provider adapter. The current adapter uses SQLite and artificial money, signs the result, enforces tenant-scoped uniqueness and verifies the stored receipt.
+
+### 7. Reconciliation
+
+An unknown external result is not equivalent to failure. Financial Friday checks the original operation before retrying. This is essential because a local rollback cannot undo a provider-side payment.
+
+## Trust rules
+
+- Gemini proposes; deterministic code authorises.
+- No generated Python, JavaScript, SQL, shell command, URL or provider tool is executed.
+- No PIN, OTP, CVV, password or signing key enters the model context.
+- Authoritative evidence and user constraints remain separate from untrusted text.
+- Model failure never silently falls back while claiming a live AI result.
+- Unknown outcomes reconcile before retry.
+- Every money-moving operation is idempotent and tenant scoped.
+- A signed receipt proves bytes and checks, not universal financial safety.
+- Unsupported or unavailable evidence is shown as held/unverified, never green.
+
+## Google Cloud architecture
+
+```text
+Web / future voice client
+          │
+          ▼
+Cloud Run API and orchestrator
+          │
+          ├── Vertex AI Gemini: structured planning and repair
+          ├── Safety kernel: deterministic financial verification
+          ├── Provider adapters: allowlisted operations only
+          ├── Firestore / Cloud SQL: future durable goal and run state
+          ├── Cloud Tasks: future resumable execution and reconciliation
+          ├── Secret Manager + IAM: future connector credentials and keys
+          └── Cloud Logging: operational evidence without payment secrets
+```
+
+The first deployment uses a Cloud Run service identity with `roles/aiplatform.user`; it does not use a Gemini API key. The current SQLite store is ephemeral on Cloud Run and therefore suitable only for a bounded demonstration.
+
+Google ADK should be introduced when there are multiple durable agent stages requiring orchestration. It must not replace the safety kernel. Document AI should be added only when real consented bill/document ingestion is implemented. BigQuery/Vertex model evaluation should be added when there is a sufficiently large labelled evaluation set. Products are selected for real responsibilities, not logo count.
+
+## Security algorithm
+
+The differentiating mechanism is the combination of:
+
+1. Immutable financial goal contract.
+2. Schema-constrained AI action program.
+3. Independent effect verification.
+4. Mutation-based pre-execution challenge.
+5. Restricted capability executor.
+6. Idempotent external operation identity.
+7. Reconciliation-before-retry.
+8. Signed outcome evidence.
+
+The project may describe this as a **Constraint-Carrying Financial Program** pattern. Novelty and patentability remain hypotheses requiring a professional prior-art search; they are not current claims.
+
+## Evaluation
+
+Report measured results rather than promises:
+
+- Valid-task completion rate.
+- Unsafe-program rejection rate.
+- False-hold rate.
+- Duplicate-effect rate under concurrent/repeated requests.
+- Unknown-outcome reconciliation accuracy.
+- Gemini schema-valid response rate and repair success rate.
+- Cost and latency per completed task.
+- Data minimisation violations blocked.
+- Difference between deterministic and Gemini planning on unseen scenarios.
+
+## Build status
+
+Implemented:
+
+- Typed goal, evidence, action and program schemas.
+- Vertex-compatible Gemini planner and explicit local baseline.
+- Independent safety kernel.
+- Six mutation challenges.
+- One bounded repair loop.
+- Artificial-money executor, tenant isolation and idempotency.
+- Reconciliation-before-retry case.
+- Signed receipts and readback.
+- API endpoints and automated tests.
+- Google Cloud project, enabled services, budget alerts and live Vertex smoke test.
+
+Next:
+
+1. Add a simple Financial Friday task UI; postpone visual polish until workflow is stable.
+2. Run the real Gemini planner through Cloud Run and record evaluation evidence.
+3. Replace ephemeral cloud SQLite with Firestore or Cloud SQL.
+4. Add one authorised biller/provider sandbox connector.
+5. Add durable Cloud Tasks orchestration and recovery.
+6. Add consented bill ingestion and grounded extraction.
+7. Add evaluation dashboard, video, deck and threat model.
+8. Add voice only after the same typed program and safety boundary work end to end.
+
+## Product boundaries
+
+The prototype is not a bank, UPI application, investment adviser or autonomous controller of real accounts. Production actions require authorised provider partnerships and their authentication/approval rules. Human review remains mandatory for ambiguous, high-impact or regulated actions. Financial Friday automates routine work inside explicit authority; it does not ask users to surrender control of all finances.

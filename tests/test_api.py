@@ -67,6 +67,7 @@ class AssuranceApiTests(unittest.TestCase):
         response = self.client.get("/health/ready")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
+        self.assertEqual(response.json()["service"], "financial-friday-api")
 
     def test_ai_status_truthfully_reports_local_fallback(self) -> None:
         response = self.client.get("/v1/ai/status")
