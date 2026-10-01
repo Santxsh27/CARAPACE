@@ -57,6 +57,42 @@ class FinancialFridayService:
             raise KeyError(run_id)
         return json.loads(row[0])
 
+    def daily_brief(self, tenant: str) -> dict:
+        """Read the actual sandbox journal; never infer an account balance."""
+        goal = load_case("genuine-bill")["goal"]
+        with self.connect() as db:
+            payments = db.execute(
+                "SELECT receipt_json FROM friday_payments WHERE tenant_id=?", (tenant,)
+            ).fetchall()
+            rows = db.execute(
+                "SELECT result_json FROM friday_runs WHERE tenant_id=? ORDER BY rowid DESC LIMIT 10",
+                (tenant,),
+            ).fetchall()
+        receipts = []
+        invalid = 0
+        for row in payments:
+            try:
+                receipt = json.loads(row[0])
+                if not self.signer.verify(receipt["payload"], receipt["signature"]):
+                    invalid += 1
+                    continue
+                receipts.append(receipt)
+            except (ValueError, KeyError, TypeError):
+                invalid += 1
+        paid = any(r["payload"]["goal_id"] == goal["goal_id"] for r in receipts)
+        return {
+            "scope": "Artificial-money sandbox journal only; no real account connected",
+            "bill": {"label": "Sample electricity bill", "amount_minor": 199900,
+                     "status": "UNVERIFIED" if invalid else "PAID" if paid else "READY",
+                     "scenario_id": "genuine-bill"},
+            "recorded_total_minor": sum(r["payload"]["amount_minor"] for r in receipts),
+            "verified_receipt_count": len(receipts), "invalid_receipt_count": invalid,
+            "recent_runs": [{"run_id": r["run_id"], "case_id": r["case_id"],
+                             "status": r["status"], "started_at": r["started_at"]}
+                            for r in (json.loads(row[0]) for row in rows)],
+            "balance": None,
+        }
+
     def run(self, tenant: str, case_id: str, planner=None) -> dict:
         case = load_case(case_id)
         goal = FinancialGoal.model_validate(case["goal"])

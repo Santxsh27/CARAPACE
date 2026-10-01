@@ -8,6 +8,12 @@ from starlette.concurrency import run_in_threadpool
 from carapace_ai.financial_friday import LocalFinancialFridayPlanner
 from carapace_integrations.financial_friday_fixtures import CASES
 from .auth import TenantContext
+from .friday_inbox import FridayInbox
+
+
+class WatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
 
 
 class FridayRunRequest(BaseModel):
@@ -16,6 +22,27 @@ class FridayRunRequest(BaseModel):
 
 
 def register_financial_friday_routes(application, service, authenticate):
+    inbox = FridayInbox(service)
+    application.state.friday_inbox = inbox
+
+    @application.get("/v1/friday/inbox", tags=["financial-friday"])
+    def inbox_read(tenant: TenantContext = Depends(authenticate)):
+        return inbox.read(tenant.tenant_id)
+
+    @application.post("/v1/friday/watch", tags=["financial-friday"])
+    def watch(request: WatchRequest, tenant: TenantContext = Depends(authenticate)):
+        return inbox.watch(tenant.tenant_id, request.enabled)
+
+    @application.post("/v1/friday/arrivals/{case_id}", tags=["financial-friday"])
+    def arrive(case_id: str, tenant: TenantContext = Depends(authenticate)):
+        if case_id not in CASES:
+            raise HTTPException(404, "scenario not found")
+        return inbox.arrive(tenant.tenant_id, case_id)
+
+    @application.get("/v1/friday/today", tags=["financial-friday"])
+    def today(tenant: TenantContext = Depends(authenticate)):
+        return service.daily_brief(tenant.tenant_id)
+
     @application.get("/v1/friday/scenarios", tags=["financial-friday"])
     def scenarios(tenant: TenantContext = Depends(authenticate)):
         return {

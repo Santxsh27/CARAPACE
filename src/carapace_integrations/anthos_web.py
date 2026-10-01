@@ -18,7 +18,10 @@ from typing import Literal
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
 from .operations_ui import OPERATIONS_HTML
+from .financial_friday_ui import FINANCIAL_FRIDAY_HTML
 from carapace_api.operations_routes import ResolveRequest
+from carapace_api.financial_friday_routes import WatchRequest
+from carapace_integrations.financial_friday_fixtures import CASES as FRIDAY_CASES
 from carapace_integrations.operations_fixtures import CASES
 
 HOME_HTML = """<!doctype html>
@@ -180,6 +183,10 @@ class CompleteConfirmation(BaseModel):
     choice: Literal["PROCEED", "CANCEL"]
 
 
+class FridayRunRequest(BaseModel):
+    planner: Literal["configured", "local"] = "configured"
+
+
 def _api_call(base_url: str, path: str, method: str, body: dict | None = None, timeout: int = 45) -> tuple[int, dict]:
     payload = json.dumps(body).encode("utf-8") if body is not None else None
     request = Request(
@@ -212,7 +219,7 @@ def create_demo_app() -> FastAPI:
         raise RuntimeError("CARAPACE_DEMO_ENABLED=true is required")
     api_base_url = os.getenv("CARAPACE_API_BASE_URL", "http://api:8080").rstrip("/")
     bank_internal_url = os.getenv("BOA_FRONTEND_URL", "http://anthos-frontend:8080").rstrip("/")
-    application = FastAPI(title="CARAPACE Financial Operations Workspace", docs_url=None, redoc_url=None, openapi_url=None)
+    application = FastAPI(title="Financial Friday Sandbox", docs_url=None, redoc_url=None, openapi_url=None)
     pending_flows: dict[str, dict] = {}
     pending_lock = threading.Lock()
 
@@ -226,11 +233,80 @@ def create_demo_app() -> FastAPI:
 
     @application.get("/", response_class=HTMLResponse)
     async def home() -> HTMLResponse:
+        return HTMLResponse(FINANCIAL_FRIDAY_HTML, headers={"Cache-Control": "no-store"})
+
+    @application.get("/operations", response_class=HTMLResponse)
+    async def operations() -> HTMLResponse:
         return HTMLResponse(OPERATIONS_HTML, headers={"Cache-Control": "no-store"})
 
     @application.get("/payment-check", response_class=HTMLResponse)
     async def payment_check() -> HTMLResponse:
         return HTMLResponse(HOME_HTML, headers={"Cache-Control": "no-store"})
+
+    @application.get("/api/friday/scenarios")
+    async def friday_scenarios():
+        code, result = await run_in_threadpool(
+            _api_call, api_base_url, "/v1/friday/scenarios", "GET"
+        )
+        if code != 200:
+            raise HTTPException(code, "Financial Friday API unavailable")
+        return result
+
+    @application.get("/api/friday/inbox")
+    async def inbox_read():
+        code, result = await run_in_threadpool(_api_call, api_base_url, '/v1/friday/inbox', 'GET')
+        if code != 200:
+            raise HTTPException(code, 'Inbox unavailable')
+        return result
+
+    @application.post("/api/friday/watch")
+    async def watch(request: WatchRequest):
+        code, result = await run_in_threadpool(_api_call, api_base_url, '/v1/friday/watch', 'POST', request.model_dump())
+        if code != 200:
+            raise HTTPException(code, 'Could not change monitoring')
+        return result
+
+    @application.post("/api/friday/arrivals/{case_id}")
+    async def arrival(case_id: str):
+        if case_id not in FRIDAY_CASES:
+            raise HTTPException(404, 'Unknown sample')
+        code, result = await run_in_threadpool(_api_call, api_base_url, '/v1/friday/arrivals/' + case_id, 'POST')
+        if code != 200:
+            raise HTTPException(code, 'Could not deliver sample bill')
+        return result
+
+    @application.get("/api/friday/today")
+    async def friday_today():
+        code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/today", "GET")
+        if code != 200:
+            raise HTTPException(code, "Daily brief unavailable")
+        return result
+
+    @application.post("/api/friday/scenarios/{case_id}/run")
+    async def run_friday_scenario(case_id: str, request: FridayRunRequest):
+        code, result = await run_in_threadpool(
+            _api_call,
+            api_base_url,
+            f"/v1/friday/scenarios/{case_id}/run",
+            "POST",
+            request.model_dump(),
+            120,
+        )
+        if code != 200:
+            detail = result.get("detail", "Financial Friday run unavailable")
+            raise HTTPException(code, detail)
+        return result
+
+    @application.get("/api/friday/runs/{run_id}")
+    async def friday_run(run_id: str):
+        if not run_id.startswith("ff_") or len(run_id) != 35:
+            raise HTTPException(404, "run not found")
+        code, result = await run_in_threadpool(
+            _api_call, api_base_url, f"/v1/friday/runs/{run_id}", "GET"
+        )
+        if code != 200:
+            raise HTTPException(code, "run not found")
+        return result
 
     @application.get("/api/operations/cases")
     async def operation_cases():
@@ -259,7 +335,7 @@ def create_demo_app() -> FastAPI:
 
     @application.get("/health")
     async def health() -> dict[str, str]:
-        return {"status": "ok", "service": "carapace-workspace"}
+        return {"status": "ok", "service": "financial-friday-sandbox"}
 
     @application.get("/api/status")
     async def status() -> dict[str, bool]:

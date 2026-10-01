@@ -1,4 +1,19 @@
-# CARAPACE build sequence
+# Financial Friday build sequence
+
+## Current increment — bounded assistant sandbox
+
+- [x] Make Financial Friday, rather than the earlier assurance dashboard, the local homepage.
+- [x] Present one locked financial goal with five controlled evidence conditions.
+- [x] Connect the page to real scenario, run and saved-run API routes.
+- [x] Show Gemini provenance, the typed action program, deterministic proof, adversarial checks, executor events and signed receipt.
+- [x] Preserve the earlier operations and payment-check labs under separate routes.
+- [x] Verify configured Gemini, idempotent replay, safe subscription selection and recipient-mismatch refusal.
+- [x] Run the full Docker regression suite: 129 tests pass; one optional live Anthos test is skipped.
+- [ ] Add user-authored goals only after a goal compiler can produce a reviewable immutable mandate.
+- [ ] Replace fixture evidence with an authorised bill/account connector and durable cloud state.
+- [ ] Add voice only after the same goal and confirmation boundaries work without voice.
+
+See [Financial Friday sandbox milestone](FINANCIAL_FRIDAY_SANDBOX.md).
 
 ## Current increment — autonomous financial operations
 

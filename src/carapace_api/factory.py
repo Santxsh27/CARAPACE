@@ -68,7 +68,7 @@ from .financial_friday_routes import register_financial_friday_routes
 from carapace_integrations.anthos_preflight_bridge import AnthosPreflightBridge
 
 
-VERSION = "0.9.2"
+VERSION = "0.9.3"
 LOGGER = logging.getLogger(__name__)
 
 
@@ -92,6 +92,17 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_application: FastAPI):
         stop = threading.Event()
+        def inbox_loop():
+            while not stop.is_set():
+                try:
+                    _application.state.friday_inbox.tick()
+                except Exception as error:
+                    LOGGER.warning("Friday inbox check failed: %s", type(error).__name__)
+                stop.wait(5)
+        inbox_thread = None
+        if hasattr(_application.state, "friday_inbox") and resolved_settings.environment != "test":
+            inbox_thread = threading.Thread(target=inbox_loop, daemon=True, name="friday-inbox")
+            inbox_thread.start()
         thread: threading.Thread | None = None
         if test_delivery_worker is not None:
             def replay_loop() -> None:
@@ -108,6 +119,8 @@ def create_app(
             yield
         finally:
             stop.set()
+            if inbox_thread is not None:
+                inbox_thread.join(timeout=1)
             if thread is not None:
                 thread.join(timeout=4)
 

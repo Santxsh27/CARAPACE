@@ -17,6 +17,7 @@ from carapace_ai.financial_friday import (
 from carapace_api.config import Settings
 from carapace_api.factory import create_app
 from carapace_api.financial_friday import FinancialFridayService
+from carapace_api.friday_inbox import FridayInbox
 from carapace_core.bank_envelope import BankEnvelopeSigner
 from carapace_core.financial_friday import (
     FinancialEvidence,
@@ -26,6 +27,7 @@ from carapace_core.financial_friday import (
     verify_financial_program,
 )
 from carapace_integrations.financial_friday_fixtures import load_case
+from carapace_integrations.financial_friday_ui import FINANCIAL_FRIDAY_HTML
 
 
 class FinancialFridayTests(unittest.TestCase):
@@ -41,6 +43,40 @@ class FinancialFridayTests(unittest.TestCase):
     def payment_count(self):
         with sqlite3.connect(self.path) as db:
             return db.execute("SELECT COUNT(*) FROM friday_payments").fetchone()[0]
+
+    def test_proactive_intake_is_opt_in_deduplicated_and_never_pays(self):
+        inbox = FridayInbox(self.service)
+        inbox.arrive('a', 'genuine-bill')
+        inbox.arrive('a', 'genuine-bill')
+        inbox.tick()
+        self.assertEqual(inbox.read('a')['items'][0]['state'], 'QUEUED')
+        inbox.watch('a', True)
+        inbox.tick()
+        result = inbox.read('a')
+        self.assertEqual(len(result['items']), 1)
+        self.assertEqual(result['items'][0]['state'], 'READY')
+        self.assertEqual(inbox.read('b')['items'], [])
+        self.assertEqual(self.payment_count(), 0)
+        inbox.watch('a', False)
+        inbox.arrive('a', 'recipient-swap')
+        inbox.tick()
+        self.assertEqual(inbox.read('a')['items'][0]['state'], 'QUEUED')
+        inbox.watch('a', True)
+        inbox.tick()
+        self.assertEqual(inbox.read('a')['items'][0]['state'], 'ATTENTION')
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_proactive_model_failure_is_visible_and_not_retried_forever(self):
+        class BrokenPlanner:
+            def plan(self, context):
+                raise RuntimeError('offline')
+        self.service.planner = BrokenPlanner()
+        inbox = FridayInbox(self.service)
+        inbox.watch('a', True)
+        inbox.arrive('a', 'genuine-bill')
+        inbox.tick()
+        self.assertEqual(inbox.read('a')['items'][0]['state'], 'UNAVAILABLE')
+        self.assertEqual(self.payment_count(), 0)
 
     def test_genuine_bill_executes_once_and_reuses_signed_receipt(self):
         first = self.service.run("tenant-a", "genuine-bill")
@@ -163,6 +199,13 @@ class FinancialFridayTests(unittest.TestCase):
             self.assertEqual(client.post(
                 "/v1/friday/scenarios/genuine-bill/run", headers=a, json={"amount": 1}
             ).status_code, 422)
+
+    def test_sandbox_ui_explains_ai_and_execution_boundaries(self):
+        self.assertIn("Tell Friday the outcome. Not every step.", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("Gemini can propose", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("Independent safety proof", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("Restricted sandbox · no real bank access", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("/api/friday/scenarios/", FINANCIAL_FRIDAY_HTML)
 
 
 if __name__ == "__main__":

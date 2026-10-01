@@ -12,6 +12,16 @@ The existing Python package names still use `carapace_*` to preserve compatibili
 
 ## What works now
 
+The local homepage includes an opt-in proactive sandbox inbox. Enable monitoring,
+then deliver a sample bill to emulate an enrolled provider event. A server worker
+checks it using the configured planner, validates the plan independently, and
+records READY, ATTENTION or UNAVAILABLE. It runs while the local API is running,
+even with the browser closed. Intake is tenant-scoped and deduplicated; it never
+executes a payment. Due reminders are shown in the inbox, not sent by email or push.
+Real inbox access, PDF/OCR extraction, and Cloud Run background scheduling are
+not implemented by this increment. A process interruption during a check may
+leave CHECKING pending; durable lease recovery is a following milestone.
+
 Four end-to-end artificial-money cases are exposed through the API:
 
 | Scenario | Result |
@@ -79,7 +89,16 @@ docker compose --profile anthos up --build
 Open:
 
 - API documentation: [http://localhost:8080/docs](http://localhost:8080/docs)
-- Existing local workbench: [http://localhost:8090](http://localhost:8090)
+- Financial Friday sandbox: [http://localhost:8090](http://localhost:8090)
+- Earlier operations lab: [http://localhost:8090/operations](http://localhost:8090/operations)
+- Earlier payment-check demo: [http://localhost:8090/payment-check](http://localhost:8090/payment-check)
+
+The sandbox is the first Jarvis-style product surface. Choose a controlled financial
+situation, then ask Friday to handle the fixed goal. The screen renders the real
+typed program returned by Gemini (or the explicitly labelled local comparison),
+the deterministic safety result, adversarial mutation checks, restricted executor
+events and signed artificial-money receipt. It is not a scripted animation and it
+does not imply access to a real account.
 
 Use the local development headers documented in [docs/api.md](docs/api.md). The new routes are:
 
