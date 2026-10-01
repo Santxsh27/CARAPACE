@@ -345,6 +345,8 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertIn("DETERMINISTIC_EVIDENCE_HOLD", FINANCIAL_FRIDAY_HTML)
         self.assertIn('id="metric-ai"', FINANCIAL_FRIDAY_HTML)
         self.assertIn('id="metric-effects"', FINANCIAL_FRIDAY_HTML)
+        self.assertIn("F.R.I.D.A.Y.", FINANCIAL_FRIDAY_HTML)
+        self.assertIn('id="core-state"', FINANCIAL_FRIDAY_HTML)
 
 
 if __name__ == "__main__":

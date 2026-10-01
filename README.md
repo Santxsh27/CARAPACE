@@ -33,6 +33,13 @@ Friday briefing shows the result, AI-call count, deterministic-gate decision and
 number of artificial-money effects. The full program, hostile-mutation checks,
 events and receipt remain available underneath for judges and engineers.
 
+The primary experience is a Jarvis-style FRIDAY command surface: one animated AI
+core, one direct text/voice command, and one short outcome briefing. Demo-provider
+settings, proactive monitoring and engineering evidence are collapsed by default
+so ordinary users see the answer first while judges can still inspect the proof.
+The core's `ANALYSING`, `MISSION VERIFIED`, `STATE RECOVERED`, `THREAT CONTAINED`
+and `SAFE MODE` states are driven by actual API outcomes.
+
 Five retained end-to-end artificial-money cases are exposed through the API:
 
 | Scenario | Result |
