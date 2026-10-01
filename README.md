@@ -80,15 +80,15 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Vertex AI, Cloud Run, Cloud Build, Artifact Registry, Secret Manager, Firestore and Cloud Tasks APIs are enabled.
 - A real Vertex AI call to `gemini-3.5-flash` succeeded. No API key was created; Vertex uses Google identity and the Cloud Run service identity.
 - The Cloud Run container remains a bounded hackathon service. SQLite on its temporary filesystem is not production persistence; Firestore/Cloud SQL migration is a later milestone.
-- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-00004-4gz` is serving `api:0.10.0` at 100% traffic after authenticated health, version, Vertex configuration and live Gemini execution checks. No Gemini key is exposed.
-- Version `0.10.1` strengthens the next release: authoritative provider/payee/currency contradictions stop in the deterministic kernel before AI is called, while transient Vertex server errors receive a bounded retry and still fail closed.
+- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-00005-w8k` serves `api:0.10.1` at 100% traffic after authenticated health, version, Vertex configuration and live Gemini execution checks. No Gemini key is exposed.
+- In `0.10.1`, authoritative provider/payee/currency contradictions stop in the deterministic kernel before AI is called, while transient Vertex server errors receive a bounded retry and still fail closed. A cloud test confirmed recipient mismatch with zero model calls and an unknown outcome reconciled through live Vertex AI without creating another payment.
 
 ## Next steps
 
-1. Build and deploy `api:0.10.1` through the same no-traffic verification gate.
-2. Deploy the Friday web surface separately while keeping the API private.
-3. Replace temporary SQLite state with Firestore or Cloud SQL, then add Cloud Tasks for durable background work.
-4. Add authorised provider/account connectors and document uploads; do not claim real bank or SMS access without an approved integration.
+1. Deploy the Friday web surface separately while keeping the API private.
+2. Replace temporary SQLite state with Firestore or Cloud SQL, then add Cloud Tasks for durable background work.
+3. Add authorised provider/account connectors and document uploads; do not claim real bank or SMS access without an approved integration.
+4. Run the labelled adversarial evaluation set and publish accuracy, false-hold, latency and per-run cost measurements.
 
 ## Run locally
 
