@@ -8,11 +8,13 @@
 - [x] Show Gemini provenance, the typed action program, deterministic proof, adversarial checks, executor events and signed receipt.
 - [x] Preserve the earlier operations and payment-check labs under separate routes.
 - [x] Verify configured Gemini, idempotent replay, safe subscription selection and recipient-mismatch refusal.
-- [x] Run the full isolated Docker regression suite: 136 tests pass; one optional live Anthos test is skipped.
+- [x] Run the full isolated Docker regression suite: 137 tests pass; one optional live Anthos test is skipped.
 - [x] Add saved user-authored standing instructions with explicit reserve and automatic execution limits.
 - [x] Accept unseen message, QR-text and browser voice-transcript inputs through one typed ingestion API.
 - [x] Ground extracted references against dynamic enrolled test-provider bills and change the outcome on contradictions.
 - [x] Execute eligible artificial-money bills automatically and persist the reduced sandbox balance.
+- [x] Deploy the private Cloud Run API, verify a real Vertex-planned execution, and keep fail-closed behavior on provider errors.
+- [x] Move authoritative identity contradictions ahead of AI and add bounded retry for transient Vertex server errors.
 - [ ] Replace fixture evidence with an authorised bill/account connector and durable cloud state.
 - [ ] Replace browser speech transcription with Gemini Live native audio after cloud persistence is durable.
 

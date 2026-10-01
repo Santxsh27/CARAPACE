@@ -14,6 +14,7 @@ from carapace_core.financial_friday import (
     FinancialEvidence,
     FinancialGoal,
     challenge_financial_program,
+    verify_evidence_identity,
     verify_financial_program,
 )
 from carapace_core.friday_live import (
@@ -343,10 +344,22 @@ class FinancialFridayService:
             "scope": "Financial Friday sandbox provider and artificial money; no real bank access.",
         }
         self._save(tenant, result)
+        identity_errors = verify_evidence_identity(goal, evidence)
+        if identity_errors:
+            result["events"].append({
+                "type": "DETERMINISTIC_EVIDENCE_HOLD",
+                "errors": identity_errors,
+                "authority": "SAFETY_KERNEL",
+            })
+            result["status"] = "HELD"
+            result["outcome"] = {"money_moved": False, "reason": identity_errors}
+            self._save(tenant, result)
+            return result
+
         context = {"goal": goal.model_dump(), "evidence": evidence.model_dump()}
         program = None
         verification = None
-        for attempt in range(2):
+        for attempt in range(3):
             try:
                 program = planner.plan(context)
                 if planner.mode != "LOCAL_RULES":
@@ -374,6 +387,14 @@ class FinancialFridayService:
                     "errors": context["validation_feedback"],
                 })
             except Exception as error:
+                if type(error).__name__ == "ServerError" and attempt < 2:
+                    result["events"].append({
+                        "type": "AI_PROVIDER_RETRY",
+                        "attempt": attempt + 1,
+                        "error_type": type(error).__name__,
+                    })
+                    self._save(tenant, result)
+                    continue
                 result["events"].append({
                     "type": "AI_PLANNING_STOPPED", "error_type": type(error).__name__
                 })

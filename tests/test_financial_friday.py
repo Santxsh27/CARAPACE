@@ -210,10 +210,41 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertEqual(self.payment_count(), 0)
 
     def test_changed_recipient_is_held(self):
-        result = self.service.run("tenant-a", "recipient-swap")
+        class PlannerMustNotRun:
+            mode = "VERTEX_AI"
+            model_name = "gemini-test"
+
+            def plan(self, context):
+                raise AssertionError("identity contradiction must stop before AI")
+
+        result = self.service.run("tenant-a", "recipient-swap", PlannerMustNotRun())
         self.assertEqual(result["status"], "HELD")
         self.assertIn("EVIDENCE_PAYEE_MISMATCH", result["outcome"]["reason"])
+        self.assertEqual(result["events"][0]["type"], "DETERMINISTIC_EVIDENCE_HOLD")
+        self.assertEqual(result["provenance"]["successful_model_calls"], 0)
         self.assertEqual(self.payment_count(), 0)
+
+    def test_transient_vertex_error_is_retried_then_executes(self):
+        local = LocalFinancialFridayPlanner()
+
+        class TransientPlanner:
+            mode = "VERTEX_AI"
+            model_name = "gemini-test"
+            calls = 0
+
+            def plan(self, context):
+                self.calls += 1
+                if self.calls == 1:
+                    ServerError = type("ServerError", (Exception,), {})
+                    raise ServerError("temporary provider failure")
+                return local.plan(context)
+
+        planner = TransientPlanner()
+        result = self.service.run("tenant-a", "genuine-bill", planner)
+        self.assertEqual(result["status"], "COMPLETED_SYNTHETIC")
+        self.assertEqual(planner.calls, 2)
+        self.assertEqual(result["events"][0]["type"], "AI_PROVIDER_RETRY")
+        self.assertEqual(result["provenance"]["successful_model_calls"], 1)
 
     def test_unknown_outcome_is_reconciled_without_retry(self):
         result = self.service.run("tenant-a", "unknown-outcome")

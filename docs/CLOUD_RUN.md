@@ -6,10 +6,13 @@ The Google Cloud project, billing alerts and required APIs are configured. Verte
 
 The initial Cloud Run service is deliberately private. It uses a dedicated runtime service account with only Vertex AI invocation permission. It uses Application Default Credentials supplied by Cloud Run; no Gemini API key is embedded in the image or repository.
 
-Version 0.10.0 adds live text/QR/voice-transcript ingestion and saved mandates to
-the local container. These records still use SQLite and therefore disappear when a
-Cloud Run instance is replaced. Do not present the existing cloud revision as a
-durable always-on assistant until Firestore/Cloud SQL and Cloud Tasks are connected.
+Private revision `financial-friday-api-00004-4gz` now serves version 0.10.0 at
+100% traffic after authenticated health, Vertex configuration, live Gemini planning
+and deterministic safety checks. Version 0.10.1 adds pre-AI identity rejection and
+bounded retry for transient Vertex server errors. Records still use SQLite and
+therefore disappear when a Cloud Run instance is replaced. Do not present the
+current service as a durable always-on assistant until Firestore/Cloud SQL and
+Cloud Tasks are connected.
 
 ## Demo configuration
 

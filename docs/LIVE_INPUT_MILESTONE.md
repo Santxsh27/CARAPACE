@@ -19,7 +19,7 @@ The production demo must show configured Gemini provenance.
 ## Verification
 
 - Financial Friday suite: 18 tests passed.
-- Full isolated Docker suite: 136 tests passed, 1 optional Anthos integration test skipped.
+- Full isolated Docker suite: 137 tests passed, 1 optional Anthos integration test skipped.
 - New coverage includes unfamiliar content grounding, changed-recipient refusal,
   automatic execution, balance reduction and repeated-input idempotency.
 

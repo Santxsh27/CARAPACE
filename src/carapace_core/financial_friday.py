@@ -93,6 +93,21 @@ class FinancialProgram(BaseModel):
     steps: list[FinancialAction] = Field(min_length=1, max_length=6)
 
 
+def verify_evidence_identity(goal: FinancialGoal, evidence: FinancialEvidence) -> list[str]:
+    """Reject authoritative identity contradictions before any model is called."""
+
+    errors: list[str] = []
+    if not evidence.provider_verified:
+        errors.append("PROVIDER_NOT_VERIFIED")
+    if evidence.provider_id != goal.provider_id:
+        errors.append("EVIDENCE_PROVIDER_MISMATCH")
+    if evidence.payee_id != goal.payee_id:
+        errors.append("EVIDENCE_PAYEE_MISMATCH")
+    if evidence.currency != goal.currency:
+        errors.append("EVIDENCE_CURRENCY_MISMATCH")
+    return sorted(set(errors))
+
+
 def safe_local_program(goal: FinancialGoal, evidence: FinancialEvidence) -> FinancialProgram:
     """Deterministic comparison planner, explicitly labelled as non-AI."""
 
@@ -147,17 +162,9 @@ def verify_financial_program(
 ) -> dict:
     """Prove a candidate stays inside the goal and current connector evidence."""
 
-    errors: list[str] = []
+    errors = verify_evidence_identity(goal, evidence)
     if program.goal_id != goal.goal_id:
         errors.append("WRONG_GOAL")
-    if not evidence.provider_verified:
-        errors.append("PROVIDER_NOT_VERIFIED")
-    if evidence.provider_id != goal.provider_id:
-        errors.append("EVIDENCE_PROVIDER_MISMATCH")
-    if evidence.payee_id != goal.payee_id:
-        errors.append("EVIDENCE_PAYEE_MISMATCH")
-    if evidence.currency != goal.currency:
-        errors.append("EVIDENCE_CURRENCY_MISMATCH")
 
     names = [step.action for step in program.steps]
     if len(names) != len(set(names)):

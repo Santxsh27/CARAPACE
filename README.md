@@ -80,11 +80,12 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Vertex AI, Cloud Run, Cloud Build, Artifact Registry, Secret Manager, Firestore and Cloud Tasks APIs are enabled.
 - A real Vertex AI call to `gemini-3.5-flash` succeeded. No API key was created; Vertex uses Google identity and the Cloud Run service identity.
 - The Cloud Run container remains a bounded hackathon service. SQLite on its temporary filesystem is not production persistence; Firestore/Cloud SQL migration is a later milestone.
-- The official Google Cloud CLI is installed and authenticated for the project. The current `0.10.0` Financial Friday image, including live message/QR/voice-transcript ingestion, was successfully built in Cloud Build and published to Artifact Registry. The existing Cloud Run API remains on its previous revision until the new private revision is deployed and authenticated health-checked.
+- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-00004-4gz` is serving `api:0.10.0` at 100% traffic after authenticated health, version, Vertex configuration and live Gemini execution checks. No Gemini key is exposed.
+- Version `0.10.1` strengthens the next release: authoritative provider/payee/currency contradictions stop in the deterministic kernel before AI is called, while transient Vertex server errors receive a bounded retry and still fail closed.
 
 ## Next steps
 
-1. Deploy the published `api:0.10.0` image as a no-traffic private Cloud Run revision; verify authenticated health, API version and Vertex mode; then move traffic.
+1. Build and deploy `api:0.10.1` through the same no-traffic verification gate.
 2. Deploy the Friday web surface separately while keeping the API private.
 3. Replace temporary SQLite state with Firestore or Cloud SQL, then add Cloud Tasks for durable background work.
 4. Add authorised provider/account connectors and document uploads; do not claim real bank or SMS access without an approved integration.
@@ -135,7 +136,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **136 tests passed, 1 optional Anthos integration test skipped**. The test command disables the development-only direct Anthos bridge so unit tests do not inherit a live integration setting.
+Current isolated result: **137 tests passed, 1 optional Anthos integration test skipped**. The test command disables the development-only direct Anthos bridge so unit tests do not inherit a live integration setting.
 
 ## What is retained from CARAPACE
 
