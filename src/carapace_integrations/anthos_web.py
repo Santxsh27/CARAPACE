@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
+from starlette.requests import Request as StarletteRequest
 from .operations_ui import OPERATIONS_HTML
 from .financial_friday_ui import FINANCIAL_FRIDAY_HTML
 from carapace_api.operations_routes import ResolveRequest
@@ -207,6 +208,26 @@ def _api_call(base_url: str, path: str, method: str, body: dict | None = None, t
         return error.code, json.loads(error.read().decode("utf-8"))
 
 
+def _api_document(
+    base_url: str, data: bytes, mime_type: str, filename: str, timeout: int = 120
+) -> tuple[int, dict]:
+    request = Request(
+        base_url + "/v1/friday/documents?" + urlencode({"filename": filename}),
+        data=data,
+        method="POST",
+        headers={
+            "Content-Type": mime_type,
+            "X-Carapace-Tenant": os.getenv("CARAPACE_TENANT", "demo-bank"),
+            "X-Carapace-API-Key": os.getenv("CARAPACE_API_KEY", "local-demo-key-change-me"),
+        },
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return response.status, json.load(response)
+    except HTTPError as error:
+        return error.code, json.loads(error.read().decode("utf-8"))
+
+
 def _ready(url: str) -> bool:
     try:
         with urlopen(url, timeout=2) as response:
@@ -331,6 +352,23 @@ def create_demo_app() -> FastAPI:
         )
         if code != 200:
             raise HTTPException(code, result.get("detail", "Friday could not interpret this input"))
+        return result
+
+    @application.post("/api/friday/documents")
+    async def friday_document(request: StarletteRequest, filename: str):
+        mime_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > 8 * 1024 * 1024:
+                raise HTTPException(413, "document exceeds the 8 MB limit")
+            chunks.append(chunk)
+        data = b"".join(chunks)
+        code, result = await run_in_threadpool(
+            _api_document, api_base_url, data, mime_type, filename, 120
+        )
+        if code != 200:
+            raise HTTPException(code, result.get("detail", "Document could not be checked"))
         return result
 
     @application.post("/api/friday/live-input/{event_id}/run")

@@ -21,9 +21,17 @@ class IncomingFinancialSignal(BaseModel):
     """Content observed through a user-authorised channel."""
 
     model_config = ConfigDict(extra="forbid")
-    source_type: Literal["MESSAGE", "VOICE_TRANSCRIPT", "QR_TEXT", "BILL_TEXT"]
+    source_type: Literal["MESSAGE", "VOICE_TRANSCRIPT", "QR_TEXT", "BILL_TEXT", "DOCUMENT"]
     content_text: str = Field(min_length=5, max_length=5000)
     event_id: str | None = Field(default=None, min_length=4, max_length=120)
+
+
+class FinancialEvidenceSpan(BaseModel):
+    """Exact text supporting one extracted fact; never a model-generated paraphrase."""
+
+    model_config = ConfigDict(extra="forbid")
+    field: Literal["bill_reference", "provider_name", "amount_minor", "claimed_payee_id", "recurring_requested"]
+    quote: str = Field(min_length=1, max_length=240)
 
 
 class InterpretedFinancialSignal(BaseModel):
@@ -39,6 +47,7 @@ class InterpretedFinancialSignal(BaseModel):
     recurring_requested: bool = False
     summary: str = Field(min_length=5, max_length=500)
     suspicious_instructions: list[str] = Field(default_factory=list, max_length=8)
+    evidence_spans: list[FinancialEvidenceSpan] = Field(default_factory=list, max_length=12)
 
 
 class TestProviderBill(BaseModel):

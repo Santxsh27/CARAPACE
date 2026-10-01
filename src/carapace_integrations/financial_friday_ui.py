@@ -61,6 +61,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
     .core-console{height:185px}.core-ring.r1{width:150px;height:150px}.core-ring.r2{width:116px;height:116px}.core-ring.r3{width:84px;height:84px}.core-center{width:60px;height:60px}.core-center span{font-size:10px}.core-state{bottom:0}.wave{display:none}
     .run{border-radius:10px;text-transform:none;letter-spacing:0;font-size:12px}.promise div:after{display:none}.stage{clip-path:none;border-radius:8px}.brief-main:after{display:none}
     .provider-setup summary,.mission-details>summary,.watch-card>summary{text-transform:none;letter-spacing:0;font-family:inherit;font-size:11px}.watch-card>summary:after{content:"Show"}.watch-card[open]>summary:after{content:"Hide"}
+    .upload-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid rgba(66,190,229,.18)}.upload-row input[type=file]{max-width:290px;color:#9bb5c2;font-size:11px}.upload-row input::file-selector-button{border:1px solid rgba(74,218,251,.28);border-radius:8px;background:#071723;color:#bcefff;padding:8px 10px;margin-right:9px;cursor:pointer}.upload-note{color:#6f94a4;font-size:10px}.source-spans{margin-top:9px;padding:10px 12px;border:1px solid rgba(66,190,229,.2);border-radius:8px;background:rgba(1,10,18,.58)}.source-spans summary{cursor:pointer;color:#83ddef;font-size:11px}.source-spans blockquote{margin:8px 0 0;padding-left:10px;border-left:2px solid #27cbe9;color:#9cb8c4;font-size:11px}
     @media(max-width:1040px){.hero{grid-template-columns:1fr 200px}.core-console{transform:scale(.86)}.run-controls{position:static;width:auto;grid-column:auto;grid-template-columns:1fr}.scope{grid-column:auto}}
     @media(max-width:760px){.hero{grid-template-columns:1fr}.core-console{height:190px}.layout{grid-template-columns:1fr}.sidebar{clip-path:none}.run-controls{grid-template-columns:1fr}.hero h2{text-align:center}.hero-main{text-align:center}.system-line{justify-content:center}}
     @media(max-width:1040px){.pipeline{grid-template-columns:repeat(3,1fr)}.pipeline:before{display:none}.briefing{grid-template-columns:1fr}}
@@ -98,7 +99,9 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
           <div class="card-head"><div class="eyebrow">Direct command</div><span class="badge" id="live-mode">Listening</span></div>
           <div class="command-prompt"><div class="command-avatar">F</div><div class="command-copy"><h3>Talk to Friday</h3><p>Paste a bill message, payment request or voice transcript. Friday will find the important details and tell you only what matters.</p>
           <label class="label" for="live-input">What should Friday handle?</label><textarea class="goal command-input" id="live-input">Message from TN Power: Bill LIVE-1001 for ₹2,499 is due. Payee: tnpower@upi</textarea>
-          <div class="inline-actions"><button class="run" id="check-live" type="button">Handle this safely</button><button class="planner voice" id="speak-live" type="button">◉ Speak</button></div><div class="live-state" id="live-result">Ready when you are.</div></div></div>
+          <div class="inline-actions"><button class="run" id="check-live" type="button">Handle this safely</button><button class="planner voice" id="speak-live" type="button">◉ Speak</button></div>
+          <div class="upload-row"><input id="document-input" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" aria-label="Upload a bill image or PDF"><button class="planner" id="check-document" type="button">Check document</button><span class="upload-note">PNG, JPEG, WebP or PDF · 8 MB max · raw file not stored</span></div>
+          <div class="live-state" id="live-result">Ready when you are.</div></div></div>
           <details class="provider-setup"><summary>Demo provider setup</summary><div class="form-grid"><label>Bill reference<input class="field" id="provider-reference" value="LIVE-1001"></label><label>Amount in rupees<input class="field" id="provider-amount" type="number" min="1" step=".01" value="2499"></label><label>Verified payee<input class="field" id="provider-payee" value="tnpower@upi"></label></div><div class="inline-actions"><button class="planner" id="publish-bill" type="button">Publish test bill</button></div></details>
         </article>
         <details class="card watch-card" style="margin-bottom:22px">
@@ -212,6 +215,8 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       $('live-mode').textContent=nice(data.state);$('live-result').replaceChildren();$('live-result').append(node('b',data.message));
       const facts=data.interpretation||{};$('live-result').append(node('p',`Extracted: ${facts.bill_reference||'no reference'} · ${facts.amount_minor?money(facts.amount_minor):'amount unknown'} · ${facts.claimed_payee_id||'payee not stated'}`));
       if(data.reason?.length)$('live-result').append(node('p','Stopped because: '+data.reason.map(nice).join(' · ')));
+      if(facts.evidence_spans?.length){const evidence=node('details',undefined,'source-spans');evidence.append(node('summary','Show exact source evidence'));facts.evidence_spans.forEach(span=>evidence.append(node('blockquote',nice(span.field)+': “'+span.quote+'”')));$('live-result').append(evidence);}
+      if(data.document)$('live-result').append(node('p',`${data.document.filename} · ${Math.ceil(data.document.size_bytes/1024)} KB · raw file discarded after analysis`));
       resetStages();stage('understand','done','Message structured');stage('ground',data.state==='ATTENTION'?'blocked':'done',data.state==='ATTENTION'?'Needs attention':'Provider record matched');
       if(data.state==='ATTENTION'){stage('plan','skipped','No unsafe plan requested');stage('prove','done','Stopped before action');stage('act','blocked','No money moved');setCore('THREAT CONTAINED','Signal contradicted trusted evidence');}
       else if(data.state==='READY'){stage('plan','active','Ready for your approval');setCore('EVIDENCE LOCKED','Ready for bounded execution');}
@@ -222,6 +227,12 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       const button=$('check-live');button.disabled=true;button.textContent='Friday is analysing…';setCore('ANALYSING SIGNAL','Extracting financial intent');$('live-mode').textContent='Understanding';resetStages();pulse('understand','Extracting the financial request');
       try{const data=await jsonRequest('/api/friday/live-input','POST',{source_type:liveSource,content_text:$('live-input').value});showLiveResult(data);toast(data.state==='ATTENTION'?'Friday stopped for attention':'Live input checked');liveSource='MESSAGE';}
       catch(error){$('live-mode').textContent='Unavailable';$('live-result').textContent=String(error);stage('understand','blocked','Could not interpret safely');setCore('SAFE MODE','Signal could not be verified');}finally{button.disabled=false;button.textContent='Handle this safely';}
+    }
+    async function checkDocument(){
+      const file=$('document-input').files[0];if(!file){$('live-result').textContent='Choose a bill image or PDF first.';return;}
+      const button=$('check-document');button.disabled=true;button.textContent='Reading document…';$('live-mode').textContent='Document analysis';setCore('READING DOCUMENT','Gemini is extracting grounded facts');resetStages();pulse('understand','Reading uploaded evidence');
+      try{const response=await fetch('/api/friday/documents?filename='+encodeURIComponent(file.name),{method:'POST',headers:{'Content-Type':file.type||'application/octet-stream'},body:file});const data=await response.json();if(!response.ok)throw new Error(data.detail||'Document could not be checked');showLiveResult(data);toast(data.state==='ATTENTION'?'Document needs attention':'Document checked');}
+      catch(error){$('live-mode').textContent='Unavailable';$('live-result').textContent=String(error);stage('understand','blocked','Document was not trusted');setCore('SAFE MODE','No action taken');}finally{button.disabled=false;button.textContent='Check document';}
     }
     function startVoice(){
       const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SpeechRecognition){$('live-result').textContent='Voice recognition is unavailable in this browser. Type the same request instead.';return;}
@@ -258,7 +269,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
     async function refreshInbox(){try{showInbox(await inboxRequest());}catch(e){$('inbox-error').textContent=e.message;$('watch-status').textContent='Status unavailable';}}
     $('watch-toggle').addEventListener('click',async()=>{try{showInbox(await inboxRequest('/api/friday/watch',{enabled:!watching}));}catch(e){$('inbox-error').textContent=e.message;}});
     $('deliver-bill').addEventListener('click',async()=>{try{showInbox(await inboxRequest('/api/friday/arrivals/'+encodeURIComponent(selected),{}));}catch(e){$('inbox-error').textContent=e.message;}});
-    $('save-mandate').addEventListener('click',saveMandate);$('publish-bill').addEventListener('click',publishBill);$('check-live').addEventListener('click',checkLive);$('speak-live').addEventListener('click',startVoice);
+    $('save-mandate').addEventListener('click',saveMandate);$('publish-bill').addEventListener('click',publishBill);$('check-live').addEventListener('click',checkLive);$('check-document').addEventListener('click',checkDocument);$('speak-live').addEventListener('click',startVoice);
     setInterval(refreshInbox,5000);refreshInbox();
     $('run').addEventListener('click',run);init();
   </script>

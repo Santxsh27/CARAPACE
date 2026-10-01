@@ -6,7 +6,7 @@
 
 Financial Friday is not a financial chatbot and it is not an AI with unrestricted bank access. It turns a user's limited financial instruction into a typed action program, independently verifies every financial effect, executes only allowlisted operations through an authorised provider, and reconciles the recorded result before declaring success.
 
-The working slice now accepts a saved standing instruction plus a previously unseen message, QR text or voice transcript. Gemini extracts a typed financial request, Friday retrieves a separate enrolled test-provider record, and the deterministic kernel decides whether an artificial-money action is allowed. A verified task can execute automatically inside the saved limit; changed amounts, recipients, recurring requests, embedded instructions and protected-balance violations stop before execution.
+The working slice now accepts a saved standing instruction plus a previously unseen message, QR text, voice transcript, bill image or PDF. Gemini extracts a typed financial request with exact source quotations, Friday retrieves a separate enrolled test-provider record, and the deterministic kernel decides whether an artificial-money action is allowed. A verified task can execute automatically inside the saved limit; changed amounts, recipients, recurring requests, embedded instructions and protected-balance violations stop before execution.
 
 The existing Python package names still use `carapace_*` to preserve compatibility while the product transitions from CARAPACE to Financial Friday.
 
@@ -22,7 +22,10 @@ The **proactive inbox path** remains an opt-in worker demonstration with durable
 claims, bounded retries, tenant isolation and no payment authority.
 
 The live flow is content-driven rather than a stored question/answer animation.
-Users can change the reference, amount, payee and wording. The outcome changes
+Users can change the reference, amount, payee and wording or upload a new PNG,
+JPEG, WebP or PDF bill. Documents are capped at 8 MB, checked against their file
+signature and processed ephemerally: Friday persists the SHA-256 digest, typed
+facts and exact evidence quotations, but not the raw file. The outcome changes
 from READY or COMPLETED to ATTENTION when the content contradicts the provider.
 
 The homepage now exposes the same backend truth as a five-stage assurance
@@ -102,7 +105,7 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 
 1. Deploy the Friday web surface separately while keeping the API private.
 2. Replace temporary SQLite state with Firestore or Cloud SQL, then add Cloud Tasks for durable background work.
-3. Add authorised provider/account connectors and document uploads; do not claim real bank or SMS access without an approved integration.
+3. Add authorised provider/account connectors; do not claim real bank or SMS access without an approved integration.
 4. Run the labelled adversarial evaluation set and publish accuracy, false-hold, latency and per-run cost measurements.
 
 ## Run locally
@@ -139,6 +142,7 @@ POST /v1/friday/test-provider/bills
 GET  /v1/friday/live-input
 POST /v1/friday/live-input
 POST /v1/friday/live-input/{event_id}/run
+POST /v1/friday/documents?filename={name}
 ```
 
 Choose `{"planner":"local"}` for the explicit deterministic comparison. With Vertex configured, `{"planner":"configured"}` uses live Gemini structured output.
@@ -151,7 +155,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **137 tests passed, 1 optional Anthos integration test skipped**. The test command disables the development-only direct Anthos bridge so unit tests do not inherit a live integration setting.
+Current isolated result: **140 tests passed, 1 optional Anthos integration test skipped**. The test command disables the development-only direct Anthos bridge so unit tests do not inherit a live integration setting.
 
 ## What is retained from CARAPACE
 

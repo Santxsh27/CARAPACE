@@ -26,7 +26,13 @@ from carapace_core.financial_friday import (
     safe_local_program,
     verify_financial_program,
 )
-from carapace_core.friday_live import FridayMandate, IncomingFinancialSignal, TestProviderBill
+from carapace_core.friday_live import (
+    FinancialEvidenceSpan,
+    FridayMandate,
+    IncomingFinancialSignal,
+    InterpretedFinancialSignal,
+    TestProviderBill,
+)
 from carapace_integrations.financial_friday_fixtures import load_case
 from carapace_integrations.financial_friday_ui import FINANCIAL_FRIDAY_HTML
 
@@ -103,6 +109,39 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertEqual(result["state"], "COMPLETED")
         self.assertTrue(result["money_moved"])
         self.assertEqual(self.payment_count(), 1)
+
+    def test_document_is_ephemeral_grounded_and_cites_exact_evidence(self):
+        class DocumentPlanner(LocalFinancialFridayPlanner):
+            def interpret_document(self, mime_type, document_bytes, filename):
+                self.seen = (mime_type, document_bytes, filename)
+                return InterpretedFinancialSignal(
+                    request_kind="BILL",
+                    bill_reference="LIVE-1001",
+                    provider_name="TN Power",
+                    amount_minor=249_900,
+                    claimed_payee_id="tnpower@upi",
+                    summary="A bill was extracted from the uploaded document.",
+                    evidence_spans=[
+                        FinancialEvidenceSpan(field="bill_reference", quote="Bill LIVE-1001"),
+                        FinancialEvidenceSpan(field="amount_minor", quote="₹2,499"),
+                        FinancialEvidenceSpan(field="claimed_payee_id", quote="tnpower@upi"),
+                    ],
+                )
+
+        planner = DocumentPlanner()
+        self.service.planner = planner
+        self.publish_live_bill()
+        result = self.service.ingest_document(
+            "tenant-a", "power-bill.png", "image/png", b"\x89PNG\r\n\x1a\nmock"
+        )
+        self.assertEqual(result["state"], "READY")
+        self.assertFalse(result["document"]["raw_file_stored"])
+        self.assertEqual(result["document"]["filename"], "power-bill.png")
+        self.assertEqual(result["interpretation"]["evidence_spans"][1]["quote"], "₹2,499")
+        self.assertEqual(planner.seen[2], "power-bill.png")
+        with self.service.connect() as db:
+            stored = db.execute("SELECT signal_json FROM friday_live_signals").fetchone()[0]
+        self.assertNotIn("mock", stored)
 
     def test_proactive_intake_is_opt_in_deduplicated_and_never_pays(self):
         inbox = FridayInbox(self.service)
@@ -308,6 +347,36 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertEqual(calls[0]["config"].response_mime_type, "application/json")
         self.assertIn("steps", calls[0]["config"].response_json_schema["properties"])
 
+    def test_gemini_document_adapter_uses_multimodal_typed_output(self):
+        expected = InterpretedFinancialSignal(
+            request_kind="BILL",
+            bill_reference="LIVE-1001",
+            amount_minor=249_900,
+            summary="The uploaded bill contains a supported amount and reference.",
+            evidence_spans=[
+                FinancialEvidenceSpan(field="bill_reference", quote="Bill LIVE-1001")
+            ],
+        )
+        calls = []
+
+        def generate_content(**kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(text=expected.model_dump_json())
+
+        planner = GeminiFinancialFridayPlanner(
+            SimpleNamespace(models=SimpleNamespace(generate_content=generate_content)),
+            "gemini-test",
+            "VERTEX_AI",
+        )
+        actual = planner.interpret_document(
+            "image/png", b"\x89PNG\r\n\x1a\nmock", "bill.png"
+        )
+        self.assertEqual(actual, expected)
+        self.assertEqual(len(calls[0]["contents"]), 2)
+        self.assertEqual(calls[0]["contents"][1].inline_data.mime_type, "image/png")
+        schema = calls[0]["config"].response_json_schema
+        self.assertIn("evidence_spans", schema["properties"])
+
     def test_api_is_tenant_isolated_and_rejects_extra_input(self):
         settings = Settings(
             environment="test",
@@ -332,6 +401,20 @@ class FinancialFridayTests(unittest.TestCase):
             self.assertEqual(client.post(
                 "/v1/friday/scenarios/genuine-bill/run", headers=a, json={"amount": 1}
             ).status_code, 422)
+            invalid = client.post(
+                "/v1/friday/documents?filename=fake.png",
+                headers={**a, "Content-Type": "image/png"},
+                content=b"not-a-png",
+            )
+            self.assertEqual(invalid.status_code, 422)
+            offline = client.post(
+                "/v1/friday/documents?filename=bill.png",
+                headers={**a, "Content-Type": "image/png"},
+                content=b"\x89PNG\r\n\x1a\nmock",
+            )
+            self.assertEqual(offline.status_code, 200)
+            self.assertEqual(offline.json()["state"], "ATTENTION")
+            self.assertFalse(offline.json()["document"]["raw_file_stored"])
 
     def test_sandbox_ui_explains_ai_and_execution_boundaries(self):
         self.assertIn("Ask naturally. Friday understands the task", FINANCIAL_FRIDAY_HTML)
@@ -347,6 +430,8 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertIn('id="metric-effects"', FINANCIAL_FRIDAY_HTML)
         self.assertIn("Financial Friday", FINANCIAL_FRIDAY_HTML)
         self.assertIn('id="core-state"', FINANCIAL_FRIDAY_HTML)
+        self.assertIn('id="document-input"', FINANCIAL_FRIDAY_HTML)
+        self.assertIn("raw file not stored", FINANCIAL_FRIDAY_HTML)
 
 
 if __name__ == "__main__":

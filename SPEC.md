@@ -176,17 +176,17 @@ Implemented:
 - Automatic artificial-money completion inside saved limits.
 - Recipient, amount, recurring-request, embedded-instruction and reserve protection.
 - Browser voice capture feeding the same live-input API.
+- Ephemeral Gemini document understanding for PNG, JPEG, WebP and PDF bills with exact source quotations and no raw-file persistence.
 - Google Cloud project, enabled services, budget alerts and live Vertex smoke test.
 
 Next:
 
-1. Deploy version 0.10.0 and run both Gemini interpretation and planning through Vertex AI on Cloud Run.
+1. Deploy version 0.11.0 and run Gemini text, document interpretation and planning through Vertex AI on Cloud Run.
 2. Replace ephemeral cloud SQLite with Firestore or Cloud SQL.
 3. Replace the same-operator test provider with an independently authenticated sandbox connector.
 4. Add durable Cloud Tasks orchestration and recovery.
-5. Add consented document/image ingestion with source-span evidence.
-6. Replace browser transcription with Gemini Live API native audio using the same tools.
-7. Build an unseen-case evaluation, then prepare the video, deck and threat model.
+5. Replace browser transcription with Gemini Live API native audio using the same tools.
+6. Build an unseen-case evaluation, then prepare the video, deck and threat model.
 
 ## Product boundaries
 

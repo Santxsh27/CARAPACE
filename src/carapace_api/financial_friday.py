@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +21,7 @@ from carapace_core.financial_friday import (
 from carapace_core.friday_live import (
     FridayMandate,
     IncomingFinancialSignal,
+    InterpretedFinancialSignal,
     TestProviderBill,
 )
 from carapace_integrations.financial_friday_fixtures import load_case
@@ -118,6 +120,43 @@ class FinancialFridayService:
     def ingest_live_signal(self, tenant: str, signal: IncomingFinancialSignal) -> dict:
         """Interpret a novel input, ground it in the test provider, and optionally execute."""
         interpretation = self.planner.interpret_signal(signal.source_type, signal.content_text)
+        return self._ingest_interpreted_signal(tenant, signal, interpretation)
+
+    def ingest_document(
+        self, tenant: str, filename: str, mime_type: str, document_bytes: bytes
+    ) -> dict:
+        """Interpret an ephemeral document; persist its digest and evidence, never its raw bytes."""
+        digest = hashlib.sha256(document_bytes).hexdigest()
+        interpretation = self.planner.interpret_document(mime_type, document_bytes, filename)
+        signal = IncomingFinancialSignal(
+            source_type="DOCUMENT",
+            content_text=f"Uploaded document: {filename} ({mime_type})",
+            event_id="doc-" + digest[:24],
+        )
+        metadata = {
+            "filename": filename,
+            "mime_type": mime_type,
+            "size_bytes": len(document_bytes),
+            "sha256": digest,
+            "raw_file_stored": False,
+        }
+        return self._ingest_interpreted_signal(
+            tenant,
+            signal,
+            interpretation,
+            source_evidence_id="document-sha256:" + digest,
+            source_metadata={"document": metadata},
+        )
+
+    def _ingest_interpreted_signal(
+        self,
+        tenant: str,
+        signal: IncomingFinancialSignal,
+        interpretation: InterpretedFinancialSignal,
+        *,
+        source_evidence_id: str | None = None,
+        source_metadata: dict | None = None,
+    ) -> dict:
         event_id = signal.event_id or "evt-" + sha256_hex({
             "tenant": tenant, "source": signal.source_type, "content": signal.content_text
         })[:24]
@@ -128,6 +167,7 @@ class FinancialFridayService:
             "interpretation": interpretation.model_dump(),
             "message": "Friday needs an enrolled provider record before it can act.",
             "money_moved": False,
+            **(source_metadata or {}),
         }
         bill = None
         if interpretation.bill_reference:
@@ -179,7 +219,10 @@ class FinancialFridayService:
                     "requested_data_fields": ["BILL_REFERENCE"],
                     "prior_outcome": "NONE",
                     "reconciliation_result": "NOT_APPLICABLE",
-                    "evidence_ids": ["live-signal:" + event_id, "test-provider:" + bill.bill_reference],
+                    "evidence_ids": [
+                        source_evidence_id or "live-signal:" + event_id,
+                        "test-provider:" + bill.bill_reference,
+                    ],
                 },
                 "live": {"event_id": event_id, "authoritative_bill": bill.model_dump()},
             }

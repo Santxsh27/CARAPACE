@@ -1,7 +1,7 @@
 """Financial Friday demo API: bounded AI planning and artificial-money execution."""
 from typing import Literal
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict
 from starlette.concurrency import run_in_threadpool
 
@@ -20,6 +20,35 @@ class WatchRequest(BaseModel):
 class FridayRunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     planner: Literal["configured", "local"] = "configured"
+
+
+DOCUMENT_TYPES = {"image/png", "image/jpeg", "image/webp", "application/pdf"}
+MAX_DOCUMENT_BYTES = 8 * 1024 * 1024
+
+
+def _valid_document_signature(mime_type: str, data: bytes) -> bool:
+    if mime_type == "image/png":
+        return data.startswith(b"\x89PNG\r\n\x1a\n")
+    if mime_type == "image/jpeg":
+        return data.startswith(b"\xff\xd8\xff")
+    if mime_type == "image/webp":
+        return len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WEBP"
+    if mime_type == "application/pdf":
+        return data.startswith(b"%PDF-")
+    return False
+
+
+async def _read_bounded_document(request: Request) -> bytes:
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > MAX_DOCUMENT_BYTES:
+            raise HTTPException(413, "document exceeds the 8 MB limit")
+        chunks.append(chunk)
+    if not chunks:
+        raise HTTPException(422, "document is empty")
+    return b"".join(chunks)
 
 
 def register_financial_friday_routes(application, service, authenticate):
@@ -72,6 +101,28 @@ def register_financial_friday_routes(application, service, authenticate):
         request: IncomingFinancialSignal, tenant: TenantContext = Depends(authenticate)
     ):
         return await run_in_threadpool(service.ingest_live_signal, tenant.tenant_id, request)
+
+    @application.post("/v1/friday/documents", tags=["financial-friday"])
+    async def ingest_document(
+        request: Request,
+        filename: str = Query(min_length=1, max_length=160),
+        tenant: TenantContext = Depends(authenticate),
+    ):
+        mime_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if mime_type not in DOCUMENT_TYPES:
+            raise HTTPException(415, "use a PNG, JPEG, WebP or PDF document")
+        data = await _read_bounded_document(request)
+        if not _valid_document_signature(mime_type, data):
+            raise HTTPException(422, "file signature does not match its declared document type")
+        safe_name = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1].strip()
+        if not safe_name:
+            raise HTTPException(422, "filename is invalid")
+        try:
+            return await run_in_threadpool(
+                service.ingest_document, tenant.tenant_id, safe_name, mime_type, data
+            )
+        except Exception as error:
+            raise HTTPException(503, "document understanding is unavailable; no action was taken") from error
 
     @application.post("/v1/friday/live-input/{event_id}/run", tags=["financial-friday"])
     async def run_live_input(event_id: str, tenant: TenantContext = Depends(authenticate)):
