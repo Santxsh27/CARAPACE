@@ -339,6 +339,12 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertIn("Independent safety proof", FINANCIAL_FRIDAY_HTML)
         self.assertIn("Restricted sandbox · no real bank access", FINANCIAL_FRIDAY_HTML)
         self.assertIn("/api/friday/scenarios/", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("See Friday think, prove and act", FINANCIAL_FRIDAY_HTML)
+        for stage in ("understand", "ground", "plan", "prove", "act"):
+            self.assertIn(f'data-stage="{stage}"', FINANCIAL_FRIDAY_HTML)
+        self.assertIn("DETERMINISTIC_EVIDENCE_HOLD", FINANCIAL_FRIDAY_HTML)
+        self.assertIn('id="metric-ai"', FINANCIAL_FRIDAY_HTML)
+        self.assertIn('id="metric-effects"', FINANCIAL_FRIDAY_HTML)
 
 
 if __name__ == "__main__":

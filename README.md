@@ -25,6 +25,14 @@ The live flow is content-driven rather than a stored question/answer animation.
 Users can change the reference, amount, payee and wording. The outcome changes
 from READY or COMPLETED to ATTENTION when the content contradicts the provider.
 
+The homepage now exposes the same backend truth as a five-stage assurance
+journey: **understand → ground evidence → plan with AI → prove safety → act or
+recover**. Each stage changes from waiting to active, completed, skipped or
+blocked using the returned run events—not a decorative timer. A plain-language
+Friday briefing shows the result, AI-call count, deterministic-gate decision and
+number of artificial-money effects. The full program, hostile-mutation checks,
+events and receipt remain available underneath for judges and engineers.
+
 Five retained end-to-end artificial-money cases are exposed through the API:
 
 | Scenario | Result |
