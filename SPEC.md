@@ -1,6 +1,6 @@
 # Financial Friday — Product and Engineering Specification
 
-Version 1.0 · 30 September 2026
+Version 1.1 · 1 October 2026
 
 ## Product statement
 
@@ -31,6 +31,21 @@ Financial Friday:
 7. Executes through a provider sandbox with the original idempotency identity.
 8. Reads back or reconciles the provider outcome.
 9. Returns a signed receipt that says exactly what was proven and what remains outside scope.
+
+## Live unfamiliar-input journey
+
+The user saves a standing instruction containing a protected balance, an automatic
+payment ceiling and whether verified artificial-money tasks may execute without a
+second click. A test provider then publishes a fresh bill with a new reference,
+amount and recipient. The user speaks or pastes a message that Friday has not seen.
+
+Gemini extracts a typed interpretation from the untrusted content. That extraction
+does not authenticate anything. Friday uses the extracted reference to retrieve the
+separate provider record, compares amount and recipient, applies the standing
+instruction and creates a dynamic financial program. A matching bill can execute
+inside the saved sandbox authority. A changed amount, recipient, recurring request,
+embedded instruction or protected-balance violation produces ATTENTION with no
+payment. Repeating the same input resolves to the same event and payment identity.
 
 ## Demonstration cases
 
@@ -155,18 +170,23 @@ Implemented:
 - Reconciliation-before-retry case.
 - Signed receipts and readback.
 - API endpoints and automated tests.
+- Persistent tenant-scoped standing instructions and artificial account balance.
+- Dynamic enrolled test-provider bills rather than only predefined scenarios.
+- Gemini structured interpretation of new message, QR and voice-transcript content.
+- Automatic artificial-money completion inside saved limits.
+- Recipient, amount, recurring-request, embedded-instruction and reserve protection.
+- Browser voice capture feeding the same live-input API.
 - Google Cloud project, enabled services, budget alerts and live Vertex smoke test.
 
 Next:
 
-1. Add a simple Financial Friday task UI; postpone visual polish until workflow is stable.
-2. Run the real Gemini planner through Cloud Run and record evaluation evidence.
-3. Replace ephemeral cloud SQLite with Firestore or Cloud SQL.
-4. Add one authorised biller/provider sandbox connector.
-5. Add durable Cloud Tasks orchestration and recovery.
-6. Add consented bill ingestion and grounded extraction.
-7. Add evaluation dashboard, video, deck and threat model.
-8. Add voice only after the same typed program and safety boundary work end to end.
+1. Deploy version 0.10.0 and run both Gemini interpretation and planning through Vertex AI on Cloud Run.
+2. Replace ephemeral cloud SQLite with Firestore or Cloud SQL.
+3. Replace the same-operator test provider with an independently authenticated sandbox connector.
+4. Add durable Cloud Tasks orchestration and recovery.
+5. Add consented document/image ingestion with source-span evidence.
+6. Replace browser transcription with Gemini Live API native audio using the same tools.
+7. Build an unseen-case evaluation, then prepare the video, deck and threat model.
 
 ## Product boundaries
 

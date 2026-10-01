@@ -68,7 +68,7 @@ from .financial_friday_routes import register_financial_friday_routes
 from carapace_integrations.anthos_preflight_bridge import AnthosPreflightBridge
 
 
-VERSION = "0.9.3"
+VERSION = "0.10.0"
 LOGGER = logging.getLogger(__name__)
 
 

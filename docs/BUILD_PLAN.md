@@ -8,10 +8,13 @@
 - [x] Show Gemini provenance, the typed action program, deterministic proof, adversarial checks, executor events and signed receipt.
 - [x] Preserve the earlier operations and payment-check labs under separate routes.
 - [x] Verify configured Gemini, idempotent replay, safe subscription selection and recipient-mismatch refusal.
-- [x] Run the full Docker regression suite: 129 tests pass; one optional live Anthos test is skipped.
-- [ ] Add user-authored goals only after a goal compiler can produce a reviewable immutable mandate.
+- [x] Run the full isolated Docker regression suite: 136 tests pass; one optional live Anthos test is skipped.
+- [x] Add saved user-authored standing instructions with explicit reserve and automatic execution limits.
+- [x] Accept unseen message, QR-text and browser voice-transcript inputs through one typed ingestion API.
+- [x] Ground extracted references against dynamic enrolled test-provider bills and change the outcome on contradictions.
+- [x] Execute eligible artificial-money bills automatically and persist the reduced sandbox balance.
 - [ ] Replace fixture evidence with an authorised bill/account connector and durable cloud state.
-- [ ] Add voice only after the same goal and confirmation boundaries work without voice.
+- [ ] Replace browser speech transcription with Gemini Live native audio after cloud persistence is durable.
 
 See [Financial Friday sandbox milestone](FINANCIAL_FRIDAY_SANDBOX.md).
 

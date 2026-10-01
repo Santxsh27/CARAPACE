@@ -16,6 +16,11 @@ from carapace_core.financial_friday import (
     challenge_financial_program,
     verify_financial_program,
 )
+from carapace_core.friday_live import (
+    FridayMandate,
+    IncomingFinancialSignal,
+    TestProviderBill,
+)
 from carapace_integrations.financial_friday_fixtures import load_case
 
 
@@ -32,7 +37,227 @@ class FinancialFridayService:
                     idempotency_key TEXT NOT NULL, receipt_json TEXT NOT NULL,
                     PRIMARY KEY (tenant_id, goal_id),
                     UNIQUE (tenant_id, idempotency_key));
+                CREATE TABLE IF NOT EXISTS friday_mandates (
+                    tenant_id TEXT PRIMARY KEY, mandate_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS friday_accounts (
+                    tenant_id TEXT PRIMARY KEY, balance_minor INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS friday_provider_bills (
+                    tenant_id TEXT NOT NULL, bill_reference TEXT NOT NULL,
+                    bill_json TEXT NOT NULL, PRIMARY KEY (tenant_id, bill_reference));
+                CREATE TABLE IF NOT EXISTS friday_live_signals (
+                    tenant_id TEXT NOT NULL, event_id TEXT NOT NULL,
+                    signal_json TEXT NOT NULL, interpretation_json TEXT NOT NULL,
+                    case_id TEXT, state TEXT NOT NULL, result_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL, PRIMARY KEY (tenant_id, event_id));
+                CREATE TABLE IF NOT EXISTS friday_dynamic_cases (
+                    tenant_id TEXT NOT NULL, case_id TEXT NOT NULL,
+                    case_json TEXT NOT NULL, PRIMARY KEY (tenant_id, case_id));
             """)
+
+    @staticmethod
+    def _default_mandate() -> FridayMandate:
+        return FridayMandate(
+            instruction="Track my verified household bills, protect ₹10,000, and never create subscriptions.",
+            protected_balance_minor=1_000_000,
+            automatic_payment_limit_minor=500_000,
+            max_fee_minor=0,
+            automatic_sandbox_execution=False,
+        )
+
+    def mandate(self, tenant: str) -> dict:
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT mandate_json FROM friday_mandates WHERE tenant_id=?", (tenant,)
+            ).fetchone()
+            account = db.execute(
+                "SELECT balance_minor FROM friday_accounts WHERE tenant_id=?", (tenant,)
+            ).fetchone()
+        mandate = FridayMandate.model_validate_json(row[0]) if row else self._default_mandate()
+        return {
+            "mandate": mandate.model_dump(),
+            "sandbox_balance_minor": account[0] if account else 5_000_000,
+            "scope": "Artificial-money account and enrolled test providers only",
+        }
+
+    def save_mandate(self, tenant: str, mandate: FridayMandate) -> dict:
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO friday_mandates VALUES (?,?,?) ON CONFLICT(tenant_id) "
+                "DO UPDATE SET mandate_json=excluded.mandate_json, updated_at=excluded.updated_at",
+                (tenant, mandate.model_dump_json(), now),
+            )
+            db.execute(
+                "INSERT OR IGNORE INTO friday_accounts VALUES (?,?)", (tenant, 5_000_000)
+            )
+        return self.mandate(tenant)
+
+    def publish_test_bill(self, tenant: str, bill: TestProviderBill) -> dict:
+        with self.connect() as db:
+            db.execute(
+                "INSERT INTO friday_provider_bills VALUES (?,?,?) ON CONFLICT(tenant_id,bill_reference) "
+                "DO UPDATE SET bill_json=excluded.bill_json",
+                (tenant, bill.bill_reference, bill.model_dump_json()),
+            )
+        return {"published": True, "bill": bill.model_dump(), "scope": "ENROLLED_TEST_PROVIDER"}
+
+    def _load_case(self, tenant: str, case_id: str) -> dict:
+        if case_id.startswith("live-"):
+            with self.connect() as db:
+                row = db.execute(
+                    "SELECT case_json FROM friday_dynamic_cases WHERE tenant_id=? AND case_id=?",
+                    (tenant, case_id),
+                ).fetchone()
+            if row is None:
+                raise KeyError(case_id)
+            return json.loads(row[0])
+        return load_case(case_id)
+
+    def ingest_live_signal(self, tenant: str, signal: IncomingFinancialSignal) -> dict:
+        """Interpret a novel input, ground it in the test provider, and optionally execute."""
+        interpretation = self.planner.interpret_signal(signal.source_type, signal.content_text)
+        event_id = signal.event_id or "evt-" + sha256_hex({
+            "tenant": tenant, "source": signal.source_type, "content": signal.content_text
+        })[:24]
+        now = datetime.now(timezone.utc).isoformat()
+        result = {
+            "event_id": event_id,
+            "state": "ATTENTION",
+            "interpretation": interpretation.model_dump(),
+            "message": "Friday needs an enrolled provider record before it can act.",
+            "money_moved": False,
+        }
+        bill = None
+        if interpretation.bill_reference:
+            with self.connect() as db:
+                row = db.execute(
+                    "SELECT bill_json FROM friday_provider_bills WHERE tenant_id=? AND bill_reference=?",
+                    (tenant, interpretation.bill_reference),
+                ).fetchone()
+            bill = TestProviderBill.model_validate_json(row[0]) if row else None
+
+        case_id = None
+        if bill is not None:
+            mandate_data = self.mandate(tenant)
+            mandate = FridayMandate.model_validate(mandate_data["mandate"])
+            case_id = "live-" + sha256_hex({"tenant": tenant, "event": event_id, "bill": bill.model_dump()})[:24]
+            claimed_payee = interpretation.claimed_payee_id or bill.payee_id
+            amount = interpretation.amount_minor or bill.amount_minor
+            case = {
+                "goal": {
+                    "goal_id": "goal-" + case_id,
+                    "instruction": mandate.instruction,
+                    "provider_id": bill.provider_id,
+                    "payee_id": bill.payee_id,
+                    "currency": bill.currency,
+                    "max_total_minor": bill.amount_minor,
+                    "max_fee_minor": mandate.max_fee_minor,
+                    "cadence": "ONE_TIME",
+                    "allowed_data_fields": ["BILL_REFERENCE"],
+                    "idempotency_key": "idem-" + case_id,
+                },
+                "evidence": {
+                    "obligation_id": bill.bill_reference,
+                    "provider_id": bill.provider_id,
+                    "payee_id": claimed_payee,
+                    "currency": bill.currency,
+                    "principal_minor": amount,
+                    "fee_minor": 0,
+                    "provider_verified": True,
+                    "highlighted_option_id": "provider-one-time",
+                    "available_options": [{
+                        "option_id": "provider-one-time",
+                        "label": "Enrolled test provider bill",
+                        "principal_minor": amount,
+                        "fee_minor": 0,
+                        "cadence": "RECURRING" if interpretation.recurring_requested else "ONE_TIME",
+                        "authenticated": amount == bill.amount_minor,
+                    }],
+                    "requested_cadence": "RECURRING" if interpretation.recurring_requested else "ONE_TIME",
+                    "requested_data_fields": ["BILL_REFERENCE"],
+                    "prior_outcome": "NONE",
+                    "reconciliation_result": "NOT_APPLICABLE",
+                    "evidence_ids": ["live-signal:" + event_id, "test-provider:" + bill.bill_reference],
+                },
+                "live": {"event_id": event_id, "authoritative_bill": bill.model_dump()},
+            }
+            mismatch = []
+            if interpretation.amount_minor is not None and interpretation.amount_minor != bill.amount_minor:
+                mismatch.append("AMOUNT_MISMATCH")
+            if interpretation.claimed_payee_id and interpretation.claimed_payee_id != bill.payee_id:
+                mismatch.append("RECIPIENT_MISMATCH")
+            if interpretation.suspicious_instructions:
+                mismatch.append("EMBEDDED_INSTRUCTION")
+            if interpretation.recurring_requested:
+                mismatch.append("RECURRING_REQUEST")
+            with self.connect() as db:
+                db.execute(
+                    "INSERT OR REPLACE INTO friday_dynamic_cases VALUES (?,?,?)",
+                    (tenant, case_id, json.dumps(case)),
+                )
+            balance = mandate_data["sandbox_balance_minor"]
+            affordable = balance - bill.amount_minor >= mandate.protected_balance_minor
+            within_limit = bill.amount_minor <= mandate.automatic_payment_limit_minor
+            if mismatch:
+                result.update(state="ATTENTION", message="Friday found a contradiction and stopped before payment.", reason=mismatch)
+            elif not affordable:
+                result.update(state="ATTENTION", message="Friday protected your reserved balance.", reason=["PROTECTED_BALANCE"])
+            elif not within_limit:
+                result.update(state="READY", message="Verified bill exceeds the automatic limit and needs approval.", reason=["ABOVE_AUTOMATIC_LIMIT"])
+            else:
+                result.update(state="READY", message="Bill matched the enrolled provider and is ready.", reason=[])
+                if mandate.automatic_sandbox_execution:
+                    run = self.run(tenant, case_id)
+                    result.update(
+                        state="COMPLETED" if run["status"] in {"COMPLETED_SYNTHETIC", "ALREADY_COMPLETED"} else "ATTENTION",
+                        message="Friday completed the verified test bill automatically." if run["status"] == "COMPLETED_SYNTHETIC" else "Friday finished with a protected outcome.",
+                        run_id=run["run_id"], money_moved=run["outcome"].get("money_moved", False),
+                    )
+
+        with self.connect() as db:
+            existing = db.execute(
+                "SELECT result_json FROM friday_live_signals WHERE tenant_id=? AND event_id=?",
+                (tenant, event_id),
+            ).fetchone()
+            if existing:
+                return json.loads(existing[0])
+            db.execute(
+                "INSERT INTO friday_live_signals VALUES (?,?,?,?,?,?,?,?)",
+                (tenant, event_id, signal.model_dump_json(), interpretation.model_dump_json(),
+                 case_id, result["state"], json.dumps(result), now),
+            )
+        return result
+
+    def live_signals(self, tenant: str) -> dict:
+        with self.connect() as db:
+            rows = db.execute(
+                "SELECT result_json FROM friday_live_signals WHERE tenant_id=? ORDER BY rowid DESC LIMIT 20",
+                (tenant,),
+            ).fetchall()
+        return {"items": [json.loads(row[0]) for row in rows]}
+
+    def run_live_signal(self, tenant: str, event_id: str) -> dict:
+        with self.connect() as db:
+            row = db.execute(
+                "SELECT case_id,result_json FROM friday_live_signals WHERE tenant_id=? AND event_id=?",
+                (tenant, event_id),
+            ).fetchone()
+        if row is None or not row[0]:
+            raise KeyError(event_id)
+        existing = json.loads(row[1])
+        if existing.get("reason") and existing["reason"] != ["ABOVE_AUTOMATIC_LIMIT"]:
+            raise ValueError("This input has unresolved contradictions and cannot execute.")
+        run = self.run(tenant, row[0])
+        updated = dict(existing, state="COMPLETED" if run["status"] != "HELD" else "ATTENTION",
+                       run_id=run["run_id"], money_moved=run["outcome"].get("money_moved", False),
+                       message="Friday completed the verified test bill." if run["status"] != "HELD" else "The safety kernel held this task.")
+        with self.connect() as db:
+            db.execute(
+                "UPDATE friday_live_signals SET state=?,result_json=? WHERE tenant_id=? AND event_id=?",
+                (updated["state"], json.dumps(updated), tenant, event_id),
+            )
+        return {"signal": updated, "run": run}
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
@@ -68,6 +293,10 @@ class FinancialFridayService:
                 "SELECT result_json FROM friday_runs WHERE tenant_id=? ORDER BY rowid DESC LIMIT 10",
                 (tenant,),
             ).fetchall()
+            live_rows = db.execute(
+                "SELECT result_json FROM friday_live_signals WHERE tenant_id=? ORDER BY rowid DESC LIMIT 5",
+                (tenant,),
+            ).fetchall()
         receipts = []
         invalid = 0
         for row in payments:
@@ -91,10 +320,11 @@ class FinancialFridayService:
                              "status": r["status"], "started_at": r["started_at"]}
                             for r in (json.loads(row[0]) for row in rows)],
             "balance": None,
+            "live_activity": [json.loads(row[0]) for row in live_rows],
         }
 
     def run(self, tenant: str, case_id: str, planner=None) -> dict:
-        case = load_case(case_id)
+        case = self._load_case(tenant, case_id)
         goal = FinancialGoal.model_validate(case["goal"])
         evidence = FinancialEvidence.model_validate(case["evidence"])
         planner = planner or self.planner
@@ -173,7 +403,7 @@ class FinancialFridayService:
         return result
 
     def _execute(self, tenant, result, goal, evidence, program) -> None:
-        fresh = load_case(result["case_id"])
+        fresh = self._load_case(tenant, result["case_id"])
         fresh_goal = FinancialGoal.model_validate(fresh["goal"])
         fresh_evidence = FinancialEvidence.model_validate(fresh["evidence"])
         if fresh_goal != goal or fresh_evidence != evidence:
@@ -228,6 +458,30 @@ class FinancialFridayService:
                     "receipt": receipt if intact else None,
                 }
             else:
+                remaining_balance = None
+                if fresh.get("live"):
+                    mandate_row = db.execute(
+                        "SELECT mandate_json FROM friday_mandates WHERE tenant_id=?", (tenant,)
+                    ).fetchone()
+                    account_row = db.execute(
+                        "SELECT balance_minor FROM friday_accounts WHERE tenant_id=?", (tenant,)
+                    ).fetchone()
+                    mandate = FridayMandate.model_validate_json(mandate_row[0]) if mandate_row else self._default_mandate()
+                    balance = account_row[0] if account_row else 5_000_000
+                    remaining_balance = balance - verification["authorised_total_minor"]
+                    if remaining_balance < mandate.protected_balance_minor:
+                        result["status"] = "HELD"
+                        result["outcome"] = {
+                            "money_moved": False,
+                            "new_payment_created": False,
+                            "reason": ["PROTECTED_BALANCE"],
+                        }
+                        result["events"].append({"type": "PROTECTED_BALANCE_HELD", "new_payment": False})
+                        db.execute(
+                            "UPDATE friday_runs SET result_json=? WHERE tenant_id=? AND run_id=?",
+                            (json.dumps(result), tenant, result["run_id"]),
+                        )
+                        return
                 receipt = {
                     "payload": payload,
                     "signature": self.signer.sign(payload),
@@ -237,6 +491,12 @@ class FinancialFridayService:
                     "INSERT INTO friday_payments VALUES (?,?,?,?)",
                     (tenant, goal.goal_id, goal.idempotency_key, json.dumps(receipt)),
                 )
+                if remaining_balance is not None:
+                    db.execute(
+                        "INSERT INTO friday_accounts VALUES (?,?) ON CONFLICT(tenant_id) "
+                        "DO UPDATE SET balance_minor=excluded.balance_minor",
+                        (tenant, remaining_balance),
+                    )
                 saved = db.execute(
                     "SELECT receipt_json FROM friday_payments WHERE tenant_id=? AND goal_id=?",
                     (tenant, goal.goal_id),
@@ -248,6 +508,7 @@ class FinancialFridayService:
                     "money_moved": True,
                     "new_payment_created": True,
                     "receipt": receipt,
+                    "sandbox_balance_minor": remaining_balance,
                 }
             result["events"].append({
                 "type": "RESTRICTED_EXECUTOR_RESULT",

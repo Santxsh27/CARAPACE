@@ -6,26 +6,26 @@
 
 Financial Friday is not a financial chatbot and it is not an AI with unrestricted bank access. It turns a user's limited financial instruction into a typed action program, independently verifies every financial effect, executes only allowlisted operations through an authorised provider, and reconciles the recorded result before declaring success.
 
-The first working slice handles a familiar task: **“Pay this verified ₹1,999 electricity bill once, with no subscription or extra fee.”** Gemini can plan the steps and correct a rejected plan, but it cannot change the recipient, raise the amount, add a fee, create a recurring mandate, disclose extra data, retry an uncertain payment, or call an arbitrary tool. Those boundaries are enforced by deterministic code.
+The working slice now accepts a saved standing instruction plus a previously unseen message, QR text or voice transcript. Gemini extracts a typed financial request, Friday retrieves a separate enrolled test-provider record, and the deterministic kernel decides whether an artificial-money action is allowed. A verified task can execute automatically inside the saved limit; changed amounts, recipients, recurring requests, embedded instructions and protected-balance violations stop before execution.
 
 The existing Python package names still use `carapace_*` to preserve compatibility while the product transitions from CARAPACE to Financial Friday.
 
 ## What works now
 
-The local homepage includes an opt-in proactive sandbox inbox. Enable monitoring,
-then deliver a sample bill to emulate an enrolled provider event. A server worker
-checks it using the configured planner, validates the plan independently, and
-records READY, ATTENTION or UNAVAILABLE. It runs while the local API is running,
-even with the browser closed. Intake is tenant-scoped and deduplicated; it never
-executes a payment. Due reminders are shown in the inbox, not sent by email or push.
-Real inbox access, PDF/OCR extraction, and Cloud Run background scheduling are
-not implemented by this increment. Interrupted checks are reclaimed after a
-three-minute lease expires. Claim tokens prevent stale workers overwriting newer
-results. Failed checks can be retried explicitly, up to three total attempts per
-sample bill. Pausing stops new claims; a check already in flight may finish.
-Lease recovery may repeat a model call, but inbox checks never execute payments.
+The local homepage has two working paths. The **live input path** saves a user's
+instruction, publishes a new artificial bill into an enrolled test provider, and
+accepts unfamiliar message, QR or voice-transcript content. It uses configured
+Gemini structured extraction (or the visibly labelled local comparison), grounds
+the extracted reference against the provider record, and can complete one
+artificial-money action automatically when the user has enabled that permission.
+The **proactive inbox path** remains an opt-in worker demonstration with durable
+claims, bounded retries, tenant isolation and no payment authority.
 
-Four end-to-end artificial-money cases are exposed through the API:
+The live flow is content-driven rather than a stored question/answer animation.
+Users can change the reference, amount, payee and wording. The outcome changes
+from READY or COMPLETED to ATTENTION when the content contradicts the provider.
+
+Five retained end-to-end artificial-money cases are exposed through the API:
 
 | Scenario | Result |
 |---|---|
@@ -96,8 +96,8 @@ Open:
 - Earlier operations lab: [http://localhost:8090/operations](http://localhost:8090/operations)
 - Earlier payment-check demo: [http://localhost:8090/payment-check](http://localhost:8090/payment-check)
 
-The sandbox is the first Jarvis-style product surface. Choose a controlled financial
-situation, then ask Friday to handle the fixed goal. The screen renders the real
+The sandbox is the first Jarvis-style product surface. Save a standing instruction,
+publish a fresh artificial provider bill, then speak or paste a new request. The screen renders the real
 typed program returned by Gemini (or the explicitly labelled local comparison),
 the deterministic safety result, adversarial mutation checks, restricted executor
 events and signed artificial-money receipt. It is not a scripted animation and it
@@ -109,6 +109,12 @@ Use the local development headers documented in [docs/api.md](docs/api.md). The 
 GET  /v1/friday/scenarios
 POST /v1/friday/scenarios/{scenario_id}/run
 GET  /v1/friday/runs/{run_id}
+GET  /v1/friday/mandate
+PUT  /v1/friday/mandate
+POST /v1/friday/test-provider/bills
+GET  /v1/friday/live-input
+POST /v1/friday/live-input
+POST /v1/friday/live-input/{event_id}/run
 ```
 
 Choose `{"planner":"local"}` for the explicit deterministic comparison. With Vertex configured, `{"planner":"configured"}` uses live Gemini structured output.
@@ -116,10 +122,12 @@ Choose `{"planner":"local"}` for the explicit deterministic comparison. With Ver
 Run every automated test:
 
 ```bash
-docker compose --profile test run --rm --build tests
+docker compose run --rm --build \
+  -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false \
+  api python -m unittest discover -s tests
 ```
 
-Current verified result: **128 tests passed, 1 optional Anthos integration test skipped**.
+Current isolated result: **136 tests passed, 1 optional Anthos integration test skipped**. The test command disables the development-only direct Anthos bridge so unit tests do not inherit a live integration setting.
 
 ## What is retained from CARAPACE
 
@@ -133,6 +141,6 @@ understand → plan → prove → execute → reconcile → remember
 
 ## Honest limits
 
-This prototype uses fixtures and artificial money. It does not access GPay, a real bank account, UPI credentials, OTPs or production funds. A real launch requires authorised bank/biller connectors, durable managed storage, security review, regulated partner controls, customer support and formal compliance work. Financial Friday does not promise zero fraud, guaranteed savings, guaranteed reimbursement, investment returns, patentability or a hackathon prize.
+This prototype uses an enrolled test-provider API, retained regression fixtures and artificial money. Browser speech recognition supplies an optional transcript; Gemini Live native audio is not connected yet. It does not access GPay, phone SMS, a real bank account, UPI credentials, OTPs or production funds. A real launch requires authorised bank/biller connectors, durable managed storage, security review, regulated partner controls, customer support and formal compliance work. Financial Friday does not promise zero fraud, guaranteed savings, guaranteed reimbursement, investment returns, patentability or a hackathon prize.
 
 See [SPEC.md](SPEC.md) for the product contract, trust model and roadmap, and [docs/CLOUD_RUN.md](docs/CLOUD_RUN.md) for the cloud deployment boundary.

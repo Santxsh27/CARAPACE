@@ -21,6 +21,7 @@ from .operations_ui import OPERATIONS_HTML
 from .financial_friday_ui import FINANCIAL_FRIDAY_HTML
 from carapace_api.operations_routes import ResolveRequest
 from carapace_api.financial_friday_routes import WatchRequest
+from carapace_core.friday_live import FridayMandate, IncomingFinancialSignal, TestProviderBill
 from carapace_integrations.financial_friday_fixtures import CASES as FRIDAY_CASES
 from carapace_integrations.operations_fixtures import CASES
 
@@ -289,6 +290,56 @@ def create_demo_app() -> FastAPI:
         code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/today", "GET")
         if code != 200:
             raise HTTPException(code, "Daily brief unavailable")
+        return result
+
+    @application.get("/api/friday/mandate")
+    async def friday_mandate():
+        code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/mandate", "GET")
+        if code != 200:
+            raise HTTPException(code, "Friday mandate unavailable")
+        return result
+
+    @application.put("/api/friday/mandate")
+    async def save_friday_mandate(request: FridayMandate):
+        code, result = await run_in_threadpool(
+            _api_call, api_base_url, "/v1/friday/mandate", "PUT", request.model_dump()
+        )
+        if code != 200:
+            raise HTTPException(code, result.get("detail", "Could not save Friday mandate"))
+        return result
+
+    @application.post("/api/friday/test-provider/bills")
+    async def publish_friday_bill(request: TestProviderBill):
+        code, result = await run_in_threadpool(
+            _api_call, api_base_url, "/v1/friday/test-provider/bills", "POST", request.model_dump()
+        )
+        if code != 200:
+            raise HTTPException(code, result.get("detail", "Could not publish test bill"))
+        return result
+
+    @application.get("/api/friday/live-input")
+    async def friday_live_inputs():
+        code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/live-input", "GET")
+        if code != 200:
+            raise HTTPException(code, "Live input history unavailable")
+        return result
+
+    @application.post("/api/friday/live-input")
+    async def friday_live_input(request: IncomingFinancialSignal):
+        code, result = await run_in_threadpool(
+            _api_call, api_base_url, "/v1/friday/live-input", "POST", request.model_dump(), 120
+        )
+        if code != 200:
+            raise HTTPException(code, result.get("detail", "Friday could not interpret this input"))
+        return result
+
+    @application.post("/api/friday/live-input/{event_id}/run")
+    async def run_friday_live_input(event_id: str):
+        code, result = await run_in_threadpool(
+            _api_call, api_base_url, f"/v1/friday/live-input/{event_id}/run", "POST", None, 120
+        )
+        if code != 200:
+            raise HTTPException(code, result.get("detail", "Friday could not run this task"))
         return result
 
     @application.post("/api/friday/scenarios/{case_id}/run")

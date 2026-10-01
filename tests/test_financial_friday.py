@@ -26,6 +26,7 @@ from carapace_core.financial_friday import (
     safe_local_program,
     verify_financial_program,
 )
+from carapace_core.friday_live import FridayMandate, IncomingFinancialSignal, TestProviderBill
 from carapace_integrations.financial_friday_fixtures import load_case
 from carapace_integrations.financial_friday_ui import FINANCIAL_FRIDAY_HTML
 
@@ -43,6 +44,65 @@ class FinancialFridayTests(unittest.TestCase):
     def payment_count(self):
         with sqlite3.connect(self.path) as db:
             return db.execute("SELECT COUNT(*) FROM friday_payments").fetchone()[0]
+
+    def publish_live_bill(self, reference="LIVE-1001", amount=249_900):
+        return self.service.publish_test_bill("tenant-a", TestProviderBill(
+            bill_reference=reference,
+            provider_name="TN Power",
+            provider_id="tn-power-test",
+            payee_id="tnpower@upi",
+            amount_minor=amount,
+            due_date="2026-10-04",
+        ))
+
+    def test_live_unfamiliar_message_is_grounded_and_executes_once(self):
+        self.service.save_mandate("tenant-a", FridayMandate(
+            instruction="Handle verified household bills and protect my reserve.",
+            protected_balance_minor=1_000_000,
+            automatic_payment_limit_minor=300_000,
+        ))
+        self.publish_live_bill()
+        signal = IncomingFinancialSignal(
+            source_type="MESSAGE",
+            content_text="TN Power bill LIVE-1001 for ₹2,499. Payee: tnpower@upi",
+        )
+        checked = self.service.ingest_live_signal("tenant-a", signal)
+        self.assertEqual(checked["state"], "READY")
+        self.assertEqual(checked["interpretation"]["bill_reference"], "LIVE-1001")
+        completed = self.service.run_live_signal("tenant-a", checked["event_id"])
+        self.assertEqual(completed["run"]["status"], "COMPLETED_SYNTHETIC")
+        self.assertEqual(completed["run"]["outcome"]["sandbox_balance_minor"], 4_750_100)
+        repeated = self.service.ingest_live_signal("tenant-a", signal)
+        self.assertEqual(repeated["event_id"], checked["event_id"])
+        self.assertEqual(self.payment_count(), 1)
+
+    def test_live_recipient_change_is_stopped_before_execution(self):
+        self.publish_live_bill()
+        result = self.service.ingest_live_signal("tenant-a", IncomingFinancialSignal(
+            source_type="QR_TEXT",
+            content_text="TN Power bill LIVE-1001 for INR 2,499. Payee: attacker@upi",
+        ))
+        self.assertEqual(result["state"], "ATTENTION")
+        self.assertIn("RECIPIENT_MISMATCH", result["reason"])
+        with self.assertRaises(ValueError):
+            self.service.run_live_signal("tenant-a", result["event_id"])
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_live_bill_can_complete_automatically_inside_saved_limits(self):
+        self.service.save_mandate("tenant-a", FridayMandate(
+            instruction="Automatically handle verified household bills within my limit.",
+            protected_balance_minor=1_000_000,
+            automatic_payment_limit_minor=300_000,
+            automatic_sandbox_execution=True,
+        ))
+        self.publish_live_bill()
+        result = self.service.ingest_live_signal("tenant-a", IncomingFinancialSignal(
+            source_type="VOICE_TRANSCRIPT",
+            content_text="Please handle TN Power bill number LIVE-1001 for ₹2,499 recipient tnpower@upi",
+        ))
+        self.assertEqual(result["state"], "COMPLETED")
+        self.assertTrue(result["money_moved"])
+        self.assertEqual(self.payment_count(), 1)
 
     def test_proactive_intake_is_opt_in_deduplicated_and_never_pays(self):
         inbox = FridayInbox(self.service)

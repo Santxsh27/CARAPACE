@@ -15,13 +15,13 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       --red:#ff707d;--amber:#ffc969;--radius:20px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
     }
     *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;color:var(--ink);background:radial-gradient(circle at 70% -20%,#1c2a38 0,transparent 35%),var(--bg);min-height:100vh}
-    button,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid rgba(121,167,255,.55);outline-offset:3px}
+    button,textarea,select,input{font:inherit}button{cursor:pointer}button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid rgba(121,167,255,.55);outline-offset:3px}
     .shell{width:min(1320px,calc(100% - 32px));margin:auto}.topbar{height:74px;border-bottom:1px solid var(--line);background:rgba(8,11,16,.84);backdrop-filter:blur(18px);position:sticky;top:0;z-index:20}
     .topbar .shell{height:100%;display:flex;align-items:center;gap:18px}.mark{width:36px;height:36px;border-radius:12px;background:var(--lime);color:#111;display:grid;place-items:center;font-weight:950;box-shadow:0 0 28px rgba(199,255,104,.18)}
     .brand{font-size:15px;font-weight:850;letter-spacing:-.01em}.brand small{display:block;color:var(--muted);font-weight:550;font-size:11px;margin-top:2px}.top-spacer{flex:1}.pill{display:flex;align-items:center;gap:8px;border:1px solid var(--line);padding:8px 11px;border-radius:999px;color:var(--muted);font-size:12px;background:#0d1218}.dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
     .layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;padding:22px 0 44px}.sidebar,.workspace{border:1px solid var(--line);background:rgba(15,20,28,.88);border-radius:var(--radius)}
     .sidebar{padding:20px;align-self:start;position:sticky;top:96px}.eyebrow{color:var(--lime);font-size:10px;font-weight:850;letter-spacing:.15em;text-transform:uppercase}.sidebar h1{font-size:24px;line-height:1.12;margin:9px 0 8px;letter-spacing:-.035em}.sidebar>p{color:var(--muted);font-size:13px;line-height:1.55;margin:0 0 19px}
-    .label{font-size:11px;font-weight:800;color:#dfe5ee;margin-bottom:8px;display:block}.goal{width:100%;min-height:116px;resize:none;border:1px solid #303b4a;border-radius:14px;background:#0a0f15;color:#dce4ef;padding:13px;line-height:1.45;font-size:13px}.goal-note{font-size:10px;color:#748095;line-height:1.45;margin:7px 0 18px}
+    .label{font-size:11px;font-weight:800;color:#dfe5ee;margin-bottom:8px;display:block}.goal,.field{width:100%;resize:vertical;border:1px solid #303b4a;border-radius:12px;background:#0a0f15;color:#dce4ef;padding:11px 12px;line-height:1.45;font-size:12px}.goal{min-height:100px}.goal-note{font-size:10px;color:#748095;line-height:1.45;margin:7px 0 12px}.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.form-grid label{font-size:10px;color:var(--muted)}.form-grid .field{margin-top:5px}.inline-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.live-card{border-color:#334453!important;background:linear-gradient(135deg,rgba(99,231,225,.045),#0c1118 48%)!important}.voice{border-color:rgba(99,231,225,.4)!important;color:var(--cyan)!important}.live-state{margin-top:12px;border-left:2px solid var(--blue);padding-left:11px;color:var(--muted);font-size:12px;line-height:1.5}
     .scenario-list{display:grid;gap:7px}.scenario{width:100%;text-align:left;border:1px solid transparent;background:transparent;color:#b7c0ce;padding:11px 12px;border-radius:13px;display:grid;grid-template-columns:27px 1fr;gap:9px;align-items:start}.scenario:hover{background:#161d27}.scenario[aria-pressed="true"]{background:#1a222d;border-color:#3a4656;color:#fff}.scenario-icon{width:27px;height:27px;border-radius:9px;background:#242e3b;display:grid;place-items:center;font-size:12px}.scenario b{font-size:12px;display:block}.scenario small{display:block;color:#7f8b9e;margin-top:3px;line-height:1.3}.sidebar-links{border-top:1px solid var(--line);padding-top:15px;margin-top:18px;display:flex;gap:14px;flex-wrap:wrap}.sidebar-links a{font-size:11px;color:#9ba8bb;text-decoration:none}.sidebar-links a:hover{color:#fff}
     .workspace{min-height:760px;overflow:hidden}.hero{padding:32px 34px 25px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;background:linear-gradient(130deg,rgba(121,167,255,.07),transparent 46%)}.hero h2{font-size:clamp(29px,4vw,45px);letter-spacing:-.052em;line-height:1.02;margin:9px 0 10px;max-width:680px}.hero p{margin:0;color:var(--muted);font-size:14px;line-height:1.55;max-width:690px}.hero strong{color:#fff}
     .run-controls{display:grid;gap:9px;min-width:200px}.planner{border:1px solid var(--line);border-radius:11px;background:#0b1016;color:#dce4ef;padding:9px 11px;font-size:12px}.run{border:0;border-radius:13px;background:var(--lime);color:#10130c;padding:13px 17px;font-weight:900;box-shadow:0 10px 30px rgba(199,255,104,.12)}.run:hover{filter:brightness(1.06);transform:translateY(-1px)}.run:disabled{opacity:.58;cursor:wait;transform:none}.scope{font-size:10px;color:#778396;text-align:center}
@@ -46,9 +46,12 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
     <aside class="sidebar">
       <div class="eyebrow">Development sandbox</div><h1>Tell Friday the outcome. Not every step.</h1>
       <p>Friday plans the route, proves it stays inside your permission, and acts only through a restricted test provider.</p>
-      <label class="label" for="goal">Current delegated goal</label>
-      <textarea class="goal" id="goal" readonly>Pay this verified electricity bill once, with no subscription or extra fee.</textarea>
-      <p class="goal-note">Locked for this first vertical slice. Free-form goals come only after the permission model is tested.</p>
+      <label class="label" for="goal">Your standing instruction</label>
+      <textarea class="goal" id="goal">Track my verified household bills, protect ₹10,000, and never create subscriptions.</textarea>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr"><label>Protected balance<input class="field" id="reserve" type="number" min="0" step="100" value="10000"></label><label>Automatic limit<input class="field" id="auto-limit" type="number" min="0" step="100" value="5000"></label></div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:var(--muted)"><input id="auto-execute" type="checkbox"> Automatically execute verified artificial-money bills</label>
+      <div class="inline-actions"><button class="planner" id="save-mandate" type="button">Save instruction</button></div>
+      <p class="goal-note">These limits persist for this tenant. Real providers and real accounts are not connected.</p>
       <span class="label">Try a real safety condition</span><div id="scenarios" class="scenario-list" aria-label="Sandbox scenarios"></div>
       <div class="sidebar-links"><a href="/operations">Earlier operations lab</a><a href="/payment-check">Payment check</a><a href="http://localhost:8080/docs" target="_blank" rel="noopener">API docs ↗</a></div>
     </aside>
@@ -57,13 +60,23 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
         <div class="run-controls"><select class="planner" id="planner" aria-label="Planning engine"><option value="configured">Gemini / configured AI</option><option value="local">Local rules comparison</option></select><button class="run" id="run" type="button">Ask Friday to handle it</button><div class="scope">Restricted sandbox · no real bank access</div></div>
       </div>
       <div class="body">
+        <article class="card live-card" style="margin-bottom:22px">
+          <div class="card-head"><div><div class="eyebrow">Live unfamiliar input</div><h3 style="margin-top:6px">Speak or paste a new financial message</h3></div><span class="badge" id="live-mode">Waiting</span></div>
+          <p style="color:var(--muted);font-size:12px;line-height:1.55">Create an artificial provider bill, then describe it in your own words. Friday extracts the reference with Gemini, retrieves the independent provider record and applies your saved instruction.</p>
+          <div class="form-grid"><label>Bill reference<input class="field" id="provider-reference" value="LIVE-1001"></label><label>Amount in rupees<input class="field" id="provider-amount" type="number" min="1" step=".01" value="2499"></label><label>Verified payee<input class="field" id="provider-payee" value="tnpower@upi"></label></div>
+          <div class="inline-actions"><button class="planner" id="publish-bill" type="button">Publish to test provider</button></div>
+          <label class="label" for="live-input" style="margin-top:15px">New message, QR text, or voice transcript</label>
+          <textarea class="goal" id="live-input">Message from TN Power: Bill LIVE-1001 for ₹2,499 is due. Payee: tnpower@upi</textarea>
+          <div class="inline-actions"><button class="run" id="check-live" type="button">Let Friday handle it</button><button class="planner voice" id="speak-live" type="button">◉ Speak to Friday</button></div>
+          <div class="live-state" id="live-result">No live input processed yet.</div>
+        </article>
         <article class="card" style="margin-bottom:22px">
           <div class="card-head"><h3>Friday keeps an eye on your bills</h3><span class="badge" id="watch-status">Loading</span></div>
           <p>Enable the sandbox feed once. Friday checks incoming sample bills in the background, even when this page is closed while Docker runs. It prepares tasks and in-app due reminders; payments still require your decision.</p>
           <button class="run" id="watch-toggle" type="button" disabled>Enable bill monitoring</button>
           <button class="planner" id="deliver-bill" type="button">Deliver selected sample bill</button>
           <p id="inbox-error" role="status"></p><ul class="events" id="bill-inbox" aria-live="polite"></ul>
-          <small>Sample provider data only. Real inbox connection and document extraction are not connected yet.</small>
+          <small>The earlier fixed scenarios remain as regression demonstrations. Use the live input card above for a new, dynamic task.</small>
         </article>
         <div class="promise" aria-label="Delegation limits"><div><span>Payment type</span><b><i>✓</i>One time only</b></div><div><span>Maximum total</span><b><i>✓</i>₹1,999.00</b></div><div><span>Permission</span><b><i>✓</i>No fee or subscription</b></div></div>
         <div class="pipeline" aria-label="Financial Friday execution pipeline">
@@ -86,7 +99,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
   </main>
   <div class="toast" id="toast" role="status"></div>
   <script>
-    const $=id=>document.getElementById(id);let selected='genuine-bill';let catalogue=[];
+    const $=id=>document.getElementById(id);let selected='genuine-bill';let catalogue=[];let liveSource='MESSAGE';
     const labels={
       'genuine-bill':['✓','Pay a genuine bill'],
       'subscription-trap':['↻','Avoid a subscription trap'],
@@ -127,10 +140,47 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       catch(error){resetStages();document.querySelector('[data-stage="plan"]').classList.add('blocked');$('empty').querySelector('h3').textContent='Friday could not finish';$('empty').querySelector('p').textContent=String(error);toast('Run failed safely—no action assumed');}
       finally{clearTimeout(stageTimer);button.disabled=false;button.textContent='Ask Friday to handle it';}
     }
+    async function jsonRequest(path,method='GET',body){
+      const options={method,headers:{'Content-Type':'application/json'}};if(body!==undefined)options.body=JSON.stringify(body);
+      const response=await fetch(path,options);const data=await response.json();if(!response.ok)throw new Error(data.detail||'Request failed');return data;
+    }
+    async function loadMandate(){
+      try{const data=await jsonRequest('/api/friday/mandate');const m=data.mandate;$('goal').value=m.instruction;$('reserve').value=(m.protected_balance_minor/100).toFixed(2);$('auto-limit').value=(m.automatic_payment_limit_minor/100).toFixed(2);$('auto-execute').checked=m.automatic_sandbox_execution;}
+      catch(error){toast('Saved instruction unavailable');}
+    }
+    async function saveMandate(){
+      const button=$('save-mandate');button.disabled=true;
+      try{await jsonRequest('/api/friday/mandate','PUT',{instruction:$('goal').value,protected_balance_minor:Math.round(Number($('reserve').value)*100),automatic_payment_limit_minor:Math.round(Number($('auto-limit').value)*100),max_fee_minor:0,automatic_sandbox_execution:$('auto-execute').checked});toast('Friday instruction saved');}
+      catch(error){toast(String(error));}finally{button.disabled=false;}
+    }
+    async function publishBill(){
+      const button=$('publish-bill');button.disabled=true;
+      try{await jsonRequest('/api/friday/test-provider/bills','POST',{bill_reference:$('provider-reference').value.trim(),provider_name:'TN Power',provider_id:'tn-power-test',payee_id:$('provider-payee').value.trim(),amount_minor:Math.round(Number($('provider-amount').value)*100),due_date:new Date(Date.now()+3*86400000).toISOString().slice(0,10),currency:'INR'});$('live-mode').textContent='Provider ready';$('live-result').textContent='The enrolled test provider published a fresh bill. Friday can now verify a message against it.';toast('Fresh test bill published');}
+      catch(error){$('live-result').textContent=String(error);}finally{button.disabled=false;}
+    }
+    function showLiveResult(data){
+      $('live-mode').textContent=nice(data.state);$('live-result').replaceChildren();$('live-result').append(node('b',data.message));
+      const facts=data.interpretation||{};$('live-result').append(node('p',`Extracted: ${facts.bill_reference||'no reference'} · ${facts.amount_minor?money(facts.amount_minor):'amount unknown'} · ${facts.claimed_payee_id||'payee not stated'}`));
+      if(data.reason?.length)$('live-result').append(node('p','Stopped because: '+data.reason.map(nice).join(' · ')));
+      if(data.state==='READY'){const action=node('button','Approve this artificial-money task','planner');action.type='button';action.addEventListener('click',async()=>{action.disabled=true;try{const completed=await jsonRequest('/api/friday/live-input/'+encodeURIComponent(data.event_id)+'/run','POST');showLiveResult(completed.signal);render(completed.run);}catch(error){$('live-result').append(node('p',String(error)));}});$('live-result').append(action);}
+      if(data.run_id)$('live-result').append(node('p','Run '+data.run_id+' · '+(data.money_moved?'one artificial-money payment recorded':'no new payment recorded')));
+    }
+    async function checkLive(){
+      const button=$('check-live');button.disabled=true;button.textContent='Friday is working…';$('live-mode').textContent='Understanding';
+      try{const data=await jsonRequest('/api/friday/live-input','POST',{source_type:liveSource,content_text:$('live-input').value});showLiveResult(data);toast(data.state==='ATTENTION'?'Friday stopped for attention':'Live input checked');liveSource='MESSAGE';}
+      catch(error){$('live-mode').textContent='Unavailable';$('live-result').textContent=String(error);}finally{button.disabled=false;button.textContent='Let Friday handle it';}
+    }
+    function startVoice(){
+      const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SpeechRecognition){$('live-result').textContent='Voice recognition is unavailable in this browser. Type the same request instead.';return;}
+      const recognition=new SpeechRecognition();recognition.lang='en-IN';recognition.interimResults=false;$('speak-live').disabled=true;$('speak-live').textContent='Listening…';
+      recognition.onresult=event=>{liveSource='VOICE_TRANSCRIPT';$('live-input').value=event.results[0][0].transcript;$('live-result').textContent='Voice captured. Friday will use this transcript as the new input.';};
+      recognition.onerror=event=>{$('live-result').textContent='Voice capture failed: '+event.error;};recognition.onend=()=>{$('speak-live').disabled=false;$('speak-live').textContent='◉ Speak to Friday';};recognition.start();
+    }
     async function init(){
       try{const response=await fetch('/api/friday/scenarios');const data=await response.json();if(!response.ok)throw new Error(data.detail||'API unavailable');catalogue=data.scenarios;$('ai-status').textContent=data.configured_mode==='LOCAL_RULES'?'Local baseline ready':data.model+' ready';
         data.scenarios.forEach(item=>{const [icon,title]=labels[item.id]||['·',item.name];const button=node('button',undefined,'scenario');button.type='button';button.dataset.id=item.id;button.setAttribute('aria-pressed','false');button.append(node('span',icon,'scenario-icon'));const copy=node('span');copy.append(node('b',title),node('small',item.description));button.append(copy);button.addEventListener('click',()=>selectScenario(item.id));$('scenarios').append(button);});selectScenario(selected);
         if(location.hash.startsWith('#run=')){const response=await fetch('/api/friday/runs/'+encodeURIComponent(decodeURIComponent(location.hash.slice(5))));if(response.ok)render(await response.json());}
+        await loadMandate();
       }catch(error){$('ai-status').textContent='API unavailable';$('run').disabled=true;$('scenario-copy').textContent=String(error);}
     }
     let watching=false;
@@ -155,6 +205,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
     async function refreshInbox(){try{showInbox(await inboxRequest());}catch(e){$('inbox-error').textContent=e.message;$('watch-status').textContent='Status unavailable';}}
     $('watch-toggle').addEventListener('click',async()=>{try{showInbox(await inboxRequest('/api/friday/watch',{enabled:!watching}));}catch(e){$('inbox-error').textContent=e.message;}});
     $('deliver-bill').addEventListener('click',async()=>{try{showInbox(await inboxRequest('/api/friday/arrivals/'+encodeURIComponent(selected),{}));}catch(e){$('inbox-error').textContent=e.message;}});
+    $('save-mandate').addEventListener('click',saveMandate);$('publish-bill').addEventListener('click',publishBill);$('check-live').addEventListener('click',checkLive);$('speak-live').addEventListener('click',startVoice);
     setInterval(refreshInbox,5000);refreshInbox();
     $('run').addEventListener('click',run);init();
   </script>

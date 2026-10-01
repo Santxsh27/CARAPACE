@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from starlette.concurrency import run_in_threadpool
 
 from carapace_ai.financial_friday import LocalFinancialFridayPlanner
+from carapace_core.friday_live import FridayMandate, IncomingFinancialSignal, TestProviderBill
 from carapace_integrations.financial_friday_fixtures import CASES
 from .auth import TenantContext
 from .friday_inbox import FridayInbox
@@ -49,6 +50,37 @@ def register_financial_friday_routes(application, service, authenticate):
     @application.get("/v1/friday/today", tags=["financial-friday"])
     def today(tenant: TenantContext = Depends(authenticate)):
         return service.daily_brief(tenant.tenant_id)
+
+    @application.get("/v1/friday/mandate", tags=["financial-friday"])
+    def read_mandate(tenant: TenantContext = Depends(authenticate)):
+        return service.mandate(tenant.tenant_id)
+
+    @application.put("/v1/friday/mandate", tags=["financial-friday"])
+    def save_mandate(request: FridayMandate, tenant: TenantContext = Depends(authenticate)):
+        return service.save_mandate(tenant.tenant_id, request)
+
+    @application.post("/v1/friday/test-provider/bills", tags=["financial-friday"])
+    def publish_test_bill(request: TestProviderBill, tenant: TenantContext = Depends(authenticate)):
+        return service.publish_test_bill(tenant.tenant_id, request)
+
+    @application.get("/v1/friday/live-input", tags=["financial-friday"])
+    def live_inputs(tenant: TenantContext = Depends(authenticate)):
+        return service.live_signals(tenant.tenant_id)
+
+    @application.post("/v1/friday/live-input", tags=["financial-friday"])
+    async def ingest_live_input(
+        request: IncomingFinancialSignal, tenant: TenantContext = Depends(authenticate)
+    ):
+        return await run_in_threadpool(service.ingest_live_signal, tenant.tenant_id, request)
+
+    @application.post("/v1/friday/live-input/{event_id}/run", tags=["financial-friday"])
+    async def run_live_input(event_id: str, tenant: TenantContext = Depends(authenticate)):
+        try:
+            return await run_in_threadpool(service.run_live_signal, tenant.tenant_id, event_id)
+        except KeyError as error:
+            raise HTTPException(404, "live input not found") from error
+        except ValueError as error:
+            raise HTTPException(409, str(error)) from error
 
     @application.get("/v1/friday/scenarios", tags=["financial-friday"])
     def scenarios(tenant: TenantContext = Depends(authenticate)):
