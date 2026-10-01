@@ -80,6 +80,14 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Vertex AI, Cloud Run, Cloud Build, Artifact Registry, Secret Manager, Firestore and Cloud Tasks APIs are enabled.
 - A real Vertex AI call to `gemini-3.5-flash` succeeded. No API key was created; Vertex uses Google identity and the Cloud Run service identity.
 - The Cloud Run container remains a bounded hackathon service. SQLite on its temporary filesystem is not production persistence; Firestore/Cloud SQL migration is a later milestone.
+- The official Google Cloud CLI is installed and authenticated for the project. The current `0.10.0` Financial Friday image, including live message/QR/voice-transcript ingestion, was successfully built in Cloud Build and published to Artifact Registry. The existing Cloud Run API remains on its previous revision until the new private revision is deployed and authenticated health-checked.
+
+## Next steps
+
+1. Deploy the published `api:0.10.0` image as a no-traffic private Cloud Run revision; verify authenticated health, API version and Vertex mode; then move traffic.
+2. Deploy the Friday web surface separately while keeping the API private.
+3. Replace temporary SQLite state with Firestore or Cloud SQL, then add Cloud Tasks for durable background work.
+4. Add authorised provider/account connectors and document uploads; do not claim real bank or SMS access without an approved integration.
 
 ## Run locally
 
