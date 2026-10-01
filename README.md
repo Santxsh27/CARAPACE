@@ -19,8 +19,11 @@ records READY, ATTENTION or UNAVAILABLE. It runs while the local API is running,
 even with the browser closed. Intake is tenant-scoped and deduplicated; it never
 executes a payment. Due reminders are shown in the inbox, not sent by email or push.
 Real inbox access, PDF/OCR extraction, and Cloud Run background scheduling are
-not implemented by this increment. A process interruption during a check may
-leave CHECKING pending; durable lease recovery is a following milestone.
+not implemented by this increment. Interrupted checks are reclaimed after a
+three-minute lease expires. Claim tokens prevent stale workers overwriting newer
+results. Failed checks can be retried explicitly, up to three total attempts per
+sample bill. Pausing stops new claims; a check already in flight may finish.
+Lease recovery may repeat a model call, but inbox checks never execute payments.
 
 Four end-to-end artificial-money cases are exposed through the API:
 

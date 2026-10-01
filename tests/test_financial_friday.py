@@ -78,6 +78,48 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertEqual(inbox.read('a')['items'][0]['state'], 'UNAVAILABLE')
         self.assertEqual(self.payment_count(), 0)
 
+    def test_expired_inbox_claim_recovers_without_payment(self):
+        inbox = FridayInbox(self.service)
+        inbox.watch('a', True)
+        inbox.arrive('a', 'genuine-bill')
+        with self.service.connect() as db:
+            db.execute("UPDATE friday_inbox SET state='CHECKING', lease_until=1, attempts=1, claim_id='old'")
+        inbox.tick()
+        self.assertEqual(inbox.read('a')['items'][0]['state'], 'READY')
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_retry_is_tenant_scoped_and_capped(self):
+        inbox = FridayInbox(self.service)
+        inbox.arrive('a', 'genuine-bill')
+        with self.service.connect() as db:
+            db.execute("UPDATE friday_inbox SET state='UNAVAILABLE', attempts=2")
+        with self.assertRaises(ValueError):
+            inbox.retry('b', 'sample-genuine-bill')
+        inbox.retry('a', 'sample-genuine-bill')
+        inbox.watch('a', True)
+        inbox.tick()
+        with self.service.connect() as db:
+            db.execute("UPDATE friday_inbox SET state='UNAVAILABLE'")
+        with self.assertRaises(ValueError):
+            inbox.retry('a', 'sample-genuine-bill')
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_stale_worker_cannot_overwrite_new_claim(self):
+        original = self.service.planner
+        service = self.service
+        class SlowPlanner:
+            mode, model_name = original.mode, original.model_name
+            def plan(self, context):
+                with service.connect() as db:
+                    db.execute("UPDATE friday_inbox SET claim_id='new-owner', state='READY', result='{}'")
+                return original.plan(context)
+        service.planner = SlowPlanner()
+        inbox = FridayInbox(service)
+        inbox.watch('a', True)
+        inbox.arrive('a', 'genuine-bill')
+        inbox.tick()
+        self.assertEqual(inbox.read('a')['items'][0]['result'], {})
+
     def test_genuine_bill_executes_once_and_reuses_signed_receipt(self):
         first = self.service.run("tenant-a", "genuine-bill")
         self.assertEqual(first["status"], "COMPLETED_SYNTHETIC")

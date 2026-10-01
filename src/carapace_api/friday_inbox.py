@@ -1,5 +1,7 @@
 """Persistent, opt-in sandbox intake. Preparing a bill never executes it."""
 import json
+import time
+from uuid import uuid4
 from datetime import datetime, timedelta, timezone
 
 from carapace_core.financial_friday import FinancialGoal, FinancialEvidence, verify_financial_program
@@ -16,6 +18,12 @@ class FridayInbox:
                     tenant TEXT, event_id TEXT, case_id TEXT, due_at TEXT, state TEXT,
                     result TEXT, PRIMARY KEY(tenant,event_id));
             ''')
+            columns = {row['name'] for row in db.execute('PRAGMA table_info(friday_inbox)')}
+            for name, definition in [('lease_until', 'REAL NOT NULL DEFAULT 0'),
+                                     ('claim_id', "TEXT NOT NULL DEFAULT ''"),
+                                     ('attempts', 'INTEGER NOT NULL DEFAULT 0')]:
+                if name not in columns:
+                    db.execute(f'ALTER TABLE friday_inbox ADD COLUMN {name} {definition}')
 
     def watch(self, tenant, enabled):
         with self.service.connect() as db:
@@ -27,7 +35,7 @@ class FridayInbox:
         load_case(case_id)
         due = (datetime.now(timezone.utc) + timedelta(days=2)).isoformat()
         with self.service.connect() as db:
-            db.execute('INSERT OR IGNORE INTO friday_inbox VALUES (?,?,?,?,?,?)',
+            db.execute('INSERT OR IGNORE INTO friday_inbox (tenant,event_id,case_id,due_at,state,result) VALUES (?,?,?,?,?,?)',
                        (tenant, 'sample-' + case_id, case_id, due, 'QUEUED', '{}'))
         return self.read(tenant)
 
@@ -41,14 +49,27 @@ class FridayInbox:
                                due_at=r['due_at'], reminder_due=(datetime.fromisoformat(r['due_at'])-now).total_seconds() <= 172800,
                                result=json.loads(r['result'])) for r in rows]}
 
+    def retry(self, tenant, event_id):
+        with self.service.connect() as db:
+            changed = db.execute("UPDATE friday_inbox SET state='QUEUED', result='{}', lease_until=0 WHERE tenant=? AND event_id=? AND state='UNAVAILABLE' AND attempts<3",
+                                 (tenant, event_id)).rowcount
+        if not changed:
+            raise ValueError('Check cannot be retried: missing, still active, or three-attempt limit reached.')
+        return self.read(tenant)
+
     def tick(self):
         with self.service.connect() as db:
+            # Expired claims can be reclaimed after a process restart. A token
+            # prevents a slow former worker from overwriting the newer result.
+            db.execute("UPDATE friday_inbox SET state='UNAVAILABLE', result=? WHERE state='CHECKING' AND lease_until<? AND attempts>=3",
+                       (json.dumps({'message': 'Check interrupted three times. Review required.', 'money_moved': False}), time.time()))
+            db.execute("UPDATE friday_inbox SET state='QUEUED' WHERE state='CHECKING' AND lease_until<? AND attempts<3", (time.time(),))
             rows = db.execute('SELECT i.* FROM friday_inbox i JOIN friday_watch w ON i.tenant=w.tenant WHERE w.enabled=1 AND i.state=? LIMIT 5', ('QUEUED',)).fetchall()
         for row in rows:
-            # Claim atomically; a second worker cannot charge for the same model call.
+            claim_id = uuid4().hex
             with self.service.connect() as db:
-                claimed = db.execute('UPDATE friday_inbox SET state=? WHERE tenant=? AND event_id=? AND state=?',
-                                     ('CHECKING', row['tenant'], row['event_id'], 'QUEUED')).rowcount
+                claimed = db.execute("UPDATE friday_inbox SET state='CHECKING', claim_id=?, lease_until=?, attempts=attempts+1 WHERE tenant=? AND event_id=? AND state='QUEUED' AND attempts<3 AND EXISTS(SELECT 1 FROM friday_watch WHERE tenant=? AND enabled=1)",
+                                     (claim_id, time.time()+180, row['tenant'], row['event_id'], row['tenant'])).rowcount
             if not claimed:
                 continue
             try:
@@ -62,5 +83,5 @@ class FridayInbox:
             except Exception as error:
                 state, result = 'UNAVAILABLE', {'message': 'Could not finish checking this bill.', 'error_type': type(error).__name__, 'money_moved': False}
             with self.service.connect() as db:
-                db.execute('UPDATE friday_inbox SET state=?, result=? WHERE tenant=? AND event_id=?',
-                           (state, json.dumps(result), row['tenant'], row['event_id']))
+                db.execute("UPDATE friday_inbox SET state=?, result=?, lease_until=0 WHERE tenant=? AND event_id=? AND claim_id=? AND state='CHECKING'",
+                           (state, json.dumps(result), row['tenant'], row['event_id'], claim_id))

@@ -266,6 +266,15 @@ def create_demo_app() -> FastAPI:
             raise HTTPException(code, 'Could not change monitoring')
         return result
 
+    @application.post("/api/friday/inbox/{event_id}/retry")
+    async def retry_inbox(event_id: str):
+        if event_id not in {'sample-' + key for key in FRIDAY_CASES}:
+            raise HTTPException(404, 'Unknown sample')
+        code, result = await run_in_threadpool(_api_call, api_base_url, '/v1/friday/inbox/' + event_id + '/retry', 'POST')
+        if code != 200:
+            raise HTTPException(code, result.get('detail', 'Retry unavailable'))
+        return result
+
     @application.post("/api/friday/arrivals/{case_id}")
     async def arrival(case_id: str):
         if case_id not in FRIDAY_CASES:

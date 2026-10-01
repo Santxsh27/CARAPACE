@@ -146,6 +146,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       data.items.forEach(item=>{const li=node('li');li.append(node('b',nice(item.case_id.replaceAll('-','_'))+' · '+nice(item.state)),node('small',item.result.message||'Waiting for the background worker.'));
         li.append(node('p','Sample due date: '+new Date(item.due_at).toLocaleDateString()+(item.reminder_due?' · Reminder: due within two days':'')));
         if(item.result.mode)li.append(node('small','Checked using '+item.result.mode+' · '+item.result.model));
+        if(item.state==='UNAVAILABLE'){const retry=node('button','Retry check','planner');retry.type='button';retry.addEventListener('click',async()=>{retry.disabled=true;try{showInbox(await inboxRequest('/api/friday/inbox/'+encodeURIComponent(item.event_id)+'/retry',{}));}catch(e){$('inbox-error').textContent=e.message;retry.disabled=false;}});li.append(retry);}
         $('bill-inbox').append(li);
       });
       if(!data.items.length)$('bill-inbox').append(node('li','No bills received yet. Use “Deliver selected sample bill” to simulate a provider event.'));

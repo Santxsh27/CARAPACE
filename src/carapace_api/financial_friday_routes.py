@@ -29,6 +29,13 @@ def register_financial_friday_routes(application, service, authenticate):
     def inbox_read(tenant: TenantContext = Depends(authenticate)):
         return inbox.read(tenant.tenant_id)
 
+    @application.post("/v1/friday/inbox/{event_id}/retry", tags=["financial-friday"])
+    def retry(event_id: str, tenant: TenantContext = Depends(authenticate)):
+        try:
+            return inbox.retry(tenant.tenant_id, event_id)
+        except ValueError as error:
+            raise HTTPException(409, str(error)) from error
+
     @application.post("/v1/friday/watch", tags=["financial-friday"])
     def watch(request: WatchRequest, tenant: TenantContext = Depends(authenticate)):
         return inbox.watch(tenant.tenant_id, request.enabled)
