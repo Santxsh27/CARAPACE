@@ -334,10 +334,10 @@ class FinancialFridayTests(unittest.TestCase):
             ).status_code, 422)
 
     def test_sandbox_ui_explains_ai_and_execution_boundaries(self):
-        self.assertIn("Tell Friday the outcome. Not every step.", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("Ask naturally. Friday understands the task", FINANCIAL_FRIDAY_HTML)
         self.assertIn("Gemini can propose", FINANCIAL_FRIDAY_HTML)
         self.assertIn("Independent safety proof", FINANCIAL_FRIDAY_HTML)
-        self.assertIn("Restricted sandbox · no real bank access", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("Artificial money only", FINANCIAL_FRIDAY_HTML)
         self.assertIn("/api/friday/scenarios/", FINANCIAL_FRIDAY_HTML)
         self.assertIn("See Friday think, prove and act", FINANCIAL_FRIDAY_HTML)
         for stage in ("understand", "ground", "plan", "prove", "act"):
@@ -345,7 +345,7 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertIn("DETERMINISTIC_EVIDENCE_HOLD", FINANCIAL_FRIDAY_HTML)
         self.assertIn('id="metric-ai"', FINANCIAL_FRIDAY_HTML)
         self.assertIn('id="metric-effects"', FINANCIAL_FRIDAY_HTML)
-        self.assertIn("F.R.I.D.A.Y.", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("Financial Friday", FINANCIAL_FRIDAY_HTML)
         self.assertIn('id="core-state"', FINANCIAL_FRIDAY_HTML)
 
 

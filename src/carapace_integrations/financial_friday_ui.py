@@ -49,7 +49,19 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
     .assurance-board{box-shadow:inset 0 0 45px rgba(16,139,179,.04)}.pipeline:before{background:linear-gradient(90deg,transparent,#2fd8ff,#2fd8ff,transparent);box-shadow:0 0 10px rgba(47,216,255,.3)}.stage{border-radius:3px;background:rgba(2,12,21,.9);clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%)}.stage.done{background:linear-gradient(180deg,rgba(20,167,201,.15),rgba(2,14,24,.93));box-shadow:inset 0 0 22px rgba(48,217,255,.05)}.stage .number{border-radius:50%;background:#04101c}.stage.active{box-shadow:0 0 0 1px rgba(82,228,255,.3),0 0 28px rgba(39,181,229,.15)}
     .brief-main{position:relative;overflow:hidden}.brief-main:after{content:"FRIDAY // VERIFIED INTELLIGENCE";position:absolute;right:16px;top:12px;color:rgba(99,226,255,.18);font:8px ui-monospace,monospace;letter-spacing:.16em}.badge{border-radius:3px;background:rgba(33,105,135,.22);color:#83ddef;border:1px solid rgba(72,192,230,.18)}.technical pre,.receipt code{background:rgba(0,7,13,.9);border-color:rgba(47,173,211,.24);color:#76adbd}.live-card{box-shadow:inset 0 0 38px rgba(27,161,201,.04)!important}.voice{box-shadow:0 0 16px rgba(58,221,244,.06)}
     .live-card{order:1!important;padding:22px 24px!important}.promise{order:2}.assurance-board{order:3}.empty,.result{order:4}.watch-card{order:5}.empty{display:none!important}.command-prompt{display:grid;grid-template-columns:auto 1fr;gap:13px;align-items:start}.command-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(80,225,255,.48);background:radial-gradient(circle,#54ebff 0 8%,#07233a 10% 55%,#18b9de 57% 60%,#03101b 62%);box-shadow:0 0 20px rgba(55,218,255,.18);font:700 9px ui-monospace,monospace;color:#dffcff}.command-copy h3{font-size:17px;margin:0 0 5px}.command-copy p{margin:0 0 14px;color:#83a4b5;font-size:12px}.command-input{min-height:82px;border-color:rgba(74,218,251,.35);font-size:13px}.provider-setup,.mission-details,.watch-card{border:1px solid rgba(66,190,229,.2);border-radius:4px}.provider-setup{margin-top:16px;padding:11px 13px;background:rgba(0,9,16,.48)}.provider-setup summary,.mission-details>summary,.watch-card>summary{cursor:pointer;color:#74cfe4;font:700 10px ui-monospace,monospace;letter-spacing:.11em;text-transform:uppercase}.provider-setup[open] summary,.mission-details[open]>summary,.watch-card[open]>summary{margin-bottom:14px}.mission-details{margin-top:14px;padding:14px;background:rgba(0,8,15,.4)}.mission-details .result-grid{margin-top:14px}.watch-card{padding:16px 18px!important}.watch-card>summary{display:flex;justify-content:space-between;align-items:center;list-style:none}.watch-card>summary::-webkit-details-marker{display:none}.watch-card>summary:after{content:"OPEN";color:#4ddff7;border:1px solid rgba(74,219,247,.25);padding:4px 7px}.watch-card[open]>summary:after{content:"CLOSE"}.result-toolbar{margin-top:11px}.assurance-board{padding:16px 18px}.stage{min-height:92px}.stage small{display:none}.stage b{margin-top:10px}
-    @media(max-width:1040px){.hero{grid-template-columns:1fr 220px}.core-console{transform:scale(.86)}.run-controls{position:static;width:auto;grid-column:1/-1;grid-template-columns:1fr 1fr}.scope{grid-column:1/-1}}
+    /* Calm assistant layer: futuristic, but easy to understand at a glance. */
+    body:after{display:none}body:before{opacity:.13;background-size:56px 56px}
+    .brand{text-transform:none;letter-spacing:-.01em}.brand small{letter-spacing:0}.pill{text-transform:none;letter-spacing:0;border-radius:999px}
+    .sidebar{clip-path:none}.sidebar h1{font-weight:650}.eyebrow{letter-spacing:.13em;text-shadow:none}
+    .goal,.field,.planner,.scenario,.run,.promise div,.card,.assurance-board,.verdict,.brief-main,.metric,.fact,.provider-setup,.mission-details,.watch-card{border-radius:10px}
+    .mandate-panel{border:1px solid rgba(66,190,229,.2);border-radius:10px;padding:12px;background:rgba(0,9,16,.42);margin-bottom:18px}.mandate-panel>summary{cursor:pointer;color:#d8f8ff;font-size:12px;font-weight:750}.mandate-panel[open]>summary{margin-bottom:12px}
+    .scenario small{display:none}.scenario b{padding-top:6px}.scenario-list{gap:5px}
+    .sidebar-run{width:100%;margin-top:14px}.sidebar-run:before{content:"Selected demo";display:block;text-align:left;color:#7899a8;font-size:10px;margin-bottom:7px}.sidebar-run .run{width:100%}
+    .hero{min-height:245px;padding:30px 34px;grid-template-columns:minmax(0,1fr) 210px;grid-template-rows:1fr;align-items:center}.hero h2{text-transform:none;letter-spacing:-.04em;font-weight:570}.hero-main{grid-row:auto}.system-line{display:none}
+    .core-console{height:185px}.core-ring.r1{width:150px;height:150px}.core-ring.r2{width:116px;height:116px}.core-ring.r3{width:84px;height:84px}.core-center{width:60px;height:60px}.core-center span{font-size:10px}.core-state{bottom:0}.wave{display:none}
+    .run{border-radius:10px;text-transform:none;letter-spacing:0;font-size:12px}.promise div:after{display:none}.stage{clip-path:none;border-radius:8px}.brief-main:after{display:none}
+    .provider-setup summary,.mission-details>summary,.watch-card>summary{text-transform:none;letter-spacing:0;font-family:inherit;font-size:11px}.watch-card>summary:after{content:"Show"}.watch-card[open]>summary:after{content:"Hide"}
+    @media(max-width:1040px){.hero{grid-template-columns:1fr 200px}.core-console{transform:scale(.86)}.run-controls{position:static;width:auto;grid-column:auto;grid-template-columns:1fr}.scope{grid-column:auto}}
     @media(max-width:760px){.hero{grid-template-columns:1fr}.core-console{height:190px}.layout{grid-template-columns:1fr}.sidebar{clip-path:none}.run-controls{grid-template-columns:1fr}.hero h2{text-align:center}.hero-main{text-align:center}.system-line{justify-content:center}}
     @media(max-width:1040px){.pipeline{grid-template-columns:repeat(3,1fr)}.pipeline:before{display:none}.briefing{grid-template-columns:1fr}}
     @media(max-width:920px){.layout{grid-template-columns:1fr}.sidebar{position:static}.scenario-list{grid-template-columns:1fr 1fr}.hero{grid-template-columns:1fr}.run-controls{grid-template-columns:1fr 1fr}.scope{grid-column:1/-1}.result-grid{grid-template-columns:1fr}}
@@ -59,26 +71,27 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
 </head>
 <body>
   <header class="topbar"><div class="shell">
-    <div class="mark" aria-hidden="true">F</div><div class="brand">F.R.I.D.A.Y.<small>Financial Reasoning, Intelligence &amp; Delegated Action for You</small></div>
+    <div class="mark" aria-hidden="true">F</div><div class="brand">Financial Friday<small>Your AI financial assistant</small></div>
     <div class="top-spacer"></div><div class="pill"><span class="dot"></span><span id="ai-status">Connecting…</span></div><div class="pill optional">Core online · sandbox</div>
   </div></header>
   <main class="shell layout">
     <aside class="sidebar">
-      <div class="eyebrow">Operator mandate</div><h1>Set the boundary.<br>Friday handles the mission.</h1>
-      <p>Friday plans the route, proves it stays inside your permission, and acts only through a restricted test provider.</p>
-      <label class="label" for="goal">Your standing instruction</label>
+      <div class="eyebrow">Your safety settings</div><h1>You set the rules.<br>Friday handles the work.</h1>
+      <p>Choose what Friday may do. Every action still passes an independent safety check.</p>
+      <details class="mandate-panel"><summary>Your standing permission</summary>
+      <label class="label" for="goal">Instruction</label>
       <textarea class="goal" id="goal">Track my verified household bills, protect ₹10,000, and never create subscriptions.</textarea>
       <div class="form-grid" style="grid-template-columns:1fr 1fr"><label>Protected balance<input class="field" id="reserve" type="number" min="0" step="100" value="10000"></label><label>Automatic limit<input class="field" id="auto-limit" type="number" min="0" step="100" value="5000"></label></div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:var(--muted)"><input id="auto-execute" type="checkbox"> Automatically execute verified artificial-money bills</label>
       <div class="inline-actions"><button class="planner" id="save-mandate" type="button">Save instruction</button></div>
-      <p class="goal-note">These limits persist for this tenant. Real providers and real accounts are not connected.</p>
-      <span class="label">Try a real safety condition</span><div id="scenarios" class="scenario-list" aria-label="Sandbox scenarios"></div>
+      <p class="goal-note">Saved for this sandbox. No real bank account is connected.</p></details>
+      <span class="label">Choose a safety demo</span><div id="scenarios" class="scenario-list" aria-label="Sandbox scenarios"></div>
+      <div class="run-controls sidebar-run"><select class="planner" id="planner" aria-label="Planning engine"><option value="configured">Gemini / configured AI</option><option value="local">Local rules comparison</option></select><button class="run" id="run" type="button">Run this demo</button><div class="scope">Artificial money only</div></div>
       <div class="sidebar-links"><a href="/operations">Earlier operations lab</a><a href="/payment-check">Payment check</a><a href="http://localhost:8080/docs" target="_blank" rel="noopener">API docs ↗</a></div>
     </aside>
     <section class="workspace" aria-labelledby="workspace-title">
-      <div class="hero"><div class="hero-main"><div class="eyebrow">Friday online</div><h2 id="workspace-title">Good morning.<br><span class="accent">What can I handle?</span></h2><p id="scenario-copy">Give Friday an outcome. It will understand the request, verify the evidence and act only inside your permission.</p><div class="system-line"><span>Identity secured</span><span>Safety kernel ready</span><span>Evidence connected</span></div></div>
+      <div class="hero"><div class="hero-main"><div class="eyebrow">Friday is ready</div><h2 id="workspace-title">Good morning.<br><span class="accent">What would you like me to handle?</span></h2><p id="scenario-copy">Ask naturally. Friday understands the task, checks the evidence, and only acts inside your permission.</p><div class="system-line"><span>Identity secured</span><span>Safety kernel ready</span><span>Evidence connected</span></div></div>
         <div class="core-console" aria-label="Friday AI core"><div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="core-ring r1"></div><div class="core-ring r2"></div><div class="core-ring r3"></div><div class="core-center"><span>FRIDAY</span></div><div class="core-state"><b id="core-state">STANDING BY</b><small id="core-detail">Awaiting your command</small></div></div>
-        <div class="run-controls"><select class="planner" id="planner" aria-label="Planning engine"><option value="configured">Gemini / configured AI</option><option value="local">Local rules comparison</option></select><button class="run" id="run" type="button">Run selected demo</button><div class="scope">Restricted sandbox · no real bank access</div></div>
       </div>
       <div class="body">
         <article class="card live-card" style="margin-bottom:22px">
@@ -175,7 +188,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       const sequence=[['ground','Resolving trusted evidence'],['plan','Requesting a bounded plan'],['prove','Testing permission and attacks'],['act','Executing or reconciling safely']];let stageIndex=0;const stageTimer=setInterval(()=>{if(stageIndex<sequence.length){pulse(...sequence[stageIndex]);stageIndex+=1;}},650);
       try{const response=await fetch('/api/friday/scenarios/'+encodeURIComponent(selected)+'/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({planner:$('planner').value})});const result=await response.json();if(!response.ok)throw new Error(result.detail||'Financial Friday could not complete this run.');render(result);toast(result.status==='HELD'?'Unsafe action safely held':'Sandbox run complete');}
       catch(error){resetStages();stage('act','blocked','Unavailable · no action assumed');setCore('SAFE MODE','Provider unavailable · no action');$('empty').querySelector('h3').textContent='Friday could not finish';$('empty').querySelector('p').textContent=String(error);toast('Run failed safely—no action assumed');}
-      finally{clearInterval(stageTimer);button.disabled=false;button.textContent='Run selected demo';}
+      finally{clearInterval(stageTimer);button.disabled=false;button.textContent='Run this demo';}
     }
     async function jsonRequest(path,method='GET',body){
       const options={method,headers:{'Content-Type':'application/json'}};if(body!==undefined)options.body=JSON.stringify(body);
