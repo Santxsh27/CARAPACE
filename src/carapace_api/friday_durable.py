@@ -168,6 +168,13 @@ class FirestoreFridayState:
             return output
         return self._atomic(commit)
 
+    def payment_receipt(self, tenant: str, goal_id: str, live: dict | None) -> dict | None:
+        self._validate("payments", tenant, "lookup")
+        identity = ("bill:" + live["authoritative_bill"]["provider_id"] + ":" +
+                    live["authoritative_bill"]["bill_reference"]) if live else "goal:" + goal_id
+        record = self.get("payments", tenant, sha256(identity.encode()).hexdigest())
+        return record.get("receipt", {}) if record is not None else None
+
 
 def create_friday_durable_state(settings) -> FridayDurableState:
     mode = settings.friday_durable_store

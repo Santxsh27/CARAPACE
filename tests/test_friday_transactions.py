@@ -106,6 +106,15 @@ class DurableTransactionTests(unittest.TestCase):
         restored.save_mandate("tenant-a", FridayMandate(**restored.mandate("tenant-a")["mandate"]))
         self.assertEqual(restored.mandate("tenant-a")["sandbox_balance_minor"], 4_750_100)
 
+    def test_cloud_journal_replay_does_not_depend_on_ai(self):
+        from unittest.mock import Mock
+        self.service.run_live_signal("tenant-a", self.signal["event_id"])
+        self.service.planner.plan = Mock(side_effect=RuntimeError("AI is offline"))
+        result = self.service.run_live_signal("tenant-a", self.signal["event_id"])["run"]
+        self.assertEqual(result["status"], "ALREADY_COMPLETED")
+        self.assertEqual(result["provenance"]["successful_model_calls"], 0)
+        self.service.planner.plan.assert_not_called()
+
     def test_concurrent_runs_create_one_effect(self):
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda _: self.service.run_live_signal("tenant-a", self.signal["event_id"])["run"], range(2)))

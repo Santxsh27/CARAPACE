@@ -60,6 +60,31 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertEqual(call.call_count, 2)
         self.assertEqual(self.payment_count(), 0)
 
+    def test_completed_payment_replay_works_without_ai(self):
+        first = self.service.run("tenant-a", "genuine-bill")
+        self.service.planner.plan = Mock(side_effect=RuntimeError("AI is offline"))
+        second = self.service.run("tenant-a", "genuine-bill")
+        self.assertEqual(second["status"], "ALREADY_COMPLETED")
+        self.assertEqual(first["outcome"]["receipt"], second["outcome"]["receipt"])
+        self.assertEqual(second["provenance"]["successful_model_calls"], 0)
+        self.service.planner.plan.assert_not_called()
+
+    def test_corrupt_existing_receipt_is_held_without_ai(self):
+        self.service.run("tenant-a", "genuine-bill")
+        with self.service.connect() as db:
+            db.execute("UPDATE friday_payments SET receipt_json=?", (json.dumps({"payload": {}, "signature": None}),))
+        self.service.planner.plan = Mock(side_effect=RuntimeError("AI must not repair a receipt"))
+        result = self.service.run("tenant-a", "genuine-bill")
+        self.assertEqual(result["status"], "HELD")
+        self.assertEqual(result["outcome"]["reason"], ["EXISTING_RECEIPT_INVALID"])
+        self.service.planner.plan.assert_not_called()
+
+    def test_non_json_existing_receipt_is_held(self):
+        self.service.run("tenant-a", "genuine-bill")
+        with self.service.connect() as db:
+            db.execute("UPDATE friday_payments SET receipt_json='broken'")
+        self.assertEqual(self.service.run("tenant-a", "genuine-bill")["status"], "HELD")
+
     def test_understanding_retries_are_bounded(self):
         error = RuntimeError("temporary provider failure")
         error.code = 503

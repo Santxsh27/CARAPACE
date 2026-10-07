@@ -529,6 +529,27 @@ class FinancialFridayService:
             self._save(tenant, result)
             return result
 
+        existing = self._existing_receipt(tenant, goal, case.get("live"))
+        if existing is not None:
+            payload = existing.get("payload", {}) if isinstance(existing, dict) else {}
+            valid_totals = {option.principal_minor + option.fee_minor for option in evidence.available_options
+                            if option.authenticated and option.cadence == "ONE_TIME" and option.fee_minor <= goal.max_fee_minor}
+            intact = isinstance(existing, dict) and isinstance(payload, dict) and all(
+                payload.get(field) == expected for field, expected in {
+                    "tenant_id": tenant, "provider_id": goal.provider_id, "payee_id": goal.payee_id,
+                    "currency": goal.currency, "scope": "FINANCIAL_FRIDAY_ARTIFICIAL_MONEY"}.items()) and payload.get("amount_minor") in valid_totals
+            intact = intact and isinstance(existing.get("signature"), str)
+            intact = intact and payload["amount_minor"] <= goal.max_total_minor and self.signer.verify(payload, existing.get("signature", ""))
+            result["status"] = "ALREADY_COMPLETED" if intact else "HELD"
+            result["outcome"] = {"money_moved": False, "new_payment_created": False,
+                                 "receipt": existing if intact else None}
+            if not intact:
+                result["outcome"]["reason"] = ["EXISTING_RECEIPT_INVALID"]
+            result["events"].append({"type": "EXISTING_PAYMENT_RECONCILED", "receipt_verified": bool(intact),
+                                     "authority": "SAFETY_KERNEL", "new_payment": False})
+            self._save(tenant, result)
+            return result
+
         context = {"goal": goal.model_dump(), "evidence": evidence.model_dump()}
         program = None
         verification = None
@@ -595,6 +616,27 @@ class FinancialFridayService:
         }
         self._execute(tenant, result, goal, evidence, program)
         return result
+
+    def _existing_receipt(self, tenant, goal, live):
+        if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+            return self.durable.payment_receipt(tenant, goal.goal_id, live)
+        with self.connect() as db:
+            row = db.execute("SELECT receipt_json FROM friday_payments WHERE tenant_id=? AND goal_id=?",
+                             (tenant, goal.goal_id)).fetchone()
+            if row is None and live:
+                bill = live["authoritative_bill"]
+                row = db.execute(
+                    "SELECT p.receipt_json FROM friday_payments p JOIN friday_dynamic_cases c "
+                    "ON p.tenant_id=c.tenant_id AND p.goal_id=json_extract(c.case_json,'$.goal.goal_id') "
+                    "WHERE p.tenant_id=? AND json_extract(c.case_json,'$.live.authoritative_bill.bill_reference')=? "
+                    "AND json_extract(c.case_json,'$.live.authoritative_bill.provider_id')=? LIMIT 1",
+                    (tenant, bill["bill_reference"], bill["provider_id"])).fetchone()
+        if row is None:
+            return None
+        try:
+            return json.loads(row[0])
+        except (ValueError, TypeError):
+            return {}
 
     def _execute(self, tenant, result, goal, evidence, program) -> None:
         fresh = self._load_case(tenant, result["case_id"])

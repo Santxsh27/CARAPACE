@@ -24,7 +24,8 @@ def main():
     parser.add_argument("--expected-operation")
     parser.add_argument("--expected-key")
     parser.add_argument("--ca-file", help="Trusted PEM CA bundle when the local Python lacks system roots")
-    parser.add_argument("--expected-version", default="0.13.1")
+    parser.add_argument("--expected-version", default="0.13.2")
+    parser.add_argument("--inspect", action="store_true", help="Read sanitized cloud run outcomes without creating a payment")
     args = parser.parse_args()
     if not args.url.startswith("https://") or not args.url.endswith(".run.app"):
         parser.error("use the private Cloud Run HTTPS origin without a path")
@@ -51,6 +52,15 @@ def main():
     assert health["version"] == args.expected_version, health
     storage = request("/v1/friday/storage-status")
     assert storage["mode"] == "FIRESTORE_TRANSACTIONAL", storage
+    if args.inspect:
+        items = request("/v1/friday/live-input")["items"]
+        recent = request("/v1/friday/today")["recent_runs"]
+        runs = [request("/v1/friday/runs/" + item["run_id"]) for item in recent]
+        print(json.dumps({"balance": request("/v1/friday/mandate")["sandbox_balance_minor"],
+                          "signals": [{k: item.get(k) for k in ("event_id", "state", "run_id")} for item in items],
+                          "runs": [{"run_id": r["run_id"], "status": r["status"], "outcome": r.get("outcome"),
+                                    "events": [{k: e.get(k) for k in ("type", "errors", "error_type")} for e in r["events"]]} for r in runs]}))
+        return
     try:
         request("/health/ready", authenticated=False)
         raise AssertionError("service unexpectedly permits anonymous access")
@@ -63,6 +73,7 @@ def main():
         after = request("/v1/friday/mandate")["sandbox_balance_minor"]
         assert repeated["status"] == "ALREADY_COMPLETED", repeated["status"]
         assert not repeated["outcome"]["new_payment_created"]
+        assert repeated["provenance"]["successful_model_calls"] == 0
         assert before == after == args.expected_balance
         receipt = repeated["outcome"]["receipt"]
         if args.expected_operation:
@@ -97,6 +108,7 @@ def main():
     assert request("/v1/friday/runs/" + run["run_id"])["status"] == run["status"]
     repeated = request("/v1/friday/live-input/" + signal["event_id"] + "/run", "POST")["run"]
     assert repeated["status"] == "ALREADY_COMPLETED", repeated["status"]
+    assert repeated["provenance"]["successful_model_calls"] == 0
     assert request("/v1/friday/mandate")["sandbox_balance_minor"] == after
     mismatch = request("/v1/friday/scenarios/recipient-swap/run", "POST", {"planner": "configured"})
     assert mismatch["status"] == "HELD"
