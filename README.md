@@ -99,16 +99,17 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Billing is protected by a ₹1,000 monthly alert budget at 25%, 50%, 90% and 100%. Alerts are warnings, not a hard spending cap.
 - Vertex AI, Cloud Run, Cloud Build, Artifact Registry, Secret Manager, Firestore and Cloud Tasks APIs are enabled.
 - A real Vertex AI call to `gemini-3.5-flash` succeeded. No API key was created; Vertex uses Google identity and the Cloud Run service identity.
-- Version `0.12.0` adds an opt-in `FIRESTORE_HYBRID` store for tenant-scoped standing instructions, artificial accounts, provider bills, interpreted signals, runs and evidence. Local development remains `SQLITE_LOCAL` by default.
-- The payment balance, receipt and idempotency transaction deliberately remain together in SQLite for this phase. In Firestore mode, Friday can check and review tasks but holds every new payment effect until the whole transaction moves to durable storage.
+- Version `0.13.0` implements opt-in `FIRESTORE_TRANSACTIONAL` state: one transaction stores the artificial payment receipt, idempotency marker, balance change and run outcome. Local development remains `SQLITE_LOCAL` by default.
+- Bill identity, rather than message identity, prevents two messages about one bill from creating two payments. At commit time, the cloud executor rechecks provider details, current mandate, automatic permission and protected balance. Updating a mandate never resets the artificial account balance.
+- Transaction callback contract tests cover restart recovery, concurrent attempts, repeated bill messages, changed provider details and commit failures. Live Firestore activation and integration testing remain separate deployment gates; these tests do not establish production banking readiness.
 - The project's default Firestore database has not been created yet because its location is a long-lived infrastructure choice. The code is ready, but cloud activation waits for an explicit location decision.
 - The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-00005-w8k` serves `api:0.10.1` at 100% traffic after authenticated health, version, Vertex configuration and live Gemini execution checks. No Gemini key is exposed.
 - In `0.10.1`, authoritative provider/payee/currency contradictions stop in the deterministic kernel before AI is called, while transient Vertex server errors receive a bounded retry and still fail closed. A cloud test confirmed recipient mismatch with zero model calls and an unknown outcome reconciled through live Vertex AI without creating another payment.
 
 ## Next steps
 
-1. Choose the Firestore data location, create the `(default)` database and deploy `0.12.0` with `CARAPACE_FRIDAY_DURABLE_STORE=firestore`.
-2. Move artificial payment balance, receipt and idempotency into one Firestore transaction before allowing restored tasks to resume execution.
+1. Confirm the Firestore data location, create the `(default)` database and validate `0.13.0` against live Firestore.
+2. Mount stable signing keys from Secret Manager before enabling cloud payments; temporary container keys cannot verify receipts across restarts. Then deploy with `CARAPACE_FRIDAY_DURABLE_STORE=firestore` and verify a restart/replay end to end.
 3. Add Cloud Tasks for durable claims, bounded retries and reconciliation, then deploy the Friday web surface while keeping the API private.
 4. Add authorised provider/account connectors; do not claim real bank or SMS access without an approved integration.
 5. Run the labelled adversarial evaluation set and publish accuracy, false-hold, latency and per-run cost measurements.
@@ -175,6 +176,6 @@ understand → plan → prove → execute → reconcile → remember
 
 ## Honest limits
 
-This prototype uses an enrolled test-provider API, retained regression fixtures and artificial money. Browser speech recognition supplies an optional transcript; Gemini Live native audio is not connected yet. Firestore phase 1 durably mirrors non-payment evidence only; payment execution is held in that mode. It does not access GPay, phone SMS, a real bank account, UPI credentials, OTPs or production funds. A real launch requires authorised bank/biller connectors, one durable transactional payment boundary, security review, regulated partner controls, customer support and formal compliance work. Financial Friday does not promise zero fraud, guaranteed savings, guaranteed reimbursement, investment returns, patentability or a hackathon prize.
+This prototype uses an enrolled test-provider API, retained regression fixtures and artificial money. Browser speech recognition supplies an optional transcript; Gemini Live native audio is not connected yet. Version 0.13.0 includes an atomic Firestore payment journal, but cloud activation still requires database provisioning, stable signing keys and live integration checks. It does not access GPay, phone SMS, a real bank account, UPI credentials, OTPs or production funds. A real launch requires authorised bank/biller connectors, security review, regulated partner controls, customer support and formal compliance work. Financial Friday does not promise zero fraud, guaranteed savings, guaranteed reimbursement, investment returns, patentability or a hackathon prize.
 
 See [SPEC.md](SPEC.md) for the product contract, trust model and roadmap, and [docs/CLOUD_RUN.md](docs/CLOUD_RUN.md) for the cloud deployment boundary.

@@ -244,6 +244,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       try{const response=await fetch('/api/friday/scenarios');const data=await response.json();if(!response.ok)throw new Error(data.detail||'API unavailable');catalogue=data.scenarios;$('ai-status').textContent=data.configured_mode==='LOCAL_RULES'?'Local baseline ready':data.model+' ready';$('storage-status').textContent=data.storage?.mode==='FIRESTORE_HYBRID'?'Firestore evidence · payment held':'Local protected sandbox';
         data.scenarios.forEach(item=>{const [icon,title]=labels[item.id]||['·',item.name];const button=node('button',undefined,'scenario');button.type='button';button.dataset.id=item.id;button.setAttribute('aria-pressed','false');button.append(node('span',icon,'scenario-icon'));const copy=node('span');copy.append(node('b',title),node('small',item.description));button.append(copy);button.addEventListener('click',()=>selectScenario(item.id));$('scenarios').append(button);});selectScenario(selected);
         if(location.hash.startsWith('#run=')){const response=await fetch('/api/friday/runs/'+encodeURIComponent(decodeURIComponent(location.hash.slice(5))));if(response.ok)render(await response.json());}
+        if(data.storage?.mode==='FIRESTORE_TRANSACTIONAL')$('storage-status').textContent='Cloud journal · restart protected';
         await loadMandate();
       }catch(error){$('ai-status').textContent='API unavailable';$('run').disabled=true;$('scenario-copy').textContent=String(error);}
     }

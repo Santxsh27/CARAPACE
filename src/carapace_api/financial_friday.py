@@ -63,13 +63,15 @@ class FinancialFridayService:
     def storage_status(self) -> dict:
         return {
             "mode": self.durable.mode,
-            "durable_non_payment_state": self.durable.mode == "FIRESTORE_HYBRID",
-            "payment_transaction": "SQLITE_ARTIFICIAL_MONEY",
+            "durable_non_payment_state": self.durable.mode.startswith("FIRESTORE_"),
+            "payment_transaction": "FIRESTORE_ARTIFICIAL_MONEY" if self.durable.mode == "FIRESTORE_TRANSACTIONAL" else "SQLITE_ARTIFICIAL_MONEY",
             "claim": (
                 "Firestore mirrors and restores mandates, provider bills, signals, cases and run evidence. "
                 "Artificial-money payment execution is disabled until idempotency and balance updates "
                 "share one durable transaction."
                 if self.durable.mode == "FIRESTORE_HYBRID"
+                else "Firestore atomically records artificial payments, idempotency, balances and run outcomes. No real funds are connected."
+                if self.durable.mode == "FIRESTORE_TRANSACTIONAL"
                 else "All Friday state is local to this development instance."
             ),
         }
@@ -85,6 +87,13 @@ class FinancialFridayService:
         )
 
     def mandate(self, tenant: str) -> dict:
+        if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+            record = self.durable.get("mandates", tenant, "current")
+            account = self.durable.get("accounts", tenant, "current")
+            return {"mandate": record["mandate"] if record else self._default_mandate().model_dump(),
+                    "sandbox_balance_minor": account["balance_minor"] if account else 5_000_000,
+                    "scope": "Artificial-money account and enrolled test providers only",
+                    "storage": self.storage_status()}
         with self.connect() as db:
             row = db.execute(
                 "SELECT mandate_json FROM friday_mandates WHERE tenant_id=?", (tenant,)
@@ -110,6 +119,9 @@ class FinancialFridayService:
 
     def save_mandate(self, tenant: str, mandate: FridayMandate) -> dict:
         now = datetime.now(timezone.utc).isoformat()
+        if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+            self.durable.save_mandate(tenant, mandate.model_dump(), now)
+            return self.mandate(tenant)
         with self.connect() as db:
             db.execute(
                 "INSERT INTO friday_mandates VALUES (?,?,?) ON CONFLICT(tenant_id) "
@@ -140,6 +152,11 @@ class FinancialFridayService:
 
     def _load_case(self, tenant: str, case_id: str) -> dict:
         if case_id.startswith("live-"):
+            if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+                record = self.durable.get("dynamic_cases", tenant, case_id)
+                if record is None:
+                    raise KeyError(case_id)
+                return record["case"]
             with self.connect() as db:
                 row = db.execute(
                     "SELECT case_json FROM friday_dynamic_cases WHERE tenant_id=? AND case_id=?",
@@ -215,7 +232,7 @@ class FinancialFridayService:
                     "SELECT bill_json FROM friday_provider_bills WHERE tenant_id=? AND bill_reference=?",
                     (tenant, interpretation.bill_reference),
                 ).fetchone()
-            if row:
+            if row and self.durable.mode != "FIRESTORE_TRANSACTIONAL":
                 bill = TestProviderBill.model_validate_json(row[0])
             else:
                 durable_bill = self.durable.get(
@@ -232,7 +249,7 @@ class FinancialFridayService:
             amount = interpretation.amount_minor or bill.amount_minor
             case = {
                 "goal": {
-                    "goal_id": "goal-" + case_id,
+                    "goal_id": "goal-bill-" + sha256_hex({"tenant": tenant, "provider": bill.provider_id, "bill": bill.bill_reference})[:24],
                     "instruction": mandate.instruction,
                     "provider_id": bill.provider_id,
                     "payee_id": bill.payee_id,
@@ -241,7 +258,7 @@ class FinancialFridayService:
                     "max_fee_minor": mandate.max_fee_minor,
                     "cadence": "ONE_TIME",
                     "allowed_data_fields": ["BILL_REFERENCE"],
-                    "idempotency_key": "idem-" + case_id,
+                    "idempotency_key": "idem-bill-" + sha256_hex({"tenant": tenant, "provider": bill.provider_id, "bill": bill.bill_reference})[:24],
                 },
                 "evidence": {
                     "obligation_id": bill.bill_reference,
@@ -298,7 +315,7 @@ class FinancialFridayService:
             else:
                 result.update(state="READY", message="Bill matched the enrolled provider and is ready.", reason=[])
                 if mandate.automatic_sandbox_execution:
-                    run = self.run(tenant, case_id)
+                    run = self.run(tenant, case_id, automatic=True)
                     result.update(
                         state="COMPLETED" if run["status"] in {"COMPLETED_SYNTHETIC", "ALREADY_COMPLETED"} else "ATTENTION",
                         message="Friday completed the verified test bill automatically." if run["status"] == "COMPLETED_SYNTHETIC" else "Friday finished with a protected outcome.",
@@ -329,6 +346,8 @@ class FinancialFridayService:
         return result
 
     def live_signals(self, tenant: str) -> dict:
+        if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+            return {"items": [r["result"] for r in self.durable.list("signals", tenant, 20)], "storage": self.storage_status()}
         with self.connect() as db:
             rows = db.execute(
                 "SELECT result_json FROM friday_live_signals WHERE tenant_id=? ORDER BY rowid DESC LIMIT 20",
@@ -349,10 +368,13 @@ class FinancialFridayService:
             durable_signal = self.durable.get("signals", tenant, event_id)
             if durable_signal is None or not durable_signal.get("case_id"):
                 raise KeyError(event_id)
-            raise ValueError(
-                "This signal was restored from Firestore for review, but payment execution stays disabled "
-                "until payment idempotency moves into the same durable transaction."
-            )
+            if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+                case_id, existing = durable_signal["case_id"], durable_signal["result"]
+            else:
+                raise ValueError(
+                    "This signal was restored from Firestore for review, but payment execution stays disabled "
+                    "until payment idempotency moves into the same durable transaction."
+                )
         else:
             if not row[0]:
                 raise KeyError(event_id)
@@ -390,6 +412,11 @@ class FinancialFridayService:
         self.durable.put("runs", tenant, result["run_id"], {"result": result})
 
     def get(self, tenant: str, run_id: str) -> dict:
+        if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+            record = self.durable.get("runs", tenant, run_id)
+            if record is None:
+                raise KeyError(run_id)
+            return record["result"]
         with self.connect() as db:
             row = db.execute(
                 "SELECT result_json FROM friday_runs WHERE tenant_id=? AND run_id=?",
@@ -418,6 +445,10 @@ class FinancialFridayService:
                 (tenant,),
             ).fetchall()
         receipts = []
+        if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+            payments = [(json.dumps(r["receipt"]),) for r in self.durable.list("payments", tenant, 100)]
+            rows = [(json.dumps(r["result"]),) for r in self.durable.list("runs", tenant, 10)]
+            live_rows = [(json.dumps(r["result"]),) for r in self.durable.list("signals", tenant, 5)]
         invalid = 0
         for row in payments:
             try:
@@ -443,7 +474,7 @@ class FinancialFridayService:
             "live_activity": [json.loads(row[0]) for row in live_rows],
         }
 
-    def run(self, tenant: str, case_id: str, planner=None) -> dict:
+    def run(self, tenant: str, case_id: str, planner=None, *, automatic=False) -> dict:
         case = self._load_case(tenant, case_id)
         goal = FinancialGoal.model_validate(case["goal"])
         evidence = FinancialEvidence.model_validate(case["evidence"])
@@ -451,6 +482,7 @@ class FinancialFridayService:
         result = {
             "run_id": "ff_" + uuid4().hex,
             "case_id": case_id,
+            "automatic": automatic,
             "status": "PLANNING",
             "started_at": datetime.now(timezone.utc).isoformat(),
             "goal": goal.model_dump(),
@@ -596,15 +628,34 @@ class FinancialFridayService:
             "evidence_digest": sha256_hex(fresh_evidence.model_dump()),
             "scope": "FINANCIAL_FRIDAY_ARTIFICIAL_MONEY",
         }
+        if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+            receipt = {"payload": payload, "signature": self.signer.sign(payload), "key_id": self.signer.key_id}
+            committed = self.durable.execute_payment(tenant, result, receipt, fresh.get("live"), self.signer)
+            result.clear()
+            result.update(committed)
+            return
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
                 "SELECT receipt_json FROM friday_payments WHERE tenant_id=? AND goal_id=?",
                 (tenant, goal.goal_id),
             ).fetchone()
+            if row is None and fresh.get("live"):
+                # Preserve payments made before bill-level identities were introduced.
+                bill = fresh["live"]["authoritative_bill"]
+                row = db.execute(
+                    "SELECT p.receipt_json FROM friday_payments p JOIN friday_dynamic_cases c "
+                    "ON p.tenant_id=c.tenant_id AND p.goal_id=json_extract(c.case_json,'$.goal.goal_id') "
+                    "WHERE p.tenant_id=? AND json_extract(c.case_json,'$.live.authoritative_bill.bill_reference')=? "
+                    "AND json_extract(c.case_json,'$.live.authoritative_bill.provider_id')=? LIMIT 1",
+                    (tenant, bill["bill_reference"], bill["provider_id"]),
+                ).fetchone()
             if row:
                 receipt = json.loads(row[0])
-                intact = self.signer.verify(receipt["payload"], receipt["signature"])
+                intact = self.signer.verify(receipt["payload"], receipt["signature"]) and all(
+                    receipt["payload"].get(field) == payload[field]
+                    for field in ("tenant_id", "provider_id", "payee_id", "amount_minor", "currency")
+                )
                 result["status"] = "ALREADY_COMPLETED" if intact else "HELD"
                 result["outcome"] = {
                     "money_moved": False,
@@ -621,6 +672,24 @@ class FinancialFridayService:
                         "SELECT balance_minor FROM friday_accounts WHERE tenant_id=?", (tenant,)
                     ).fetchone()
                     mandate = FridayMandate.model_validate_json(mandate_row[0]) if mandate_row else self._default_mandate()
+                    bill = fresh["live"]["authoritative_bill"]
+                    provider_row = db.execute(
+                        "SELECT bill_json FROM friday_provider_bills WHERE tenant_id=? AND bill_reference=?",
+                        (tenant, bill["bill_reference"]),
+                    ).fetchone()
+                    changed = []
+                    if provider_row is None or json.loads(provider_row[0]) != bill:
+                        changed = ["PROVIDER_CHANGED"]
+                    elif mandate.instruction != goal.instruction or mandate.max_fee_minor < goal.max_fee_minor:
+                        changed = ["MANDATE_CHANGED"]
+                    elif result.get("automatic") and (not mandate.automatic_sandbox_execution or payload["amount_minor"] > mandate.automatic_payment_limit_minor):
+                        changed = ["AUTOMATIC_PERMISSION_CHANGED"]
+                    if changed:
+                        result["status"] = "HELD"
+                        result["outcome"] = {"money_moved": False, "new_payment_created": False, "reason": changed}
+                        db.execute("UPDATE friday_runs SET result_json=? WHERE tenant_id=? AND run_id=?",
+                                   (json.dumps(result), tenant, result["run_id"]))
+                        return
                     balance = account_row[0] if account_row else 5_000_000
                     remaining_balance = balance - verification["authorised_total_minor"]
                     if remaining_balance < mandate.protected_balance_minor:

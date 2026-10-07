@@ -31,7 +31,7 @@ Save an instruction such as “Handle verified bills up to ₹3,000, protect ₹
 - Optional Firestore storage for instructions, bills, signals, cases and run evidence.
 - Friday UI, API docs and automated tests.
 
-Local SQLite mode runs the complete artificial-money journey. Firestore phase 1 holds every new payment until balance, receipt and idempotency share a durable transaction. Real UPI, GPay, SMS and bank accounts are not connected.
+Local SQLite mode runs the complete artificial-money journey. Version 0.13.0 adds an atomic Firestore payment journal, with restart and concurrency contract tests. Cloud activation still requires a database, stable signing key and live integration checks. Real UPI, GPay, SMS and bank accounts are not connected.
 
 ## Technology inventory
 
@@ -41,7 +41,7 @@ Google Cloud preparation includes Vertex AI, private Cloud Run, Artifact Registr
 
 ## Verification
 
-Version 0.12.0: 141 tests ran, 140 passed, one optional Anthos test skipped.
+Version 0.13.0: 151 tests ran, 150 passed, one optional Anthos test skipped. The suite includes durable transaction contract tests; live Firestore checks remain pending activation.
 
 ```bash
 docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests

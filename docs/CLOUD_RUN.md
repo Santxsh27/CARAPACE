@@ -39,3 +39,26 @@ The configured billing budget sends warnings; Google Cloud budgets do not automa
 - Use Cloud Tasks for durable work and reconciliation.
 - Add audit retention, regional/data residency review and incident controls.
 - Perform a threat model and independent security review.
+
+## Version 0.13.0 activation gates
+
+The code now supports `CARAPACE_FRIDAY_DURABLE_STORE=firestore`. Payments remain
+artificial money. Receipt, bill-level payment identity, idempotency, balance and
+run outcome commit atomically. Reads use cloud authority rather than local caches.
+An enrolled provider change or mandate change at commit time can hold the task.
+
+Before activation:
+
+1. Confirm database location (existing Cloud Run is Mumbai, `asia-south1`).
+2. Create the default Firestore database and grant the runtime identity the
+   required Firestore data permissions, scoped to this project.
+3. Provision a stable Ed25519 key in Secret Manager and mount it read-only.
+   Set `CARAPACE_BANK_SIGNING_KEY_PATH` to the mounted file. Firestore mode
+   refuses ephemeral auto-generated bank signing keys.
+4. Deploy a private revision and use authenticated requests to test a genuine
+   new bill, duplicate attempt, recipient mismatch, restart, and receipt verification.
+5. Only promote after live checks pass. Unit tests use a strict in-memory
+   transaction driver; they are not a substitute for the Firestore checks.
+
+Cloud Tasks, public web deployment and real provider OAuth connectors remain
+separate work. Do not call the current local poller a durable cloud scheduler.

@@ -1,15 +1,12 @@
-"""Optional durable state for Financial Friday's non-payment records.
-
-The artificial-money payment transaction intentionally remains in SQLite until
-its complete idempotency/account update can move as one Firestore transaction.
-This module never claims otherwise.
-"""
+"""Optional transactional Firestore state for Friday's artificial-money sandbox."""
 from __future__ import annotations
 
 from typing import Any, Protocol
+from copy import deepcopy
+from hashlib import sha256
 
 
-KINDS = {"mandates", "accounts", "provider_bills", "signals", "dynamic_cases", "runs"}
+KINDS = {"mandates", "accounts", "provider_bills", "signals", "dynamic_cases", "runs", "payments", "idempotency"}
 
 
 class FridayDurableState(Protocol):
@@ -36,9 +33,9 @@ class LocalFridayState:
 
 
 class FirestoreFridayState:
-    """Tenant-scoped Firestore mirror and restart source for non-payment state."""
+    """Tenant-scoped authoritative state, including atomic artificial payments."""
 
-    mode = "FIRESTORE_HYBRID"
+    mode = "FIRESTORE_TRANSACTIONAL"
 
     def __init__(
         self,
@@ -85,6 +82,91 @@ class FirestoreFridayState:
         if not 1 <= limit <= 100:
             raise ValueError("durable-state list limit is invalid")
         return [snapshot.to_dict() for snapshot in self._documents(kind, tenant).limit(limit).stream()]
+
+    def _atomic(self, callback):
+        from google.cloud import firestore
+        return firestore.transactional(callback)(self._client.transaction())
+
+    def save_mandate(self, tenant: str, mandate: dict, now: str) -> None:
+        self._validate("mandates", tenant, "current")
+        account = self._documents("accounts", tenant).document("current")
+        instruction = self._documents("mandates", tenant).document("current")
+
+        def commit(transaction):
+            existing = account.get(transaction=transaction)
+            transaction.set(instruction, {"mandate": mandate, "updated_at": now})
+            if not existing.exists:
+                transaction.set(account, {"balance_minor": 5_000_000, "updated_at": now})
+        self._atomic(commit)
+
+    def execute_payment(self, tenant: str, result: dict, receipt: dict, live: dict | None,
+                        signer) -> dict:
+        """Commit an artificial payment, balance and run together; never real funds.
+
+        The callback can be retried by Firestore. It has no model calls, external
+        payment calls or mutations to the caller's result.
+        """
+        payload = receipt["payload"]
+        self._validate("runs", tenant, result["run_id"])
+        identity = ("bill:" + live["authoritative_bill"]["provider_id"] + ":" +
+                    live["authoritative_bill"]["bill_reference"]) if live else "goal:" + payload["goal_id"]
+        payment = self._documents("payments", tenant).document(sha256(identity.encode()).hexdigest())
+        idem = self._documents("idempotency", tenant).document(sha256(payload["idempotency_key"].encode()).hexdigest())
+        account = self._documents("accounts", tenant).document("current")
+        mandate = self._documents("mandates", tenant).document("current")
+        run = self._documents("runs", tenant).document(result["run_id"])
+        bill = self._documents("provider_bills", tenant).document(live["authoritative_bill"]["bill_reference"]) if live else None
+
+        def commit(transaction):
+            prior = payment.get(transaction=transaction)
+            prior_idem = idem.get(transaction=transaction)
+            balance_record = account.get(transaction=transaction)
+            mandate_record = mandate.get(transaction=transaction)
+            bill_record = bill.get(transaction=transaction) if bill else None
+            output = deepcopy(result)
+            reason = []
+            balance = None
+            old = prior.to_dict().get("receipt") if prior.exists else None
+            if old:
+                bound = all(old["payload"].get(k) == payload[k] for k in
+                            ("tenant_id", "provider_id", "payee_id", "amount_minor", "currency"))
+                if not bound or not signer.verify(old["payload"], old["signature"]):
+                    reason = ["EXISTING_RECEIPT_INVALID"]
+                else:
+                    output["status"] = "ALREADY_COMPLETED"
+                    output["outcome"] = {"money_moved": False, "new_payment_created": False, "receipt": old}
+            elif prior_idem.exists:
+                reason = ["IDEMPOTENCY_CONFLICT"]
+            elif live:
+                if not bill_record.exists or bill_record.to_dict() != live["authoritative_bill"]:
+                    reason = ["PROVIDER_CHANGED"]
+                elif not mandate_record.exists or not balance_record.exists:
+                    reason = ["MANDATE_OR_ACCOUNT_MISSING"]
+                else:
+                    rules = mandate_record.to_dict()["mandate"]
+                    balance = balance_record.to_dict()["balance_minor"] - payload["amount_minor"]
+                    if rules["instruction"] != result["goal"]["instruction"] or rules["max_fee_minor"] < result["goal"]["max_fee_minor"]:
+                        reason = ["MANDATE_CHANGED"]
+                    elif output.get("automatic") and (not rules["automatic_sandbox_execution"] or payload["amount_minor"] > rules["automatic_payment_limit_minor"]):
+                        reason = ["AUTOMATIC_PERMISSION_CHANGED"]
+                    elif balance < rules["protected_balance_minor"]:
+                        reason = ["PROTECTED_BALANCE"]
+            if reason:
+                output["status"] = "HELD"
+                output["outcome"] = {"money_moved": False, "new_payment_created": False, "reason": reason}
+            elif not old:
+                output["status"] = "COMPLETED_SYNTHETIC"
+                output["outcome"] = {"money_moved": True, "new_payment_created": True,
+                                     "receipt": receipt, "sandbox_balance_minor": balance}
+                transaction.set(payment, {"receipt": receipt})
+                transaction.set(idem, {"payment_id": payment.id})
+                if balance is not None:
+                    transaction.set(account, {"balance_minor": balance})
+            output["events"].append({"type": "RESTRICTED_EXECUTOR_RESULT", "status": output["status"],
+                                     "new_payment": output["outcome"]["new_payment_created"]})
+            transaction.set(run, {"result": output})
+            return output
+        return self._atomic(commit)
 
 
 def create_friday_durable_state(settings) -> FridayDurableState:

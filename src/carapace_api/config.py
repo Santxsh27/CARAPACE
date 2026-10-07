@@ -83,6 +83,8 @@ class Settings:
         friday_durable_store = os.getenv("CARAPACE_FRIDAY_DURABLE_STORE", "sqlite").strip().lower()
         if friday_durable_store not in {"sqlite", "firestore"}:
             raise RuntimeError("CARAPACE_FRIDAY_DURABLE_STORE must be 'sqlite' or 'firestore'")
+        if friday_durable_store == "firestore" and not raw_bank_signing_key_path:
+            raise RuntimeError("Firestore payments require a persistent CARAPACE_BANK_SIGNING_KEY_PATH; mount a Secret Manager key")
 
         return cls(
             environment=environment,

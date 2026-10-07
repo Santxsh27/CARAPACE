@@ -109,6 +109,23 @@ class FinancialFridayTests(unittest.TestCase):
             self.service.run_live_signal("tenant-a", result["event_id"])
         self.assertEqual(self.payment_count(), 0)
 
+    def test_live_provider_change_after_interpretation_is_held(self):
+        self.publish_live_bill()
+        signal = self.service.ingest_live_signal("tenant-a", IncomingFinancialSignal(
+            source_type="MESSAGE", content_text="TN Power bill LIVE-1001 for ₹2,499. Payee: tnpower@upi"))
+        self.publish_live_bill(amount=299_900)
+        result = self.service.run_live_signal("tenant-a", signal["event_id"])["run"]
+        self.assertEqual(result["outcome"]["reason"], ["PROVIDER_CHANGED"])
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_live_repeated_bill_in_different_message_pays_once(self):
+        self.publish_live_bill()
+        for prefix in ("", "Reminder: "):
+            signal = self.service.ingest_live_signal("tenant-a", IncomingFinancialSignal(
+                source_type="MESSAGE", content_text=prefix + "TN Power bill LIVE-1001 for ₹2,499. Payee: tnpower@upi"))
+            self.service.run_live_signal("tenant-a", signal["event_id"])
+        self.assertEqual(self.payment_count(), 1)
+
     def test_live_bill_can_complete_automatically_inside_saved_limits(self):
         self.service.save_mandate("tenant-a", FridayMandate(
             instruction="Automatically handle verified household bills within my limit.",
