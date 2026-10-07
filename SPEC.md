@@ -124,9 +124,9 @@ Cloud Run API and orchestrator
           └── Cloud Logging: operational evidence without payment secrets
 ```
 
-The first deployment uses a Cloud Run service identity with `roles/aiplatform.user`; it does not use a Gemini API key. Version 0.12.0 can mirror tenant-scoped mandates, artificial account snapshots, provider bills, interpreted signals, runs and evidence to Firestore. The artificial-money balance, receipt and idempotency operation remain in one SQLite transaction during phase 1. In Firestore mode, the guard holds every new payment effect, including tasks checked on the current instance. Restored records remain reviewable. Payment execution resumes only after the complete transaction moves to one durable store.
+The first deployment uses a Cloud Run service identity with `roles/aiplatform.user`; it does not use a Gemini API key. Version 0.13.0 implements tenant-scoped Firestore state and atomically commits artificial-money balance, receipt, bill-level payment identity, idempotency marker and run outcome. Restored tasks consult the same authoritative journal. Commit-time checks revalidate provider records, mandate instructions, automatic permission and protected balance. Local development retains its SQLite transaction and guards.
 
-Local mode is `SQLITE_LOCAL`; cloud phase 1 is explicitly labelled `FIRESTORE_HYBRID`. Firestore activation also requires creating the project's default database in an explicitly chosen location. The API exposes this boundary at `GET /v1/friday/storage-status`, and the product surface displays the active storage mode.
+Local mode is `SQLITE_LOCAL`; the new cloud implementation is labelled `FIRESTORE_TRANSACTIONAL`. Activation still requires the default database in a confirmed location, runtime permissions and a persistent signing key. In-memory callback tests do not replace live Firestore restart/replay verification. The API exposes the active boundary at `GET /v1/friday/storage-status`, and the product surface displays the storage mode.
 
 Google ADK should be introduced when there are multiple durable agent stages requiring orchestration. It must not replace the safety kernel. Document AI should be added only when real consented bill/document ingestion is implemented. BigQuery/Vertex model evaluation should be added when there is a sufficiently large labelled evaluation set. Products are selected for real responsibilities, not logo count.
 
@@ -185,7 +185,7 @@ Implemented:
 
 Next:
 
-1. Select the Firestore location, create the `(default)` database and deploy version 0.12.0 with hybrid persistence enabled.
+1. Confirm the Firestore location, provision the default database and stable signer, and validate version 0.13.0 with live transactional persistence before promoting a new private Cloud Run revision.
 2. Move the artificial balance, receipt and idempotency operation into one Firestore transaction, then enable safe restart/resume.
 3. Replace the same-operator test provider with an independently authenticated sandbox connector.
 4. Add durable Cloud Tasks orchestration and recovery.
