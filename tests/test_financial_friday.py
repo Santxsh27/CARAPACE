@@ -4,6 +4,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import Mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,7 +17,7 @@ from carapace_ai.financial_friday import (
 )
 from carapace_api.config import Settings
 from carapace_api.factory import create_app
-from carapace_api.financial_friday import FinancialFridayService
+from carapace_api.financial_friday import FinancialFridayService, FridayUnderstandingUnavailable
 from carapace_api.friday_inbox import FridayInbox
 from carapace_core.bank_envelope import BankEnvelopeSigner
 from carapace_core.financial_friday import (
@@ -50,6 +51,42 @@ class FinancialFridayTests(unittest.TestCase):
     def payment_count(self):
         with sqlite3.connect(self.path) as db:
             return db.execute("SELECT COUNT(*) FROM friday_payments").fetchone()[0]
+
+    def test_understanding_transient_failure_retries_before_any_execution(self):
+        error = RuntimeError("temporary provider failure")
+        error.code = 504
+        call = Mock(side_effect=[error, "interpreted"])
+        self.assertEqual(self.service._understand(call), ("interpreted", 2))
+        self.assertEqual(call.call_count, 2)
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_understanding_retries_are_bounded(self):
+        error = RuntimeError("temporary provider failure")
+        error.code = 503
+        call = Mock(side_effect=error)
+        with self.assertRaises(FridayUnderstandingUnavailable):
+            self.service._understand(call)
+        self.assertEqual(call.call_count, 2)
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_understanding_invalid_output_is_not_retried(self):
+        call = Mock(side_effect=ValueError("invalid structured output"))
+        with self.assertRaises(FridayUnderstandingUnavailable):
+            self.service._understand(call)
+        self.assertEqual(call.call_count, 1)
+
+    def test_input_api_fails_closed_when_understanding_is_unavailable(self):
+        settings = Settings(environment="test", database_path=Path(self.temp.name) / "api-failure.db",
+                            tenant_keys={"tenant-a": "secret-a"}, ai_provider="local")
+        app = create_app(settings=settings)
+        app.state.financial_friday.planner.interpret_signal = Mock(side_effect=RuntimeError("provider unavailable"))
+        with TestClient(app) as client:
+            response = client.post("/v1/friday/live-input", headers={
+                "X-Carapace-Tenant": "tenant-a", "X-Carapace-API-Key": "secret-a"},
+                json={"source_type": "MESSAGE", "content_text": "Please read this new bill"})
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.headers["Retry-After"], "10")
+        self.assertIn("no payment was submitted", response.json()["detail"])
 
     class MemoryDurableState:
         mode = "FIRESTORE_HYBRID"

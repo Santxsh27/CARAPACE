@@ -28,6 +28,10 @@ from carapace_integrations.financial_friday_fixtures import load_case
 from .friday_durable import LocalFridayState
 
 
+class FridayUnderstandingUnavailable(RuntimeError):
+    """Understanding failed before any financial execution was submitted."""
+
+
 class FinancialFridayService:
     def __init__(self, database_path: Path, signer, planner, durable_state=None):
         self.path, self.signer, self.planner = database_path, signer, planner
@@ -172,15 +176,31 @@ class FinancialFridayService:
 
     def ingest_live_signal(self, tenant: str, signal: IncomingFinancialSignal) -> dict:
         """Interpret a novel input, ground it in the test provider, and optionally execute."""
-        interpretation = self.planner.interpret_signal(signal.source_type, signal.content_text)
-        return self._ingest_interpreted_signal(tenant, signal, interpretation)
+        interpretation, attempts = self._understand(
+            self.planner.interpret_signal, signal.source_type, signal.content_text)
+        return self._ingest_interpreted_signal(tenant, signal, interpretation, source_metadata={
+            "understanding": {"mode": self.planner.mode, "model": self.planner.model_name,
+                              "attempts": attempts, "successful_model_calls": int(self.planner.mode != "LOCAL_RULES")}})
+
+    @staticmethod
+    def _understand(call, *args):
+        # Read-only model requests may retry; financial execution must not.
+        for attempt in range(2):
+            try:
+                return call(*args), attempt + 1
+            except Exception as error:
+                transient = getattr(error, "code", None) in {500, 502, 503, 504}
+                if not transient or attempt == 1:
+                    raise FridayUnderstandingUnavailable("Financial understanding is unavailable") from error
+        raise AssertionError("unreachable")
 
     def ingest_document(
         self, tenant: str, filename: str, mime_type: str, document_bytes: bytes
     ) -> dict:
         """Interpret an ephemeral document; persist its digest and evidence, never its raw bytes."""
         digest = hashlib.sha256(document_bytes).hexdigest()
-        interpretation = self.planner.interpret_document(mime_type, document_bytes, filename)
+        interpretation, attempts = self._understand(
+            self.planner.interpret_document, mime_type, document_bytes, filename)
         signal = IncomingFinancialSignal(
             source_type="DOCUMENT",
             content_text=f"Uploaded document: {filename} ({mime_type})",
@@ -198,7 +218,9 @@ class FinancialFridayService:
             signal,
             interpretation,
             source_evidence_id="document-sha256:" + digest,
-            source_metadata={"document": metadata},
+            source_metadata={"document": metadata, "understanding": {
+                "mode": self.planner.mode, "model": self.planner.model_name,
+                "attempts": attempts, "successful_model_calls": int(self.planner.mode != "LOCAL_RULES")}},
         )
 
     def _ingest_interpreted_signal(

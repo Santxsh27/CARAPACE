@@ -10,6 +10,7 @@ from carapace_core.friday_live import FridayMandate, IncomingFinancialSignal, Te
 from carapace_integrations.financial_friday_fixtures import CASES
 from .auth import TenantContext
 from .friday_inbox import FridayInbox
+from .financial_friday import FridayUnderstandingUnavailable
 
 
 class WatchRequest(BaseModel):
@@ -105,7 +106,10 @@ def register_financial_friday_routes(application, service, authenticate):
     async def ingest_live_input(
         request: IncomingFinancialSignal, tenant: TenantContext = Depends(authenticate)
     ):
-        return await run_in_threadpool(service.ingest_live_signal, tenant.tenant_id, request)
+        try:
+            return await run_in_threadpool(service.ingest_live_signal, tenant.tenant_id, request)
+        except FridayUnderstandingUnavailable as error:
+            raise HTTPException(503, "Financial understanding is unavailable; no payment was submitted", headers={"Retry-After": "10"}) from error
 
     @application.post("/v1/friday/documents", tags=["financial-friday"])
     async def ingest_document(
@@ -126,8 +130,10 @@ def register_financial_friday_routes(application, service, authenticate):
             return await run_in_threadpool(
                 service.ingest_document, tenant.tenant_id, safe_name, mime_type, data
             )
-        except Exception as error:
+        except FridayUnderstandingUnavailable as error:
             raise HTTPException(503, "document understanding is unavailable; no action was taken") from error
+        except Exception as error:
+            raise HTTPException(503, "document outcome is unavailable; check activity before retrying") from error
 
     @application.post("/v1/friday/live-input/{event_id}/run", tags=["financial-friday"])
     async def run_live_input(event_id: str, tenant: TenantContext = Depends(authenticate)):
