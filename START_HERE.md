@@ -31,17 +31,17 @@ Save an instruction such as “Handle verified bills up to ₹3,000, protect ₹
 - Optional Firestore storage for instructions, bills, signals, cases and run evidence.
 - Friday UI, API docs and automated tests.
 
-Local SQLite mode runs the complete artificial-money journey. Version 0.13.0 adds an atomic Firestore payment journal, with restart and concurrency contract tests. Cloud activation still requires a database, stable signing key and live integration checks. Real UPI, GPay, SMS and bank accounts are not connected.
+Local SQLite mode runs the complete artificial-money journey. Version 0.13.2 includes an atomic Firestore payment journal and receipt-first replay: an already-paid bill is confirmed without another AI call or debit. The Mumbai database and persistent signing keys are provisioned; cloud verification and release results are recorded in docs/CLOUD_RUN.md. Real UPI, GPay, SMS and bank accounts are not connected.
 
 ## Technology inventory
 
 Python, FastAPI, Pydantic, SQLite, cryptography/Ed25519, Google Gen AI SDK, Google Firestore client, Docker Compose, HTML/CSS/JavaScript and browser speech transcription. The repository retains earlier Bank of Anthos artificial-bank work.
 
-Google Cloud preparation includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Build, service identity, Secret Manager and budget alerts. Earlier tests confirmed live Vertex planning. The deployed cloud revision is older than this local release. Cloud Tasks and native Gemini Live voice remain planned. BigQuery, Document AI, ADK and Agora are not implemented.
+Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Build, service identity, Secret Manager and budget alerts. The deployed API is version 0.13.2, using Gemini 3.5 Flash-Lite and transactional Firestore. Fresh-bill execution and cross-revision receipt replay were verified. The website is privately deployed with working health and missing-login rejection, but Google IAP setup and a real signed-in journey remain unfinished. Cloud Tasks and native Gemini Live voice remain planned. BigQuery, Document AI, ADK and Agora are not implemented.
 
 ## Verification
 
-Version 0.13.0: 151 tests ran, 150 passed, one optional Anthos test skipped. The suite includes durable transaction contract tests; live Firestore checks remain pending activation.
+Version 0.13.2 plus the cloud gateway: 175 tests ran, 174 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while the AI provider is unavailable, identity/tenant isolation, same-origin protection and no automatic gateway payment retry. Live cloud checks are reported separately; real website login is not verified yet.
 
 ```bash
 docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests
@@ -49,9 +49,9 @@ docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api
 
 ## Remaining submission work, in order
 
-1. Create Firestore in the selected region and verify real writes/restoration.
-2. Move payment balance, receipt and idempotency into one durable transaction; test concurrent and restarted execution.
-3. Deploy the latest API and web surface with working authentication and stable signing.
+1. Finish the invited-user gateway checks and Google login setup described in docs/FRIDAY_WEB_RELEASE_NEXT.md.
+2. Deploy the web surface with user-aware authentication; keep API credentials server-side.
+3. Connect an independently authenticated sandbox provider.
 4. Connect durable orchestration if promising continuous background operation.
 5. Measure unseen-case completion, unsafe actions, false holds, latency and AI cost against plain Gemini.
 6. Finish demo video, deck, architecture, limitations and submission links.

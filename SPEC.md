@@ -118,7 +118,7 @@ Cloud Run API and orchestrator
           ├── Vertex AI Gemini: structured planning and repair
           ├── Safety kernel: deterministic financial verification
           ├── Provider adapters: allowlisted operations only
-          ├── Firestore: durable non-payment state and evidence (phase 1)
+          ├── Firestore: atomic artificial-payment journal, state and evidence
           ├── Cloud Tasks: future resumable execution and reconciliation
           ├── Secret Manager + IAM: future connector credentials and keys
           └── Cloud Logging: operational evidence without payment secrets
@@ -126,7 +126,7 @@ Cloud Run API and orchestrator
 
 The first deployment uses a Cloud Run service identity with `roles/aiplatform.user`; it does not use a Gemini API key. Version 0.13.0 implements tenant-scoped Firestore state and atomically commits artificial-money balance, receipt, bill-level payment identity, idempotency marker and run outcome. Restored tasks consult the same authoritative journal. Commit-time checks revalidate provider records, mandate instructions, automatic permission and protected balance. Local development retains its SQLite transaction and guards.
 
-Local mode is `SQLITE_LOCAL`; the new cloud implementation is labelled `FIRESTORE_TRANSACTIONAL`. Activation still requires the default database in a confirmed location, runtime permissions and a persistent signing key. In-memory callback tests do not replace live Firestore restart/replay verification. The API exposes the active boundary at `GET /v1/friday/storage-status`, and the product surface displays the storage mode.
+Local mode is `SQLITE_LOCAL`; cloud mode is labelled `FIRESTORE_TRANSACTIONAL`. The default database is provisioned in Mumbai, with runtime permissions and persistent signing keys in Secret Manager. In-memory callback tests do not replace live Firestore restart/replay verification. The API exposes the active boundary at `GET /v1/friday/storage-status`, and the product surface displays the storage mode. Version 0.13.2 validates existing signed receipts before requesting an AI plan, so completed bills remain confirmable during an AI outage.
 
 Google ADK should be introduced when there are multiple durable agent stages requiring orchestration. It must not replace the safety kernel. Document AI should be added only when real consented bill/document ingestion is implemented. BigQuery/Vertex model evaluation should be added when there is a sufficiently large labelled evaluation set. Products are selected for real responsibilities, not logo count.
 
@@ -180,13 +180,14 @@ Implemented:
 - Browser voice capture feeding the same live-input API.
 - Ephemeral Gemini document understanding for PNG, JPEG, WebP and PDF bills with exact source quotations and no raw-file persistence.
 - Google Cloud project, enabled services, budget alerts and live Vertex smoke test.
-- Opt-in Firestore phase-1 persistence for non-payment Friday records, with tenant-scoped paths and fail-visible configuration.
-- Safe restart behavior: restored evidence is readable, while all new payment effects are held until payment idempotency moves into durable storage.
+- Opt-in tenant-scoped Firestore transactions for artificial payments, balances, receipts, idempotency and run outcomes, with commit-time provider and mandate checks.
+- Restored tasks use the cloud journal before creating any payment effect; persistent signing keys are required in Firestore mode.
+- Bounded read-only understanding retries for transient provider failures; exhausted understanding fails closed with no submitted payment. Attempt and model provenance are retained.
 
 Next:
 
-1. Confirm the Firestore location, provision the default database and stable signer, and validate version 0.13.0 with live transactional persistence before promoting a new private Cloud Run revision.
-2. Move the artificial balance, receipt and idempotency operation into one Firestore transaction, then enable safe restart/resume.
+1. Finish gateway security and browser initialization tests. Private API version 0.13.2 is already promoted following fresh-bill execution and cross-revision signed-receipt replay verification; evidence is in docs/CLOUD_RELEASE_0132_VERIFIED.md.
+2. Deploy an authenticated web surface, keeping tenant credentials server-side.
 3. Replace the same-operator test provider with an independently authenticated sandbox connector.
 4. Add durable Cloud Tasks orchestration and recovery.
 5. Replace browser transcription with Gemini Live API native audio using the same tools.
