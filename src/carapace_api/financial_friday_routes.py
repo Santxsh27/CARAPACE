@@ -80,6 +80,11 @@ def register_financial_friday_routes(application, service, authenticate):
     def today(tenant: TenantContext = Depends(authenticate)):
         return service.daily_brief(tenant.tenant_id)
 
+    @application.get("/v1/friday/storage-status", tags=["financial-friday"])
+    def storage_status(tenant: TenantContext = Depends(authenticate)):
+        del tenant
+        return service.storage_status()
+
     @application.get("/v1/friday/mandate", tags=["financial-friday"])
     def read_mandate(tenant: TenantContext = Depends(authenticate)):
         return service.mandate(tenant.tenant_id)
@@ -144,6 +149,7 @@ def register_financial_friday_routes(application, service, authenticate):
             ],
             "configured_mode": service.planner.mode,
             "model": service.planner.model_name,
+            "storage": service.storage_status(),
             "scope": "Authorized fixtures and artificial money only",
         }
 

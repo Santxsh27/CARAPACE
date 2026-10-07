@@ -25,11 +25,13 @@ from carapace_core.friday_live import (
     TestProviderBill,
 )
 from carapace_integrations.financial_friday_fixtures import load_case
+from .friday_durable import LocalFridayState
 
 
 class FinancialFridayService:
-    def __init__(self, database_path: Path, signer, planner):
+    def __init__(self, database_path: Path, signer, planner, durable_state=None):
         self.path, self.signer, self.planner = database_path, signer, planner
+        self.durable = durable_state or LocalFridayState()
         with self.connect() as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS friday_runs (
@@ -58,6 +60,20 @@ class FinancialFridayService:
                     case_json TEXT NOT NULL, PRIMARY KEY (tenant_id, case_id));
             """)
 
+    def storage_status(self) -> dict:
+        return {
+            "mode": self.durable.mode,
+            "durable_non_payment_state": self.durable.mode == "FIRESTORE_HYBRID",
+            "payment_transaction": "SQLITE_ARTIFICIAL_MONEY",
+            "claim": (
+                "Firestore mirrors and restores mandates, provider bills, signals, cases and run evidence. "
+                "Artificial-money payment execution is disabled until idempotency and balance updates "
+                "share one durable transaction."
+                if self.durable.mode == "FIRESTORE_HYBRID"
+                else "All Friday state is local to this development instance."
+            ),
+        }
+
     @staticmethod
     def _default_mandate() -> FridayMandate:
         return FridayMandate(
@@ -76,11 +92,20 @@ class FinancialFridayService:
             account = db.execute(
                 "SELECT balance_minor FROM friday_accounts WHERE tenant_id=?", (tenant,)
             ).fetchone()
-        mandate = FridayMandate.model_validate_json(row[0]) if row else self._default_mandate()
+        durable_mandate = self.durable.get("mandates", tenant, "current") if row is None else None
+        durable_account = self.durable.get("accounts", tenant, "current") if account is None else None
+        mandate = (
+            FridayMandate.model_validate_json(row[0])
+            if row
+            else FridayMandate.model_validate(durable_mandate["mandate"])
+            if durable_mandate
+            else self._default_mandate()
+        )
         return {
             "mandate": mandate.model_dump(),
-            "sandbox_balance_minor": account[0] if account else 5_000_000,
+            "sandbox_balance_minor": account[0] if account else durable_account["balance_minor"] if durable_account else 5_000_000,
             "scope": "Artificial-money account and enrolled test providers only",
+            "storage": self.storage_status(),
         }
 
     def save_mandate(self, tenant: str, mandate: FridayMandate) -> dict:
@@ -94,7 +119,14 @@ class FinancialFridayService:
             db.execute(
                 "INSERT OR IGNORE INTO friday_accounts VALUES (?,?)", (tenant, 5_000_000)
             )
-        return self.mandate(tenant)
+        current = self.mandate(tenant)
+        self.durable.put("mandates", tenant, "current", {
+            "mandate": mandate.model_dump(), "updated_at": now
+        })
+        self.durable.put("accounts", tenant, "current", {
+            "balance_minor": current["sandbox_balance_minor"], "updated_at": now
+        })
+        return current
 
     def publish_test_bill(self, tenant: str, bill: TestProviderBill) -> dict:
         with self.connect() as db:
@@ -103,6 +135,7 @@ class FinancialFridayService:
                 "DO UPDATE SET bill_json=excluded.bill_json",
                 (tenant, bill.bill_reference, bill.model_dump_json()),
             )
+        self.durable.put("provider_bills", tenant, bill.bill_reference, bill.model_dump())
         return {"published": True, "bill": bill.model_dump(), "scope": "ENROLLED_TEST_PROVIDER"}
 
     def _load_case(self, tenant: str, case_id: str) -> dict:
@@ -113,7 +146,10 @@ class FinancialFridayService:
                     (tenant, case_id),
                 ).fetchone()
             if row is None:
-                raise KeyError(case_id)
+                durable_case = self.durable.get("dynamic_cases", tenant, case_id)
+                if durable_case is None:
+                    raise KeyError(case_id)
+                return durable_case["case"]
             return json.loads(row[0])
         return load_case(case_id)
 
@@ -160,6 +196,9 @@ class FinancialFridayService:
         event_id = signal.event_id or "evt-" + sha256_hex({
             "tenant": tenant, "source": signal.source_type, "content": signal.content_text
         })[:24]
+        durable_existing = self.durable.get("signals", tenant, event_id)
+        if durable_existing is not None:
+            return durable_existing["result"]
         now = datetime.now(timezone.utc).isoformat()
         result = {
             "event_id": event_id,
@@ -176,7 +215,13 @@ class FinancialFridayService:
                     "SELECT bill_json FROM friday_provider_bills WHERE tenant_id=? AND bill_reference=?",
                     (tenant, interpretation.bill_reference),
                 ).fetchone()
-            bill = TestProviderBill.model_validate_json(row[0]) if row else None
+            if row:
+                bill = TestProviderBill.model_validate_json(row[0])
+            else:
+                durable_bill = self.durable.get(
+                    "provider_bills", tenant, interpretation.bill_reference
+                )
+                bill = TestProviderBill.model_validate(durable_bill) if durable_bill else None
 
         case_id = None
         if bill is not None:
@@ -240,6 +285,7 @@ class FinancialFridayService:
                     "INSERT OR REPLACE INTO friday_dynamic_cases VALUES (?,?,?)",
                     (tenant, case_id, json.dumps(case)),
                 )
+            self.durable.put("dynamic_cases", tenant, case_id, {"case": case})
             balance = mandate_data["sandbox_balance_minor"]
             affordable = balance - bill.amount_minor >= mandate.protected_balance_minor
             within_limit = bill.amount_minor <= mandate.automatic_payment_limit_minor
@@ -271,6 +317,15 @@ class FinancialFridayService:
                 (tenant, event_id, signal.model_dump_json(), interpretation.model_dump_json(),
                  case_id, result["state"], json.dumps(result), now),
             )
+        self.durable.put("signals", tenant, event_id, {
+            "event_id": event_id,
+            "case_id": case_id,
+            "signal": signal.model_dump(),
+            "interpretation": interpretation.model_dump(),
+            "state": result["state"],
+            "result": result,
+            "created_at": now,
+        })
         return result
 
     def live_signals(self, tenant: str) -> dict:
@@ -279,7 +334,10 @@ class FinancialFridayService:
                 "SELECT result_json FROM friday_live_signals WHERE tenant_id=? ORDER BY rowid DESC LIMIT 20",
                 (tenant,),
             ).fetchall()
-        return {"items": [json.loads(row[0]) for row in rows]}
+        items = [json.loads(row[0]) for row in rows]
+        if not items:
+            items = [record["result"] for record in self.durable.list("signals", tenant, 20)]
+        return {"items": items, "storage": self.storage_status()}
 
     def run_live_signal(self, tenant: str, event_id: str) -> dict:
         with self.connect() as db:
@@ -287,12 +345,21 @@ class FinancialFridayService:
                 "SELECT case_id,result_json FROM friday_live_signals WHERE tenant_id=? AND event_id=?",
                 (tenant, event_id),
             ).fetchone()
-        if row is None or not row[0]:
-            raise KeyError(event_id)
-        existing = json.loads(row[1])
+        if row is None:
+            durable_signal = self.durable.get("signals", tenant, event_id)
+            if durable_signal is None or not durable_signal.get("case_id"):
+                raise KeyError(event_id)
+            raise ValueError(
+                "This signal was restored from Firestore for review, but payment execution stays disabled "
+                "until payment idempotency moves into the same durable transaction."
+            )
+        else:
+            if not row[0]:
+                raise KeyError(event_id)
+            case_id, existing = row[0], json.loads(row[1])
         if existing.get("reason") and existing["reason"] != ["ABOVE_AUTOMATIC_LIMIT"]:
             raise ValueError("This input has unresolved contradictions and cannot execute.")
-        run = self.run(tenant, row[0])
+        run = self.run(tenant, case_id)
         updated = dict(existing, state="COMPLETED" if run["status"] != "HELD" else "ATTENTION",
                        run_id=run["run_id"], money_moved=run["outcome"].get("money_moved", False),
                        message="Friday completed the verified test bill." if run["status"] != "HELD" else "The safety kernel held this task.")
@@ -301,6 +368,11 @@ class FinancialFridayService:
                 "UPDATE friday_live_signals SET state=?,result_json=? WHERE tenant_id=? AND event_id=?",
                 (updated["state"], json.dumps(updated), tenant, event_id),
             )
+        durable_signal = self.durable.get("signals", tenant, event_id) or {
+            "event_id": event_id, "case_id": case_id
+        }
+        durable_signal.update(state=updated["state"], result=updated)
+        self.durable.put("signals", tenant, event_id, durable_signal)
         return {"signal": updated, "run": run}
 
     def connect(self):
@@ -315,6 +387,7 @@ class FinancialFridayService:
                 "DO UPDATE SET result_json=excluded.result_json",
                 (tenant, result["run_id"], json.dumps(result)),
             )
+        self.durable.put("runs", tenant, result["run_id"], {"result": result})
 
     def get(self, tenant: str, run_id: str) -> dict:
         with self.connect() as db:
@@ -323,7 +396,10 @@ class FinancialFridayService:
                 (tenant, run_id),
             ).fetchone()
         if row is None:
-            raise KeyError(run_id)
+            durable_run = self.durable.get("runs", tenant, run_id)
+            if durable_run is None:
+                raise KeyError(run_id)
+            return durable_run["result"]
         return json.loads(row[0])
 
     def daily_brief(self, tenant: str) -> dict:
@@ -494,6 +570,20 @@ class FinancialFridayService:
             self._save(tenant, result)
             return
 
+        if self.durable.mode == "FIRESTORE_HYBRID":
+            result["status"] = "HELD"
+            result["outcome"] = {
+                "money_moved": False,
+                "new_payment_created": False,
+                "reason": ["PAYMENT_STATE_NOT_DURABLE"],
+            }
+            result["events"].append({
+                "type": "PAYMENT_HELD_UNTIL_DURABLE_TRANSACTION",
+                "new_payment": False,
+            })
+            self._save(tenant, result)
+            return
+
         payload = {
             "tenant_id": tenant,
             "goal_id": goal.goal_id,
@@ -545,6 +635,7 @@ class FinancialFridayService:
                             "UPDATE friday_runs SET result_json=? WHERE tenant_id=? AND run_id=?",
                             (json.dumps(result), tenant, result["run_id"]),
                         )
+                        self.durable.put("runs", tenant, result["run_id"], {"result": result})
                         return
                 receipt = {
                     "payload": payload,
@@ -583,3 +674,10 @@ class FinancialFridayService:
                 "UPDATE friday_runs SET result_json=? WHERE tenant_id=? AND run_id=?",
                 (json.dumps(result), tenant, result["run_id"]),
             )
+        self.durable.put("runs", tenant, result["run_id"], {"result": result})
+        final_balance = result.get("outcome", {}).get("sandbox_balance_minor")
+        if final_balance is not None:
+            self.durable.put("accounts", tenant, "current", {
+                "balance_minor": final_balance,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            })

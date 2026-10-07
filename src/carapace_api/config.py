@@ -25,6 +25,9 @@ class Settings:
     gemini_model: str = "gemini-3.5-flash-lite"
     bank_signing_key_path: Path | None = None
     witness_signing_key_path: Path | None = None
+    friday_durable_store: str = "sqlite"
+    firestore_database: str = "(default)"
+    firestore_collection: str = "financial_friday_v1"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -77,6 +80,10 @@ class Settings:
                 "CARAPACE_WITNESS_SIGNING_KEY_PATH must be explicitly provisioned outside development"
             )
 
+        friday_durable_store = os.getenv("CARAPACE_FRIDAY_DURABLE_STORE", "sqlite").strip().lower()
+        if friday_durable_store not in {"sqlite", "firestore"}:
+            raise RuntimeError("CARAPACE_FRIDAY_DURABLE_STORE must be 'sqlite' or 'firestore'")
+
         return cls(
             environment=environment,
             database_path=database_path,
@@ -89,6 +96,9 @@ class Settings:
             gemini_model=os.getenv("CARAPACE_GEMINI_MODEL", "gemini-3.5-flash-lite"),
             bank_signing_key_path=Path(raw_bank_signing_key_path) if raw_bank_signing_key_path else database_path.parent / "bank-dev-ed25519.pem",
             witness_signing_key_path=Path(raw_witness_signing_key_path) if raw_witness_signing_key_path else database_path.parent / "witness-dev-ed25519.pem",
+            friday_durable_store=friday_durable_store,
+            firestore_database=os.getenv("CARAPACE_FIRESTORE_DATABASE", "(default)"),
+            firestore_collection=os.getenv("CARAPACE_FIRESTORE_COLLECTION", "financial_friday_v1"),
         )
 
     def passport_signing_key(self, tenant_id: str) -> str:

@@ -64,11 +64,12 @@ from .test_delivery_worker import TestDeliveryWorker
 from .operations import OperationsService
 from .operations_routes import register_operations_routes
 from .financial_friday import FinancialFridayService
+from .friday_durable import create_friday_durable_state
 from .financial_friday_routes import register_financial_friday_routes
 from carapace_integrations.anthos_preflight_bridge import AnthosPreflightBridge
 
 
-VERSION = "0.11.0"
+VERSION = "0.12.0"
 LOGGER = logging.getLogger(__name__)
 
 
@@ -168,6 +169,7 @@ def create_app(
             resolved_settings.database_path,
             signer,
             create_financial_friday_planner(resolved_lens_provider),
+            create_friday_durable_state(resolved_settings),
         )
         application.state.financial_friday = financial_friday
         register_financial_friday_routes(application, financial_friday, authenticate)

@@ -1,0 +1,71 @@
+# Financial Friday — Start Here
+
+Working folder: `/Users/santosh/Desktop/CARAPACE`. The product is Financial Friday; Python module names retain CARAPACE for compatibility.
+
+## What it does
+
+Save an instruction such as “Handle verified bills up to ₹3,000, protect ₹10,000 and never create subscriptions.” Gemini reads a new message, QR text, transcript, bill photo or PDF. Friday matches it to an enrolled provider record, creates a restricted plan, verifies the plan against your limits, then completes one artificial-money payment or explains why it stopped. It checks uncertain previous outcomes before retrying.
+
+## Run and explore
+
+1. Start Docker Desktop and open this folder in Visual Studio Code.
+2. Run `docker compose up -d --build api anthos-demo`.
+3. Open http://localhost:8090 for Friday and http://localhost:8080/docs for the API.
+4. Save a standing instruction and publish a fresh artificial bill with a new reference.
+5. Paste a new message containing that reference or upload its bill image/PDF.
+6. Run Friday and inspect the result. Change the amount or recipient and check that it stops.
+7. Explore subscription and timeout scenarios, then open the technical evidence.
+
+`docker compose stop` preserves the named data volume. Keep `.env`, credentials and signing keys out of GitHub.
+
+## Implemented capabilities
+
+- Typed goals, provider evidence and Gemini action programs.
+- Vertex AI and Gemini Developer API adapters, plus a labelled local comparison.
+- New message, QR-text and transcript interpretation; PNG/JPEG/WebP/PDF interpretation with quotations.
+- Saved limits, reserve protection and opt-in automatic artificial payments.
+- Independent checks for recipient, amount, fees, currency, recurrence, privacy and action order.
+- Restricted execution, tenant isolation, idempotency and signed receipts.
+- Plan repair, six hostile mutations and reconciliation before retry.
+- Background sandbox inbox with bounded retries and claim recovery.
+- Optional Firestore storage for instructions, bills, signals, cases and run evidence.
+- Friday UI, API docs and automated tests.
+
+Local SQLite mode runs the complete artificial-money journey. Firestore phase 1 holds every new payment until balance, receipt and idempotency share a durable transaction. Real UPI, GPay, SMS and bank accounts are not connected.
+
+## Technology inventory
+
+Python, FastAPI, Pydantic, SQLite, cryptography/Ed25519, Google Gen AI SDK, Google Firestore client, Docker Compose, HTML/CSS/JavaScript and browser speech transcription. The repository retains earlier Bank of Anthos artificial-bank work.
+
+Google Cloud preparation includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Build, service identity, Secret Manager and budget alerts. Earlier tests confirmed live Vertex planning. The deployed cloud revision is older than this local release. Cloud Tasks and native Gemini Live voice remain planned. BigQuery, Document AI, ADK and Agora are not implemented.
+
+## Verification
+
+Version 0.12.0: 141 tests ran, 140 passed, one optional Anthos test skipped.
+
+```bash
+docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests
+```
+
+## Remaining submission work, in order
+
+1. Create Firestore in the selected region and verify real writes/restoration.
+2. Move payment balance, receipt and idempotency into one durable transaction; test concurrent and restarted execution.
+3. Deploy the latest API and web surface with working authentication and stable signing.
+4. Connect durable orchestration if promising continuous background operation.
+5. Measure unseen-case completion, unsafe actions, false holds, latency and AI cost against plain Gemini.
+6. Finish demo video, deck, architecture, limitations and submission links.
+
+Confirm deadline and eligibility in your Hack2skill dashboard. Production launch additionally requires authorized providers and security/compliance review.
+
+## Folder map
+
+- `README.md`: public overview, architecture and running instructions.
+- `SPEC.md`: technical and product contract.
+- `docs/CLOUD_RUN.md`: cloud deployment status.
+- `docs/submission/README.md`: submission checklist.
+- `src/carapace_ai`: Gemini integrations.
+- `src/carapace_core`: rules and models.
+- `src/carapace_api`: API, storage and executor.
+- `src/carapace_integrations`: UI and provider/Anthos adapters.
+- `tests`: automated verification.

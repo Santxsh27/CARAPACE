@@ -51,6 +51,21 @@ class FinancialFridayTests(unittest.TestCase):
         with sqlite3.connect(self.path) as db:
             return db.execute("SELECT COUNT(*) FROM friday_payments").fetchone()[0]
 
+    class MemoryDurableState:
+        mode = "FIRESTORE_HYBRID"
+
+        def __init__(self):
+            self.records = {}
+
+        def put(self, kind, tenant, record_id, value):
+            self.records[(kind, tenant, record_id)] = json.loads(json.dumps(value))
+
+        def get(self, kind, tenant, record_id):
+            return self.records.get((kind, tenant, record_id))
+
+        def list(self, kind, tenant, limit=20):
+            return [value for (k, t, _), value in self.records.items() if k == kind and t == tenant][:limit]
+
     def publish_live_bill(self, reference="LIVE-1001", amount=249_900):
         return self.service.publish_test_bill("tenant-a", TestProviderBill(
             bill_reference=reference,
@@ -142,6 +157,41 @@ class FinancialFridayTests(unittest.TestCase):
         with self.service.connect() as db:
             stored = db.execute("SELECT signal_json FROM friday_live_signals").fetchone()[0]
         self.assertNotIn("mock", stored)
+
+    def test_firestore_phase_one_restores_evidence_but_never_resumes_payment(self):
+        durable = self.MemoryDurableState()
+        first = FinancialFridayService(self.path, self.signer, LocalFinancialFridayPlanner(), durable)
+        first.save_mandate("tenant-a", FridayMandate(
+            instruction="Handle verified household bills and protect my reserve.",
+            protected_balance_minor=1_000_000,
+            automatic_payment_limit_minor=300_000,
+        ))
+        first.publish_test_bill("tenant-a", TestProviderBill(
+            bill_reference="LIVE-1001", provider_name="TN Power",
+            provider_id="tn-power-test", payee_id="tnpower@upi",
+            amount_minor=249_900, due_date="2026-10-04",
+        ))
+        checked = first.ingest_live_signal("tenant-a", IncomingFinancialSignal(
+            source_type="MESSAGE",
+            content_text="TN Power bill LIVE-1001 for ₹2,499. Payee: tnpower@upi",
+        ))
+        run = first.run("tenant-a", "genuine-bill")
+        self.assertEqual(checked["state"], "READY")
+        self.assertEqual(first.storage_status()["mode"], "FIRESTORE_HYBRID")
+        self.assertEqual(run["status"], "HELD")
+        self.assertEqual(run["outcome"]["reason"], ["PAYMENT_STATE_NOT_DURABLE"])
+        with first.connect() as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM friday_payments").fetchone()[0], 0)
+
+        restored_path = Path(self.temp.name) / "restored.db"
+        restored = FinancialFridayService(
+            restored_path, self.signer, LocalFinancialFridayPlanner(), durable
+        )
+        self.assertEqual(restored.mandate("tenant-a")["mandate"]["automatic_payment_limit_minor"], 300_000)
+        self.assertEqual(restored.live_signals("tenant-a")["items"][0]["event_id"], checked["event_id"])
+        self.assertEqual(restored.get("tenant-a", run["run_id"])["status"], "HELD")
+        with self.assertRaisesRegex(ValueError, "payment execution stays disabled"):
+            restored.run_live_signal("tenant-a", checked["event_id"])
 
     def test_proactive_intake_is_opt_in_deduplicated_and_never_pays(self):
         inbox = FridayInbox(self.service)

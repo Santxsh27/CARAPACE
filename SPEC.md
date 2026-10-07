@@ -1,6 +1,6 @@
 # Financial Friday — Product and Engineering Specification
 
-Version 1.1 · 1 October 2026
+Version 1.2 · 2 October 2026
 
 ## Product statement
 
@@ -118,13 +118,15 @@ Cloud Run API and orchestrator
           ├── Vertex AI Gemini: structured planning and repair
           ├── Safety kernel: deterministic financial verification
           ├── Provider adapters: allowlisted operations only
-          ├── Firestore / Cloud SQL: future durable goal and run state
+          ├── Firestore: durable non-payment state and evidence (phase 1)
           ├── Cloud Tasks: future resumable execution and reconciliation
           ├── Secret Manager + IAM: future connector credentials and keys
           └── Cloud Logging: operational evidence without payment secrets
 ```
 
-The first deployment uses a Cloud Run service identity with `roles/aiplatform.user`; it does not use a Gemini API key. The current SQLite store is ephemeral on Cloud Run and therefore suitable only for a bounded demonstration.
+The first deployment uses a Cloud Run service identity with `roles/aiplatform.user`; it does not use a Gemini API key. Version 0.12.0 can mirror tenant-scoped mandates, artificial account snapshots, provider bills, interpreted signals, runs and evidence to Firestore. The artificial-money balance, receipt and idempotency operation remain in one SQLite transaction during phase 1. In Firestore mode, the guard holds every new payment effect, including tasks checked on the current instance. Restored records remain reviewable. Payment execution resumes only after the complete transaction moves to one durable store.
+
+Local mode is `SQLITE_LOCAL`; cloud phase 1 is explicitly labelled `FIRESTORE_HYBRID`. Firestore activation also requires creating the project's default database in an explicitly chosen location. The API exposes this boundary at `GET /v1/friday/storage-status`, and the product surface displays the active storage mode.
 
 Google ADK should be introduced when there are multiple durable agent stages requiring orchestration. It must not replace the safety kernel. Document AI should be added only when real consented bill/document ingestion is implemented. BigQuery/Vertex model evaluation should be added when there is a sufficiently large labelled evaluation set. Products are selected for real responsibilities, not logo count.
 
@@ -178,11 +180,13 @@ Implemented:
 - Browser voice capture feeding the same live-input API.
 - Ephemeral Gemini document understanding for PNG, JPEG, WebP and PDF bills with exact source quotations and no raw-file persistence.
 - Google Cloud project, enabled services, budget alerts and live Vertex smoke test.
+- Opt-in Firestore phase-1 persistence for non-payment Friday records, with tenant-scoped paths and fail-visible configuration.
+- Safe restart behavior: restored evidence is readable, while all new payment effects are held until payment idempotency moves into durable storage.
 
 Next:
 
-1. Deploy version 0.11.0 and run Gemini text, document interpretation and planning through Vertex AI on Cloud Run.
-2. Replace ephemeral cloud SQLite with Firestore or Cloud SQL.
+1. Select the Firestore location, create the `(default)` database and deploy version 0.12.0 with hybrid persistence enabled.
+2. Move the artificial balance, receipt and idempotency operation into one Firestore transaction, then enable safe restart/resume.
 3. Replace the same-operator test provider with an independently authenticated sandbox connector.
 4. Add durable Cloud Tasks orchestration and recovery.
 5. Replace browser transcription with Gemini Live API native audio using the same tools.

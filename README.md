@@ -1,5 +1,7 @@
 # Financial Friday
 
+Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo steps, technology list and remaining submission work.
+
 ## A bounded AI operator for everyday financial tasks
 
 **Delegate the goal. Gemini plans. The safety kernel proves. The executor acts once.**
@@ -97,16 +99,19 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Billing is protected by a ₹1,000 monthly alert budget at 25%, 50%, 90% and 100%. Alerts are warnings, not a hard spending cap.
 - Vertex AI, Cloud Run, Cloud Build, Artifact Registry, Secret Manager, Firestore and Cloud Tasks APIs are enabled.
 - A real Vertex AI call to `gemini-3.5-flash` succeeded. No API key was created; Vertex uses Google identity and the Cloud Run service identity.
-- The Cloud Run container remains a bounded hackathon service. SQLite on its temporary filesystem is not production persistence; Firestore/Cloud SQL migration is a later milestone.
+- Version `0.12.0` adds an opt-in `FIRESTORE_HYBRID` store for tenant-scoped standing instructions, artificial accounts, provider bills, interpreted signals, runs and evidence. Local development remains `SQLITE_LOCAL` by default.
+- The payment balance, receipt and idempotency transaction deliberately remain together in SQLite for this phase. In Firestore mode, Friday can check and review tasks but holds every new payment effect until the whole transaction moves to durable storage.
+- The project's default Firestore database has not been created yet because its location is a long-lived infrastructure choice. The code is ready, but cloud activation waits for an explicit location decision.
 - The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-00005-w8k` serves `api:0.10.1` at 100% traffic after authenticated health, version, Vertex configuration and live Gemini execution checks. No Gemini key is exposed.
 - In `0.10.1`, authoritative provider/payee/currency contradictions stop in the deterministic kernel before AI is called, while transient Vertex server errors receive a bounded retry and still fail closed. A cloud test confirmed recipient mismatch with zero model calls and an unknown outcome reconciled through live Vertex AI without creating another payment.
 
 ## Next steps
 
-1. Deploy the Friday web surface separately while keeping the API private.
-2. Replace temporary SQLite state with Firestore or Cloud SQL, then add Cloud Tasks for durable background work.
-3. Add authorised provider/account connectors; do not claim real bank or SMS access without an approved integration.
-4. Run the labelled adversarial evaluation set and publish accuracy, false-hold, latency and per-run cost measurements.
+1. Choose the Firestore data location, create the `(default)` database and deploy `0.12.0` with `CARAPACE_FRIDAY_DURABLE_STORE=firestore`.
+2. Move artificial payment balance, receipt and idempotency into one Firestore transaction before allowing restored tasks to resume execution.
+3. Add Cloud Tasks for durable claims, bounded retries and reconciliation, then deploy the Friday web surface while keeping the API private.
+4. Add authorised provider/account connectors; do not claim real bank or SMS access without an approved integration.
+5. Run the labelled adversarial evaluation set and publish accuracy, false-hold, latency and per-run cost measurements.
 
 ## Run locally
 
@@ -134,6 +139,7 @@ Use the local development headers documented in [docs/api.md](docs/api.md). The 
 
 ```text
 GET  /v1/friday/scenarios
+GET  /v1/friday/storage-status
 POST /v1/friday/scenarios/{scenario_id}/run
 GET  /v1/friday/runs/{run_id}
 GET  /v1/friday/mandate
@@ -155,7 +161,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **140 tests passed, 1 optional Anthos integration test skipped**. The test command disables the development-only direct Anthos bridge so unit tests do not inherit a live integration setting.
+Current isolated result: **141 tests run: 140 passed, 1 optional Anthos integration test skipped**. The test command disables the development-only direct Anthos bridge so unit tests do not inherit a live integration setting.
 
 ## What is retained from CARAPACE
 
@@ -169,6 +175,6 @@ understand → plan → prove → execute → reconcile → remember
 
 ## Honest limits
 
-This prototype uses an enrolled test-provider API, retained regression fixtures and artificial money. Browser speech recognition supplies an optional transcript; Gemini Live native audio is not connected yet. It does not access GPay, phone SMS, a real bank account, UPI credentials, OTPs or production funds. A real launch requires authorised bank/biller connectors, durable managed storage, security review, regulated partner controls, customer support and formal compliance work. Financial Friday does not promise zero fraud, guaranteed savings, guaranteed reimbursement, investment returns, patentability or a hackathon prize.
+This prototype uses an enrolled test-provider API, retained regression fixtures and artificial money. Browser speech recognition supplies an optional transcript; Gemini Live native audio is not connected yet. Firestore phase 1 durably mirrors non-payment evidence only; payment execution is held in that mode. It does not access GPay, phone SMS, a real bank account, UPI credentials, OTPs or production funds. A real launch requires authorised bank/biller connectors, one durable transactional payment boundary, security review, regulated partner controls, customer support and formal compliance work. Financial Friday does not promise zero fraud, guaranteed savings, guaranteed reimbursement, investment returns, patentability or a hackathon prize.
 
 See [SPEC.md](SPEC.md) for the product contract, trust model and roadmap, and [docs/CLOUD_RUN.md](docs/CLOUD_RUN.md) for the cloud deployment boundary.

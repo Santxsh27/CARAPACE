@@ -73,7 +73,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
 <body>
   <header class="topbar"><div class="shell">
     <div class="mark" aria-hidden="true">F</div><div class="brand">Financial Friday<small>Your AI financial assistant</small></div>
-    <div class="top-spacer"></div><div class="pill"><span class="dot"></span><span id="ai-status">Connecting…</span></div><div class="pill optional">Core online · sandbox</div>
+    <div class="top-spacer"></div><div class="pill"><span class="dot"></span><span id="ai-status">Connecting…</span></div><div class="pill optional" id="storage-status">Checking storage…</div>
   </div></header>
   <main class="shell layout">
     <aside class="sidebar">
@@ -241,7 +241,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       recognition.onerror=event=>{$('live-result').textContent='Voice capture failed: '+event.error;};recognition.onend=()=>{$('speak-live').disabled=false;$('speak-live').textContent='◉ Speak';};recognition.start();
     }
     async function init(){
-      try{const response=await fetch('/api/friday/scenarios');const data=await response.json();if(!response.ok)throw new Error(data.detail||'API unavailable');catalogue=data.scenarios;$('ai-status').textContent=data.configured_mode==='LOCAL_RULES'?'Local baseline ready':data.model+' ready';
+      try{const response=await fetch('/api/friday/scenarios');const data=await response.json();if(!response.ok)throw new Error(data.detail||'API unavailable');catalogue=data.scenarios;$('ai-status').textContent=data.configured_mode==='LOCAL_RULES'?'Local baseline ready':data.model+' ready';$('storage-status').textContent=data.storage?.mode==='FIRESTORE_HYBRID'?'Firestore evidence · payment held':'Local protected sandbox';
         data.scenarios.forEach(item=>{const [icon,title]=labels[item.id]||['·',item.name];const button=node('button',undefined,'scenario');button.type='button';button.dataset.id=item.id;button.setAttribute('aria-pressed','false');button.append(node('span',icon,'scenario-icon'));const copy=node('span');copy.append(node('b',title),node('small',item.description));button.append(copy);button.addEventListener('click',()=>selectScenario(item.id));$('scenarios').append(button);});selectScenario(selected);
         if(location.hash.startsWith('#run=')){const response=await fetch('/api/friday/runs/'+encodeURIComponent(decodeURIComponent(location.hash.slice(5))));if(response.ok)render(await response.json());}
         await loadMandate();
