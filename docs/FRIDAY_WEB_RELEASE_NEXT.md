@@ -1,6 +1,6 @@
 # Friday cloud website — next release gate
 
-Updated October 8, 2026. Private staging is deployed; this is NOT yet a verified signed-in user release.
+Updated October 8, 2026. The owner has completed real Google sign-in through IAP. This remains an invited artificial-money pilot, not a production banking release.
 
 ## Code added
 
@@ -16,7 +16,7 @@ The cloud page excludes legacy labs and local-only inbox monitoring. Continuous 
 
 The source and test folders are downloaded. Full isolated Docker suite with the saved gateway modules: **175 tests in 75.296 seconds, OK (one optional Anthos integration test skipped)**. The original 11 gateway checks also passed before the additional five regression tests were added.
 
-The mock identity tests exercise rejection and SDK invocation boundaries; they do not establish a successful real Google login. Browser initialization and a real authenticated end-to-end cloud website run remain unverified. The API release stays unchanged. Available disk space was about 2.4 GiB, so the website build uses a tiny source context and reuses the existing immutable cloud image.
+The mock identity tests exercise rejection and SDK invocation boundaries; they do not establish real cryptographic login. Separately, the owner completed real Google login: the browser loaded the protected page, Gemini readiness, cloud journal status, scenarios and mandate through the private gateway. The browser published a fresh ₹2,487 test-provider bill successfully (gateway POST HTTP 200). Full payment and safety outcome evidence is recorded in `FRIDAY_BROWSER_VERIFICATION_1008.md`. Initial disk space was about 2.4 GiB, so the website build used a tiny source context and reused the immutable cloud image.
 
 ## Deployment sequence after tests
 
@@ -36,13 +36,13 @@ The generated cloud HTML JavaScript passed Node's syntax check. This is not a br
 
 ## Deployed staging status
 
-- Service: `financial-friday-web`, Mumbai, revision `financial-friday-web-00002-6q6`.
+- Service: `financial-friday-web`, Mumbai, final UI revision `financial-friday-web-journey1008`. Current image and browser evidence: `FRIDAY_BROWSER_VERIFICATION_1008.md`; the earlier gateway image above is retained as historical deployment evidence.
 - Origin: `https://financial-friday-web-171681243260.asia-south1.run.app`; same-origin protection is bound to this actual deployment URL.
 - Runtime: `financial-friday-web@project-70f2c2d7-4e72-4e59-b14.iam.gserviceaccount.com`, granted only invocation of the Friday API and access to the named tenant credential secret. No Vertex/Firestore roles were granted to this identity.
 - Minimum instances 0, maximum 2; CPU 1, memory 256 MiB, concurrency 8, request timeout 180 seconds.
 - Authenticated Cloud Run proxy check: `/health` HTTP 200; `/` without a signed IAP assertion HTTP 401, `Google sign-in required`.
-- Google IAP API is enabled, but IAP/OAuth login and invited-user access are not configured yet. Keep staging private; do not send this URL as a working user demo until those gates and the end-to-end test pass.
-- Console setup: open Cloud Run → `financial-friday-web` → Security → Require authentication → Identity-Aware Proxy. For this personal project, complete any Google-requested OAuth setup; enroll only the owner initially. Do not enable unauthenticated access.
+- Google IAP and project-level custom OAuth are configured. The consent app is External/Testing. Only the owner is enrolled in the web service's IAP access policy and tenant mapping. No anonymous access was added.
+- Teammates and judges still need explicitly approved, separately enrolled identities and tenant mappings before they can use the demo. Do not enable unauthenticated access or share the owner's credentials.
 
 ```text
 FRIDAY_WEB_BACKEND_URL=https://financial-friday-api-apl5povwtq-el.a.run.app

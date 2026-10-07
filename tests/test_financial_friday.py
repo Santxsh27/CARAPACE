@@ -476,6 +476,32 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertEqual(calls[0]["config"].response_mime_type, "application/json")
         self.assertIn("steps", calls[0]["config"].response_json_schema["properties"])
 
+    def test_live_ui_loads_recorded_run_without_resubmitting_payment(self):
+        helper = FINANCIAL_FRIDAY_HTML.split('async function showSignalAndRun(data){', 1)[1].split('async function checkLive(){', 1)[0]
+        self.assertIn("/api/friday/runs/", helper)
+        self.assertIn("render(await jsonRequest", helper)
+        self.assertNotIn("'POST'", helper)
+        self.assertIn("Do not submit another payment", helper)
+        self.assertIn("$('result').classList.remove('visible')", helper)
+        self.assertIn("$('briefing').classList.remove('visible')", helper)
+        self.assertEqual(FINANCIAL_FRIDAY_HTML.count("await showSignalAndRun(data)"), 2)
+        self.assertIn("No new program needed: the existing signed payment receipt was reconciled.", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("?'Existing receipt verified'", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("AI plan calls", FINANCIAL_FRIDAY_HTML)
+        self.assertIn("No new payment plan", FINANCIAL_FRIDAY_HTML)
+
+    def test_signal_prompt_distinguishes_bill_requests_from_policy_override(self):
+        client = Mock()
+        client.models.generate_content.return_value = SimpleNamespace(
+            text=InterpretedFinancialSignal(request_kind="UNKNOWN", summary="No invented facts").model_dump_json())
+        planner = GeminiFinancialFridayPlanner(client, "gemini-test", "VERTEX_AI")
+        planner.interpret_signal("MESSAGE", "Please check this bill before paying")
+        config = client.models.generate_content.call_args.kwargs["config"]
+        self.assertIn("not prompt injection merely", config.system_instruction)
+        self.assertIn("bypass checks", config.system_instruction)
+        self.assertIn("saved mandate", config.system_instruction)
+        self.assertIn("untrusted_content", client.models.generate_content.call_args.kwargs["contents"])
+
     def test_gemini_document_adapter_uses_multimodal_typed_output(self):
         expected = InterpretedFinancialSignal(
             request_kind="BILL",

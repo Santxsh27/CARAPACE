@@ -37,11 +37,11 @@ Local SQLite mode runs the complete artificial-money journey. Version 0.13.2 inc
 
 Python, FastAPI, Pydantic, SQLite, cryptography/Ed25519, Google Gen AI SDK, Google Firestore client, Docker Compose, HTML/CSS/JavaScript and browser speech transcription. The repository retains earlier Bank of Anthos artificial-bank work.
 
-Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Build, service identity, Secret Manager and budget alerts. The deployed API is version 0.13.2, using Gemini 3.5 Flash-Lite and transactional Firestore. Fresh-bill execution and cross-revision receipt replay were verified. The website is privately deployed with working health and missing-login rejection, but Google IAP setup and a real signed-in journey remain unfinished. Cloud Tasks and native Gemini Live voice remain planned. BigQuery, Document AI, ADK and Agora are not implemented.
+Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Build, service identity, Secret Manager and budget alerts. The API is version 0.13.2, using Gemini 3.5 Flash-Lite and transactional Firestore. Real owner Google login through IAP and a fresh ₹2,487 browser-to-cloud bill journey now work; replay reused the receipt without another debit, and a changed recipient was held. Access is owner-only. Cloud Tasks and native Gemini Live voice remain planned. BigQuery, Document AI, ADK and Agora are not implemented.
 
 ## Verification
 
-Version 0.13.2 plus the cloud gateway: 175 tests ran, 174 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while the AI provider is unavailable, identity/tenant isolation, same-origin protection and no automatic gateway payment retry. Live cloud checks are reported separately; real website login is not verified yet.
+Version 0.13.2 plus the cloud gateway: 177 tests ran, 176 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection and no automatic gateway payment retry. Real browser evidence and remaining gates are in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md`.
 
 ```bash
 docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests
@@ -49,8 +49,8 @@ docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api
 
 ## Remaining submission work, in order
 
-1. Finish the invited-user gateway checks and Google login setup described in docs/FRIDAY_WEB_RELEASE_NEXT.md.
-2. Deploy the web surface with user-aware authentication; keep API credentials server-side.
+1. Confirm dashboard deadline/eligibility and explicitly arrange judge access; record the live story in docs/submission/DEMO_SCRIPT.md.
+2. Verify live document uploads and a second enrolled cloud identity; owner sign-in and new-bill execution already work.
 3. Connect an independently authenticated sandbox provider.
 4. Connect durable orchestration if promising continuous background operation.
 5. Measure unseen-case completion, unsafe actions, false holds, latency and AI cost against plain Gemini.

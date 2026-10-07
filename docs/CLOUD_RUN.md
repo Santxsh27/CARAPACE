@@ -6,11 +6,12 @@ The Google Cloud project, billing alerts and required APIs are configured. Verte
 
 The Cloud Run service is deliberately private. Its dedicated runtime service account has Vertex invocation, project-scoped Firestore data access and access to the three named demo secrets. It uses Application Default Credentials supplied by Cloud Run; no Gemini API key is embedded in the image or repository.
 
-Version 0.13.2 serves 100% normal traffic on `financial-friday-api-v0132-lite1`. A live
+Version 0.13.2 serves 100% normal traffic on `financial-friday-api-v0132-prompt1`. A live
 cross-revision check restored a payment created by 0.13.1 from Firestore, verified
 the persistent signing key, retained its original operation ID and unchanged
 balance, and returned ALREADY_COMPLETED without calling AI or creating a debit.
 Fresh-bill live Vertex execution, replay, recipient holds and anonymous-access rejection passed; details are in `CLOUD_RELEASE_0132_VERIFIED.md`.
+The owner-protected IAP website also completed a fresh ₹2,487 bill and displayed its stored receipt. The prompt revision corrects a false hold on ordinary customer wording without relaxing the kernel. Current browser evidence and UI fixes are in `FRIDAY_BROWSER_VERIFICATION_1008.md`.
 Firestore persists Friday state, but Cloud Tasks scheduling is not yet connected:
 do not describe this as a continuously running cloud assistant.
 
@@ -59,5 +60,5 @@ Provisioned on October 7, 2026:
 4. Private zero-traffic candidate and authenticated live verification tool: `tools/verify_cloud_friday.py`.
 5. Cross-revision recovery and the new-bill test passed, followed by promotion. Unit transaction tests alone are not a substitute for these live checks.
 
-Cloud Tasks, public web deployment and real provider OAuth connectors remain
+Cloud Tasks, consumer onboarding/judge enrollment and real provider OAuth connectors remain
 separate work. Do not call the current local poller a durable cloud scheduler.

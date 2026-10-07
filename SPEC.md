@@ -186,8 +186,8 @@ Implemented:
 
 Next:
 
-1. Finish gateway security and browser initialization tests. Private API version 0.13.2 is already promoted following fresh-bill execution and cross-revision signed-receipt replay verification; evidence is in docs/CLOUD_RELEASE_0132_VERIFIED.md.
-2. Deploy an authenticated web surface, keeping tenant credentials server-side.
+1. Arrange approved judge access and confirm dashboard rules. The owner-only IAP web surface and new-bill browser journey now work; see docs/FRIDAY_BROWSER_VERIFICATION_1008.md. The API remains private and tenant credentials stay server-side.
+2. Verify live document uploads and a second independently enrolled cloud identity; finish the unseen-case evaluation and submission artifacts.
 3. Replace the same-operator test provider with an independently authenticated sandbox connector.
 4. Add durable Cloud Tasks orchestration and recovery.
 5. Replace browser transcription with Gemini Live API native audio using the same tools.

@@ -103,13 +103,13 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Bill identity, rather than message identity, prevents two messages about one bill from creating two payments. At commit time, the cloud executor rechecks provider details, current mandate, automatic permission and protected balance. Updating a mandate never resets the artificial account balance.
 - Transaction callback contract tests cover restart recovery, concurrent attempts, repeated bill messages, changed provider details, corrupt receipts, AI-offline replay and commit failures. Cloud integration checks are recorded separately in `docs/CLOUD_RUN.md`; neither establishes production banking readiness.
 - The default Firestore database is now provisioned in Mumbai (`asia-south1`), with deletion protection. Payment and witness signing keys plus private demo API credentials are provisioned in Secret Manager; secret values are never committed.
-- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-v0132-lite1` serves version `0.13.2` at 100% normal traffic with `gemini-3.5-flash-lite` on Vertex AI. A fresh bill completed using live AI and transactional Firestore; repeat execution was blocked, a changed recipient was held, and anonymous access was rejected. Cross-revision replay preserved the earlier signed receipt without another AI call or debit. See [verified release evidence](docs/CLOUD_RELEASE_0132_VERIFIED.md).
-- An invited-user cloud website gateway is deployed privately at `https://financial-friday-web-171681243260.asia-south1.run.app`. Its health returned HTTP 200 and missing signed IAP identity returned HTTP 401. It selects tenants server-side, rejects cross-origin mutations and restricts routes/uploads. Backend keys never enter the browser. Google IAP login setup and real browser-to-cloud verification remain release gates; this is not yet a shareable judge demo.
+- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-v0132-prompt1` serves version `0.13.2` at 100% normal traffic with `gemini-3.5-flash-lite` on Vertex AI. A fresh bill completed using live AI and transactional Firestore; repeat execution was blocked, a changed recipient was held, and anonymous access was rejected. Cross-revision replay preserved the earlier signed receipt without another AI call or debit. See [original API release evidence](docs/CLOUD_RELEASE_0132_VERIFIED.md) and [current browser verification](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
+- The protected [cloud website](https://financial-friday-web-171681243260.asia-south1.run.app/) now works with real owner Google sign-in through IAP. A new ₹2,487 bill completed through browser → live Vertex AI → transactional Firestore → signed receipt; replay created no additional debit, and a changed recipient was held. The API is still private and backend keys never enter the browser. Owner-only access is not yet judge enrollment. See [browser verification and limits](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
 
 ## Next steps
 
-1. Finish the cloud website gateway verification and Google IAP setup.
-2. Deploy the Friday web surface with user-aware authentication and server-side credentials while keeping the API private; verify a fresh bill through that website.
+1. Arrange explicitly authorized judge access and confirm dashboard deadline/eligibility; record the live journey using [the demo script](docs/submission/DEMO_SCRIPT.md).
+2. Verify live document uploads and a second enrolled identity in the protected website; the owner login and fresh-bill journey are already verified.
 3. Add Cloud Tasks for durable claims, bounded retries and reconciliation.
 4. Add authorised provider/account connectors; do not claim real bank or SMS access without an approved integration.
 5. Run the labelled adversarial evaluation set and publish accuracy, false-hold, latency and per-run cost measurements.
@@ -162,7 +162,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **175 tests run: 174 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway security and regression checks. The test command disables the development-only direct Anthos bridge so unit tests do not inherit a live integration setting. Mock gateway tests are not a substitute for real Google login and browser-to-cloud verification.
+Current isolated result: **177 tests run: 176 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway security and regression checks. Live owner login, fresh-bill execution, replay and recipient-mismatch checks are reported separately above. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
 
 ## What is retained from CARAPACE
 
