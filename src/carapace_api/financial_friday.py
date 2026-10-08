@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -189,7 +190,15 @@ class FinancialFridayService:
             try:
                 return call(*args), attempt + 1
             except Exception as error:
-                transient = getattr(error, "code", None) in {500, 502, 503, 504}
+                code = getattr(error, "code", None)
+                transient = code in {500, 502, 503, 504}
+                # Never log error text, validation input, prompts, tokens or traceback.
+                category = ("INVALID_STRUCTURED_OUTPUT" if isinstance(error, (ValidationError, ValueError))
+                            else "TRANSIENT_PROVIDER_ERROR" if transient else "UNDERSTANDING_ERROR")
+                logging.getLogger(__name__).warning(
+                    "friday_understanding_failure category=%s attempt=%d provider_status=%s retry=%s",
+                    category, attempt + 1, code if isinstance(code, int) and 100 <= code <= 599 else "unknown",
+                    transient and attempt == 0)
                 if not transient or attempt == 1:
                     raise FridayUnderstandingUnavailable("Financial understanding is unavailable") from error
         raise AssertionError("unreachable")

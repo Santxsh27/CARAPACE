@@ -122,13 +122,13 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Bill identity, rather than message identity, prevents two messages about one bill from creating two payments. At commit time, the cloud executor rechecks provider details, current mandate, automatic permission and protected balance. Updating a mandate never resets the artificial account balance.
 - Transaction callback contract tests cover restart recovery, concurrent attempts, repeated bill messages, changed provider details, corrupt receipts, AI-offline replay and commit failures. Cloud integration checks are recorded separately in `docs/CLOUD_RUN.md`; neither establishes production banking readiness.
 - The default Firestore database is now provisioned in Mumbai (`asia-south1`), with deletion protection. Payment and witness signing keys plus private demo API credentials are provisioned in Secret Manager; secret values are never committed.
-- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-v0132-prompt1` serves version `0.13.2` at 100% normal traffic with `gemini-3.5-flash-lite` on Vertex AI. A fresh bill completed using live AI and transactional Firestore; repeat execution was blocked, a changed recipient was held, and anonymous access was rejected. Cross-revision replay preserved the earlier signed receipt without another AI call or debit. See [original API release evidence](docs/CLOUD_RELEASE_0132_VERIFIED.md) and [current browser verification](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
+- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-message1008` serves version `0.13.2` at 100% normal traffic with `gemini-3.5-flash-lite` on Vertex AI. It includes the document gate, targeted message prompt repair and privacy-safe diagnostics. Fresh artificial payments and cross-revision receipt-first replay have been verified without repeat debits. See [current message release](docs/submission/MESSAGE_PROMPT_REPAIR_1008.md), [original API evidence](docs/CLOUD_RELEASE_0132_VERIFIED.md) and [browser verification](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
 - The protected [cloud website](https://financial-friday-web-171681243260.asia-south1.run.app/) now works with real owner Google sign-in through IAP. A new ₹2,487 bill completed through browser → live Vertex AI → transactional Firestore → signed receipt; replay created no additional debit, and a changed recipient was held. The API is still private and backend keys never enter the browser. Owner-only access is not yet judge enrollment. See [browser verification and limits](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
 
 ## Next steps
 
 1. Arrange explicitly authorized judge access and confirm dashboard deadline/eligibility; record the live journey using [the demo script](docs/submission/DEMO_SCRIPT.md).
-2. Fix the live-message false hold, expand document/image checks and explicitly enroll a second identity; the owner PDF-to-payment journey is already verified.
+2. Expand unseen message/document/image checks and explicitly enroll a second identity; the targeted false-hold repair and owner PDF-to-payment journey are verified.
 3. Add Cloud Tasks for durable claims, bounded retries and reconciliation.
 4. Add authorised provider/account connectors; do not claim real bank or SMS access without an approved integration.
 5. Run the labelled adversarial evaluation set and publish accuracy, false-hold, latency and per-run cost measurements.
@@ -181,7 +181,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **191 tests run: 190 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and nine multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+Current isolated result: **192 tests run: 191 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and nine multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
 
 Live PDF verification now includes a matching bill stopped at the saved automatic
 limit and a recipient mismatch stopped before payment, through Vertex AI and the
@@ -202,8 +202,11 @@ See [security and launch boundaries](docs/submission/SECURITY_BOUNDARIES.md).
 Two fresh [live Vertex message batches](docs/submission/LIVE_MESSAGE_EVALUATION_1008.md)
 returned 14/16 expected outcomes: ten problematic requests were held, but one
 normal request had HTTP 503 and another was falsely held. No payments occurred.
-This small, honest component check is not broad fraud accuracy; both failures
-remain open. The evaluator and nine offline tooling tests are included in CI.
+This small component check is not broad fraud accuracy. The subsequent
+[prompt repair](docs/submission/MESSAGE_PROMPT_REPAIR_1008.md) passed 24 live
+extraction and eight private API checks without weakening the gate. The earlier
+503 remains undiagnosed; sanitized diagnostics now help investigate future failures.
+The evaluator and nine offline tooling tests are included in CI.
 
 ## What is retained from CARAPACE
 

@@ -42,7 +42,7 @@ Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Bui
 
 ## Verification
 
-Version 0.13.2 plus the cloud gateway and multi-screen UI: 191 tests ran, 190 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, missing document quotations, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md`, `docs/FRIDAY_MULTISCREEN_1008.md` and `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A separate no-payment evaluation covers 51 generated proposals (12 valid allowed, 39 unsafe rejected); results and limitations are in `docs/submission/SAFETY_EVALUATION.md`.
+Version 0.13.2 plus the cloud gateway and multi-screen UI: 192 tests ran, 191 passed, one optional Anthos test skipped. Nine tooling tests also passed. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, missing document quotations, privacy-safe diagnostics, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md`, `docs/FRIDAY_MULTISCREEN_1008.md` and `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A separate no-payment evaluation covers 51 generated proposals (12 valid allowed, 39 unsafe rejected); results and limitations are in `docs/submission/SAFETY_EVALUATION.md`.
 
 ```bash
 docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests
@@ -54,7 +54,7 @@ docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api
 2. Expand live evaluation to varied documents/images and a second explicitly enrolled cloud identity. A fresh INR 49 PDF task, real rejected-plan correction, signed receipt and no-debit/no-AI replay now work; evidence is in `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`.
 3. Connect an independently authenticated sandbox provider.
 4. Connect durable orchestration if promising continuous background operation.
-5. Fix the false hold found in two live message batches (14/16 expected outcomes; one HTTP 503, one false hold), then measure unseen-case completion, unsafe actions, latency and cost against plain Gemini. See docs/submission/LIVE_MESSAGE_EVALUATION_1008.md; no payments occurred in these checks.
+5. Expand unseen-case evaluation and measure completion, false holds, unsafe actions, latency and cost against plain Gemini. The targeted false-hold repair passed 24 extraction and eight API checks; see docs/submission/MESSAGE_PROMPT_REPAIR_1008.md. The earlier HTTP 503 remains undiagnosed. No payments occurred in these checks.
 6. Finish demo video, deck, architecture, limitations and submission links.
 
 Confirm deadline and eligibility in your Hack2skill dashboard. Production launch additionally requires authorized providers and security/compliance review.

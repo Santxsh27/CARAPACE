@@ -85,3 +85,10 @@ Requires the existing authorized owner CLI identity. This makes up to eight live
 interpretation requests per run, incurs applicable Vertex usage and adds clearly
 synthetic sandbox records. It does not change rules or enroll additional users.
 Do not repeatedly run it to select only a passing batch for the submission.
+
+## Subsequent repair (original results retained)
+
+The targeted prompt repair and privacy-safe diagnostics subsequently passed 24
+direct extraction checks and eight fresh private API cases. See
+[the repair report](MESSAGE_PROMPT_REPAIR_1008.md). The historical 503's cause remains
+unknown; a passing later batch does not erase it.

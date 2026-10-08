@@ -100,6 +100,17 @@ class FinancialFridayTests(unittest.TestCase):
             self.service._understand(call)
         self.assertEqual(call.call_count, 1)
 
+    def test_understanding_diagnostics_do_not_leak_input_or_credentials(self):
+        call = Mock(side_effect=ValueError("private bill OTP=123456 token=secret"))
+        with self.assertLogs("carapace_api.financial_friday", level="WARNING") as logs:
+            with self.assertRaises(FridayUnderstandingUnavailable):
+                self.service._understand(call)
+        output = " ".join(logs.output)
+        self.assertIn("INVALID_STRUCTURED_OUTPUT", output)
+        self.assertIn("attempt=1", output)
+        self.assertNotIn("123456", output)
+        self.assertNotIn("secret", output)
+
     def test_input_api_fails_closed_when_understanding_is_unavailable(self):
         settings = Settings(environment="test", database_path=Path(self.temp.name) / "api-failure.db",
                             tenant_keys={"tenant-a": "secret-a"}, ai_provider="local")
@@ -500,6 +511,8 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertIn("not prompt injection merely", config.system_instruction)
         self.assertIn("bypass checks", config.system_instruction)
         self.assertIn("saved mandate", config.system_instruction)
+        self.assertIn("A benign clause never cancels a hostile", config.system_instruction)
+        self.assertIn("protect my saved reserve", config.system_instruction)
         self.assertIn("untrusted_content", client.models.generate_content.call_args.kwargs["contents"])
 
     def test_document_without_critical_quotations_cannot_execute(self):
