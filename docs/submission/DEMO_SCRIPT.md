@@ -27,7 +27,7 @@ Use a fresh bill reference each time. In **Demo provider setup**, publish a TN P
 
 ## Evidence versus aspiration
 
-The cloud browser journey and regression suite are real evidence. A broad unseen-case evaluation, comparison with plain Gemini, per-run AI cost, native voice assistant and continuous cloud monitoring are not yet completed. Do not substitute a test count for measured fraud detection accuracy or promise a hackathon win.
+The cloud browser journey and regression suite are real evidence. The reproducible generated proposal evaluation allowed 12 valid candidates and rejected 39 unsafe candidates without executing payments. See SAFETY_EVALUATION.md for its limits. A broad unseen-case evaluation, live comparison with plain Gemini, per-run AI cost, native voice assistant and continuous cloud monitoring are not yet completed. Do not substitute these synthetic results for measured fraud detection accuracy or promise a hackathon win.
 
 ## Submission gates
 

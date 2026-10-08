@@ -42,7 +42,7 @@ Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Bui
 
 ## Verification
 
-Version 0.13.2 plus the cloud gateway and multi-screen UI: 186 tests ran, 185 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md` and `docs/FRIDAY_MULTISCREEN_1008.md`.
+Version 0.13.2 plus the cloud gateway and multi-screen UI: 190 tests ran, 189 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md` and `docs/FRIDAY_MULTISCREEN_1008.md`. A separate no-payment evaluation covers 51 generated proposals (12 valid allowed, 39 unsafe rejected); results and limitations are in `docs/submission/SAFETY_EVALUATION.md`.
 
 ```bash
 docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests

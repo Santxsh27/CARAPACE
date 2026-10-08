@@ -2,6 +2,10 @@
 
 Use this folder for the final demo script, evaluation results, slides and submission links. Current build status is in [Start Here](../../START_HERE.md), [README](../../README.md) and [SPEC](../../SPEC.md).
 
+Implemented evidence: [proposal safety evaluation](SAFETY_EVALUATION.md),
+[security boundaries](SECURITY_BOUNDARIES.md), and [live demo script](DEMO_SCRIPT.md).
+The generated safety corpus is not a live model benchmark.
+
 ## Demo story
 
 Save one instruction → supply a previously unseen bill → Gemini interprets it → provider evidence grounds it → the kernel checks the plan → one artificial payment completes → repeat the request and observe no new payment. Show a recipient mismatch, a recurring offer and an unknown previous outcome.

@@ -181,7 +181,13 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **186 tests run: 185 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and nine multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+Current isolated result: **190 tests run: 189 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and nine multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+
+The no-payment [proposal evaluation](docs/submission/SAFETY_EVALUATION.md) checks
+51 generated cases: 12 valid proposals allowed, 39 unsafe proposals rejected,
+zero false holds. Run `python -m carapace_core.friday_evaluation`; CI preserves
+the JSON evidence. This isolates the gate, not live Gemini or real fraud accuracy.
+See [security and launch boundaries](docs/submission/SECURITY_BOUNDARIES.md).
 
 ## What is retained from CARAPACE
 
