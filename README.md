@@ -14,7 +14,15 @@ The existing Python package names still use `carapace_*` to preserve compatibili
 
 ## What works now
 
-The local homepage has two working paths. The **live input path** saves a user's
+The app now has separate screens: **Friday home, Bills, Documents, Activity,
+Safety lab and My rules**, plus a dedicated **Run** screen. Home shows an animated
+assistant core and four clear task choices, not a previous payment or a developer
+console. Every run uses the existing API; screen animations do not manufacture
+successful checks. Browser Back, keyboard focus, phone layouts and reduced-motion
+preferences are supported. Activity reopens recorded evidence with a read-only
+request; it never repeats a payment. See [the UI verification report](docs/FRIDAY_MULTISCREEN_1008.md).
+
+The **live input path** saves a user's
 instruction, publishes a new artificial bill into an enrolled test provider, and
 accepts unfamiliar message, QR or voice-transcript content. It uses configured
 Gemini structured extraction (or the visibly labelled local comparison), grounds
@@ -30,7 +38,7 @@ signature and processed ephemerally: Friday persists the SHA-256 digest, typed
 facts and exact evidence quotations, but not the raw file. The outcome changes
 from READY or COMPLETED to ATTENTION when the content contradicts the provider.
 
-The homepage now exposes the same backend truth as a five-stage assurance
+The dedicated Run screen exposes the same backend truth as a five-stage assurance
 journey: **understand → ground evidence → plan with AI → prove safety → act or
 recover**. Each stage changes from waiting to active, completed, skipped or
 blocked using the returned run events—not a decorative timer. A plain-language
@@ -38,12 +46,12 @@ Friday briefing shows the result, AI-call count, deterministic-gate decision and
 number of artificial-money effects. The full program, hostile-mutation checks,
 events and receipt remain available underneath for judges and engineers.
 
-The primary experience is a Jarvis-style FRIDAY command surface: one animated AI
-core, one direct text/voice command, and one short outcome briefing. Demo-provider
-settings, proactive monitoring and engineering evidence are collapsed by default
-so ordinary users see the answer first while judges can still inspect the proof.
-The core's `ANALYSING`, `MISSION VERIFIED`, `STATE RECOVERED`, `THREAT CONTAINED`
-and `SAFE MODE` states are driven by actual API outcomes.
+The primary experience is a Jarvis-inspired FRIDAY command surface: choose a task,
+provide the details once, then follow its outcome on a separate screen. Saved
+permission has its own My rules page; controlled scenarios live in Safety lab.
+Technical evidence stays collapsed beneath the outcome. The task indicator shows
+working, confirmed completion or attention based on actual API results, while
+the home core returns to READY when no task is running.
 
 Five retained end-to-end artificial-money cases are exposed through the API:
 
@@ -162,7 +170,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **177 tests run: 176 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway security and regression checks. Live owner login, fresh-bill execution, replay and recipient-mismatch checks are reported separately above. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+Current isolated result: **183 tests run: 182 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and six multi-screen UI contracts. Browser navigation, a new text input, held execution and saved-receipt viewing are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
 
 ## What is retained from CARAPACE
 

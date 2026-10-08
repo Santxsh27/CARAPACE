@@ -1,7 +1,9 @@
 # Small, reproducible web layer over the verified API release.
-# Build with a clean context containing this file and only the gateway module.
+# Build with a clean context containing this file and the three web modules below.
 FROM asia-south1-docker.pkg.dev/project-70f2c2d7-4e72-4e59-b14/financial-friday/api@sha256:44f27d11ba2f1309c0011bd1c993666bf680434234b1420f777d1ee09f11acee
 COPY src/carapace_integrations/friday_cloud_web.py /app/src/carapace_integrations/friday_cloud_web.py
+COPY src/carapace_integrations/financial_friday_ui.py /app/src/carapace_integrations/financial_friday_ui.py
+COPY src/carapace_integrations/friday_experience.py /app/src/carapace_integrations/friday_experience.py
 ENV PYTHONPATH=/app/src
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"
 CMD ["python", "-m", "carapace_integrations.friday_cloud_web"]

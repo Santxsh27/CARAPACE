@@ -11,10 +11,10 @@ Save an instruction such as “Handle verified bills up to ₹3,000, protect ₹
 1. Start Docker Desktop and open this folder in Visual Studio Code.
 2. Run `docker compose up -d --build api anthos-demo`.
 3. Open http://localhost:8090 for Friday and http://localhost:8080/docs for the API.
-4. Save a standing instruction and publish a fresh artificial bill with a new reference.
-5. Paste a new message containing that reference or upload its bill image/PDF.
-6. Run Friday and inspect the result. Change the amount or recipient and check that it stops.
-7. Explore subscription and timeout scenarios, then open the technical evidence.
+4. Open **My rules** to inspect/save standing permission. Open **Bills → Demo provider setup** to publish a fresh artificial bill.
+5. Use **Bills** for a new message or **Documents** for its image/PDF.
+6. Friday opens a separate **Run** screen. Change the amount or recipient and check that it stops.
+7. Use **Safety lab** for controlled subscription/timeout cases, and **Activity** to reopen existing receipts without paying again.
 
 `docker compose stop` preserves the named data volume. Keep `.env`, credentials and signing keys out of GitHub.
 
@@ -41,7 +41,7 @@ Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Bui
 
 ## Verification
 
-Version 0.13.2 plus the cloud gateway: 177 tests ran, 176 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection and no automatic gateway payment retry. Real browser evidence and remaining gates are in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md`.
+Version 0.13.2 plus the cloud gateway and multi-screen UI: 183 tests ran, 182 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md` and `docs/FRIDAY_MULTISCREEN_1008.md`.
 
 ```bash
 docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests

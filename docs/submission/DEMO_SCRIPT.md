@@ -4,6 +4,11 @@
 
 Open the protected Cloud Run website using the enrolled owner's Google account. Do not show credentials, OAuth downloads, Secret Manager values or personal bills. This demo uses artificial funds and a development test provider. A real bank integration is not claimed.
 
+Start on **Friday** home. Open **Bills** for the fresh-input journey, **My rules**
+to inspect saved permission, and **Safety lab** for controlled scenarios. Each task
+opens a dedicated **Run** screen. Use **Activity** to view receipts without executing
+again; expand **Show how Friday verified this** only for technical evidence.
+
 Use a fresh bill reference each time. In **Demo provider setup**, publish a TN Power test bill with a new reference, amount ₹2,487 and payee `tnpower@upi`. These are explicitly test-provider records, not records fetched from the real utility. Keep standing permission enabled only for artificial one-time payments within ₹3,000, no fee, with the existing protected reserve.
 
 ## Three-minute story

@@ -233,14 +233,14 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       catch(error){$('live-result').append(node('p','The task result is recorded, but its detailed receipt could not be loaded. Do not submit another payment. Reopen this run to check its evidence.'));setCore('RESULT RECORDED','Receipt display needs a refresh');}
     }
     async function checkLive(){
-      $('result').classList.remove('visible');$('briefing').classList.remove('visible');history.replaceState(null,'',location.pathname+location.search);
+      $('result').classList.remove('visible');$('briefing').classList.remove('visible');history.replaceState(null,'',location.pathname+location.search+'#run');
       const button=$('check-live');button.disabled=true;button.textContent='Friday is analysing…';setCore('ANALYSING SIGNAL','Extracting financial intent');$('live-mode').textContent='Understanding';resetStages();pulse('understand','Extracting the financial request');
       try{const data=await jsonRequest('/api/friday/live-input','POST',{source_type:liveSource,content_text:$('live-input').value});await showSignalAndRun(data);toast(data.state==='ATTENTION'?'Friday stopped for attention':'Live input checked');liveSource='MESSAGE';}
       catch(error){$('live-mode').textContent='Unavailable';$('live-result').textContent=String(error);stage('understand','blocked','Could not interpret safely');setCore('SAFE MODE','Signal could not be verified');}finally{button.disabled=false;button.textContent='Handle this safely';}
     }
     async function checkDocument(){
       const file=$('document-input').files[0];if(!file){$('live-result').textContent='Choose a bill image or PDF first.';return;}
-      $('result').classList.remove('visible');$('briefing').classList.remove('visible');history.replaceState(null,'',location.pathname+location.search);
+      $('result').classList.remove('visible');$('briefing').classList.remove('visible');history.replaceState(null,'',location.pathname+location.search+'#run');
       const button=$('check-document');button.disabled=true;button.textContent='Reading document…';$('live-mode').textContent='Document analysis';setCore('READING DOCUMENT','Gemini is extracting grounded facts');resetStages();pulse('understand','Reading uploaded evidence');
       try{const response=await fetch('/api/friday/documents?filename='+encodeURIComponent(file.name),{method:'POST',headers:{'Content-Type':file.type||'application/octet-stream'},body:file});const data=await response.json();if(!response.ok)throw new Error(data.detail||'Document could not be checked');await showSignalAndRun(data);toast(data.state==='ATTENTION'?'Document needs attention':'Document checked');}
       catch(error){$('live-mode').textContent='Unavailable';$('live-result').textContent=String(error);stage('understand','blocked','Document was not trusted');setCore('SAFE MODE','No action taken');}finally{button.disabled=false;button.textContent='Check document';}
@@ -287,3 +287,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
   </script>
 </body>
 </html>"""
+
+from .friday_experience import enhance_friday_html
+
+FINANCIAL_FRIDAY_HTML = enhance_friday_html(FINANCIAL_FRIDAY_HTML)

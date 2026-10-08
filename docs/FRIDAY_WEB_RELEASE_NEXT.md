@@ -36,7 +36,7 @@ The generated cloud HTML JavaScript passed Node's syntax check. This is not a br
 
 ## Deployed staging status
 
-- Service: `financial-friday-web`, Mumbai, final UI revision `financial-friday-web-journey1008`. Current image and browser evidence: `FRIDAY_BROWSER_VERIFICATION_1008.md`; the earlier gateway image above is retained as historical deployment evidence.
+- Service: `financial-friday-web`, Mumbai, current UI revision `financial-friday-web-screens1008`. Multi-screen image and browser evidence: `FRIDAY_MULTISCREEN_1008.md`. Earlier payment-journey evidence in `FRIDAY_BROWSER_VERIFICATION_1008.md` remains historical and valid; the API is unchanged.
 - Origin: `https://financial-friday-web-171681243260.asia-south1.run.app`; same-origin protection is bound to this actual deployment URL.
 - Runtime: `financial-friday-web@project-70f2c2d7-4e72-4e59-b14.iam.gserviceaccount.com`, granted only invocation of the Friday API and access to the named tenant credential secret. No Vertex/Firestore roles were granted to this identity.
 - Minimum instances 0, maximum 2; CPU 1, memory 256 MiB, concurrency 8, request timeout 180 seconds.
