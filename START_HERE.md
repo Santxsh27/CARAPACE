@@ -54,7 +54,7 @@ docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api
 2. Expand live evaluation to varied documents/images and a second explicitly enrolled cloud identity. A fresh INR 49 PDF task, real rejected-plan correction, signed receipt and no-debit/no-AI replay now work; evidence is in `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`.
 3. Connect an independently authenticated sandbox provider.
 4. Connect durable orchestration if promising continuous background operation.
-5. Measure unseen-case completion, unsafe actions, false holds, latency and AI cost against plain Gemini.
+5. Fix the false hold found in two live message batches (14/16 expected outcomes; one HTTP 503, one false hold), then measure unseen-case completion, unsafe actions, latency and cost against plain Gemini. See docs/submission/LIVE_MESSAGE_EVALUATION_1008.md; no payments occurred in these checks.
 6. Finish demo video, deck, architecture, limitations and submission links.
 
 Confirm deadline and eligibility in your Hack2skill dashboard. Production launch additionally requires authorized providers and security/compliance review.

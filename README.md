@@ -128,7 +128,7 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 ## Next steps
 
 1. Arrange explicitly authorized judge access and confirm dashboard deadline/eligibility; record the live journey using [the demo script](docs/submission/DEMO_SCRIPT.md).
-2. Verify live document uploads and a second enrolled identity in the protected website; the owner login and fresh-bill journey are already verified.
+2. Fix the live-message false hold, expand document/image checks and explicitly enroll a second identity; the owner PDF-to-payment journey is already verified.
 3. Add Cloud Tasks for durable claims, bounded retries and reconciliation.
 4. Add authorised provider/account connectors; do not claim real bank or SMS access without an approved integration.
 5. Run the labelled adversarial evaluation set and publish accuracy, false-hold, latency and per-run cost measurements.
@@ -198,6 +198,12 @@ The no-payment [proposal evaluation](docs/submission/SAFETY_EVALUATION.md) check
 zero false holds. Run `python -m carapace_core.friday_evaluation`; CI preserves
 the JSON evidence. This isolates the gate, not live Gemini or real fraud accuracy.
 See [security and launch boundaries](docs/submission/SECURITY_BOUNDARIES.md).
+
+Two fresh [live Vertex message batches](docs/submission/LIVE_MESSAGE_EVALUATION_1008.md)
+returned 14/16 expected outcomes: ten problematic requests were held, but one
+normal request had HTTP 503 and another was falsely held. No payments occurred.
+This small, honest component check is not broad fraud accuracy; both failures
+remain open. The evaluator and nine offline tooling tests are included in CI.
 
 ## What is retained from CARAPACE
 
