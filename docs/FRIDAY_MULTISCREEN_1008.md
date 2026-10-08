@@ -91,3 +91,39 @@ The Product Design brief kept the existing screen structure and added interactio
 feedback rather than rebuilding the app. The verification story was Activity →
 authenticated gateway GET → existing Firestore run → coloured outcome, with local
 pointer and display-preference checks kept separate from financial execution.
+
+## Command centre and useful interaction details
+
+The next UI pass enlarges the existing animated assistant core, pairs it with the
+command headline, and adds a local-time greeting and task shortcut chips. The
+Product Design brief favours readable hierarchy and purposeful interactions over
+extra decoration. No new financial authority or backend AI feature is added.
+
+Home's briefing uses GET `/api/friday/today` and counts only returned recent runs.
+It labels the limited journal snapshot explicitly, handles an unavailable journal
+without inventing outcomes, and never triggers a new payment or AI call.
+Activity now offers local text search and All/Confirmed/Held/Review filters with
+an announced count and an explicit no-match message. Unknown statuses are amber
+attention, not red held or green confirmed.
+
+Native modal help explains saved permission, independent evidence and safe
+execution. Escape closes it and returns focus. `/` focuses the home command and
+`?` opens help outside editable fields. OS reduced motion and the existing motion
+toggle remain supported. No CDN or Three.js dependency is introduced.
+
+Verified locally: real journal counts (10 runs, 7 confirmed, 3 held), Held filter
+(3 of 10), search no-match state, help/Escape focus restoration, command shortcut,
+and 390 × 844 layout with document width 390 (no horizontal overflow). Temporary
+viewport restored. No console errors in the inspected journey. Local UI was
+accessible at `http://127.0.0.1:8090/`; both Docker services remained healthy.
+
+Full isolated suite: 186 tests in 12.028 seconds, OK (185 passed, one optional Anthos
+test skipped). Generated JavaScript passed Node syntax checking.
+Cloud Build `dc5ffb8d-e0f6-48d6-b6d0-00c4393701cd` succeeded; immutable digest:
+`sha256:d4ea2ca73323b0e157f1b4e34c3285201b44bc283bfceef046ad67cc967bde03`.
+Cloud Run revision `financial-friday-web-cockpit1008` serves 100% traffic.
+Signed-in owner browser confirmed the new home briefing fetched actual cloud
+records (10/7/3), receipts shortcut loaded Activity, and Held filtering returned
+3 of 10. No new payment was submitted and no console errors were observed.
+API and IAM settings were not changed. This is still an artificial-money pilot;
+visual polish is not evidence of universal financial protection or UX award odds.

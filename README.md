@@ -26,6 +26,11 @@ Green means confirmed, rose/red means held, amber means verification needed and
 cyan means working; labels always accompany colours. The Motion toggle remembers
 only a local display preference and respects the OS reduced-motion setting.
 These effects do not create new financial permissions or simulate success.
+The Jarvis-inspired command centre pairs the assistant core with a time-aware
+greeting, quick task shortcuts and a read-only briefing from the most recent ten
+recorded runs. Activity has text search and Confirmed/Held/Review filters. Native
+dialog help explains the permission boundary; `/` focuses the command outside
+text fields and `?` opens help. None of these interactions submits a payment.
 See [the UI verification report](docs/FRIDAY_MULTISCREEN_1008.md).
 
 The **live input path** saves a user's
@@ -176,7 +181,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **184 tests run: 183 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and seven multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing and pointer tilt are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+Current isolated result: **186 tests run: 185 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and nine multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
 
 ## What is retained from CARAPACE
 

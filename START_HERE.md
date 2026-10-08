@@ -15,6 +15,7 @@ Save an instruction such as “Handle verified bills up to ₹3,000, protect ₹
 5. Use **Bills** for a new message or **Documents** for its image/PDF.
 6. Friday opens a separate **Run** screen. Change the amount or recipient and check that it stops.
 7. Use **Safety lab** for controlled subscription/timeout cases, and **Activity** to reopen existing receipts without paying again.
+8. Home's **Your sandbox briefing** counts recent recorded outcomes, not all-time totals. Use Activity search and outcome filters to find a receipt. **How Friday works** explains the journey; Escape closes help and `/` focuses the home command outside text fields.
 
 `docker compose stop` preserves the named data volume. Keep `.env`, credentials and signing keys out of GitHub.
 
@@ -41,7 +42,7 @@ Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Bui
 
 ## Verification
 
-Version 0.13.2 plus the cloud gateway and multi-screen UI: 184 tests ran, 183 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md` and `docs/FRIDAY_MULTISCREEN_1008.md`.
+Version 0.13.2 plus the cloud gateway and multi-screen UI: 186 tests ran, 185 passed, one optional Anthos test skipped. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md` and `docs/FRIDAY_MULTISCREEN_1008.md`.
 
 ```bash
 docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests

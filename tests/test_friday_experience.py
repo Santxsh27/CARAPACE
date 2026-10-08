@@ -58,6 +58,22 @@ class FridayExperienceTests(unittest.TestCase):
         self.assertIn("[data-state=\"attention\"]", EXPERIENCE_CSS)
         self.assertNotIn("requestAnimationFrame", EXPERIENCE_JS)
 
+    def test_home_briefing_is_read_only_and_limited_to_real_recent_runs(self):
+        helper = EXPERIENCE_JS.split("async function refreshBriefing()", 1)[1].split("const bill=view", 1)[0]
+        self.assertIn("/api/friday/today", helper)
+        self.assertIn("data.recent_runs||[]", helper)
+        self.assertIn("most recent", helper)
+        self.assertNotIn("'POST'", helper)
+        self.assertIn("No task was submitted", helper)
+
+    def test_guidance_and_activity_filters_are_accessible_and_non_financial(self):
+        self.assertIn("guide.showModal()", EXPERIENCE_JS)
+        self.assertIn("guideReturn?.isConnected", EXPERIENCE_JS)
+        self.assertIn("Search recorded activity", EXPERIENCE_JS)
+        self.assertIn("No matching outcomes", EXPERIENCE_JS)
+        self.assertIn("e.target.closest('input,textarea,select", EXPERIENCE_JS)
+        self.assertIn("function filterActivity()", EXPERIENCE_JS)
+
 
 if __name__ == "__main__":
     unittest.main()
