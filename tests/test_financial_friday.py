@@ -502,6 +502,27 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertIn("saved mandate", config.system_instruction)
         self.assertIn("untrusted_content", client.models.generate_content.call_args.kwargs["contents"])
 
+    def test_document_without_critical_quotations_cannot_execute(self):
+        self.publish_live_bill()
+        self.service.save_mandate("tenant-a", FridayMandate(
+            instruction="Handle verified bills within the saved limit.",
+            protected_balance_minor=0, automatic_payment_limit_minor=300_000,
+            automatic_sandbox_execution=True,
+        ))
+        for spans in ([], [FinancialEvidenceSpan(field="bill_reference", quote="LIVE-1001")]):
+            with self.subTest(spans=spans):
+                self.service.planner.interpret_document = Mock(return_value=InterpretedFinancialSignal(
+                    request_kind="BILL", bill_reference="LIVE-1001", amount_minor=249_900,
+                    claimed_payee_id="tnpower@upi", summary="Extracted a bill without complete evidence.",
+                    evidence_spans=spans,
+                ))
+                result = self.service.ingest_document("tenant-a", "missing.png", "image/png",
+                                                       b"different" + str(len(spans)).encode())
+                self.assertEqual(result["state"], "ATTENTION")
+                self.assertIn("DOCUMENT_EVIDENCE_INCOMPLETE", result["reason"])
+                self.assertFalse(result["money_moved"])
+                self.assertEqual(self.payment_count(), 0)
+
     def test_gemini_document_adapter_uses_multimodal_typed_output(self):
         expected = InterpretedFinancialSignal(
             request_kind="BILL",
@@ -531,6 +552,9 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertEqual(calls[0]["contents"][1].inline_data.mime_type, "image/png")
         schema = calls[0]["config"].response_json_schema
         self.assertIn("evidence_spans", schema["properties"])
+        prompt = calls[0]["config"].system_instruction
+        self.assertIn("Ordinary disclaimers", prompt)
+        self.assertIn("Never omit quotations", prompt)
 
     def test_api_is_tenant_isolated_and_rejects_extra_input(self):
         settings = Settings(

@@ -181,7 +181,13 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **190 tests run: 189 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and nine multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+Current isolated result: **191 tests run: 190 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and nine multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+
+Live PDF verification now includes a matching bill stopped at the saved automatic
+limit and a recipient mismatch stopped before payment, through Vertex AI and the
+signed-in cloud website. The document gate refuses missing critical quotations.
+See [the document verification report](docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md)
+for the initial failure, fix, live evidence and scope limits.
 
 The no-payment [proposal evaluation](docs/submission/SAFETY_EVALUATION.md) checks
 51 generated cases: 12 valid proposals allowed, 39 unsafe proposals rejected,

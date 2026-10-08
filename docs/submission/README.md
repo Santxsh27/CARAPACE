@@ -5,6 +5,8 @@ Use this folder for the final demo script, evaluation results, slides and submis
 Implemented evidence: [proposal safety evaluation](SAFETY_EVALUATION.md),
 [security boundaries](SECURITY_BOUNDARIES.md), and [live demo script](DEMO_SCRIPT.md).
 The generated safety corpus is not a live model benchmark.
+Live multimodal evidence: [document verification](../FRIDAY_DOCUMENT_VERIFICATION_1008.md),
+including the initial failure, fail-closed fix and two successful safety retests.
 
 ## Demo story
 

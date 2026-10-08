@@ -311,6 +311,11 @@ class FinancialFridayService:
                 "live": {"event_id": event_id, "authoritative_bill": bill.model_dump()},
             }
             mismatch = []
+            if signal.source_type == "DOCUMENT":
+                quoted_fields = {span.field for span in interpretation.evidence_spans}
+                required_fields = {"bill_reference", "amount_minor", "claimed_payee_id"}
+                if not required_fields.issubset(quoted_fields):
+                    mismatch.append("DOCUMENT_EVIDENCE_INCOMPLETE")
             if interpretation.amount_minor is not None and interpretation.amount_minor != bill.amount_minor:
                 mismatch.append("AMOUNT_MISMATCH")
             if interpretation.claimed_payee_id and interpretation.claimed_payee_id != bill.payee_id:
