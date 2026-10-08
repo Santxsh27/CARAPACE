@@ -6,7 +6,7 @@ The Google Cloud project, billing alerts and required APIs are configured. Verte
 
 The Cloud Run service is deliberately private. Its dedicated runtime service account has Vertex invocation, project-scoped Firestore data access and access to the three named demo secrets. It uses Application Default Credentials supplied by Cloud Run; no Gemini API key is embedded in the image or repository.
 
-Version 0.13.2 with the document gate and message repair serves 100% normal traffic on `financial-friday-api-message1008`. Message verification is in `submission/MESSAGE_PROMPT_REPAIR_1008.md`; document verification is in `FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A live
+Version 0.13.2 with the document gate, message repair and verbatim text quotation filter serves 100% normal traffic on `financial-friday-api-ready1008`. Current release evidence is in `submission/FINAL_HANDOFF_1009.md`; message repair history is in `submission/MESSAGE_PROMPT_REPAIR_1008.md`; document verification is in `FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A live
 cross-revision check restored a payment created by 0.13.1 from Firestore, verified
 the persistent signing key, retained its original operation ID and unchanged
 balance, and returned ALREADY_COMPLETED without calling AI or creating a debit.

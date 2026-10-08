@@ -178,7 +178,8 @@ Implemented:
 - Automatic artificial-money completion inside saved limits.
 - Recipient, amount, recurring-request, embedded-instruction and reserve protection.
 - Browser voice capture feeding the same live-input API.
-- Ephemeral Gemini document understanding for PNG, JPEG, WebP and PDF bills with exact source quotations and no raw-file persistence.
+- Ephemeral Gemini document understanding for PNG, JPEG, WebP and PDF bills with model-produced source quotations and no raw-file persistence. Missing critical document quotations cause a hold; quotation accuracy is not independently OCR-verified.
+- Original text quotations are checked verbatim; unsupported quotations are discarded with a recorded count. This protects evidence display, not authenticity: the separate provider record and deterministic financial gate still decide whether an action is permitted.
 - Google Cloud project, enabled services, budget alerts and live Vertex smoke test.
 - Opt-in tenant-scoped Firestore transactions for artificial payments, balances, receipts, idempotency and run outcomes, with commit-time provider and mandate checks.
 - Restored tasks use the cloud journal before creating any payment effect; persistent signing keys are required in Firestore mode.
@@ -187,7 +188,7 @@ Implemented:
 Next:
 
 1. Arrange approved judge access and confirm dashboard rules. The owner-only IAP web surface and new-bill browser journey now work; see docs/FRIDAY_BROWSER_VERIFICATION_1008.md. The API remains private and tenant credentials stay server-side.
-2. Verify live document uploads and a second independently enrolled cloud identity; finish the unseen-case evaluation and submission artifacts.
+2. Finish a second explicitly enrolled cloud identity, varied unseen-document evaluation and submission artifacts. Live PDF execution, repair and replay have been demonstrated; the hand-authored 16-case text evaluation is not a general fraud benchmark.
 3. Replace the same-operator test provider with an independently authenticated sandbox connector.
 4. Add durable Cloud Tasks orchestration and recovery.
 5. Replace browser transcription with Gemini Live API native audio using the same tools.

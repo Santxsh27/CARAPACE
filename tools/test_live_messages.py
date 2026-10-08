@@ -1,6 +1,6 @@
 import unittest
 
-from evaluate_live_messages import cases, preflight, score
+from evaluate_live_messages import cases, extended_cases, preflight, score
 
 
 class LiveMessageEvaluationTests(unittest.TestCase):
@@ -19,6 +19,13 @@ class LiveMessageEvaluationTests(unittest.TestCase):
         self.assertTrue(all("FRESH-123" in c[1] for c in corpus))
         self.assertIn("FRESH-123-UNKNOWN", corpus[-1][1])
 
+    def test_extended_cases_are_bounded_and_include_negation_and_languages(self):
+        corpus = extended_cases("NEW-123", 300100)
+        self.assertEqual(len(corpus), 16)
+        self.assertEqual(len({case[0] for case in corpus}), 16)
+        self.assertEqual(sum(c[2] == "READY" for c in corpus), 8)
+        self.assertTrue(all("NEW-123" in c[1] for c in corpus))
+
     def test_scoring_is_fail_closed(self):
         valid = {"state": "READY", "reason": ["ABOVE_AUTOMATIC_LIMIT"], "money_moved": False,
                  "understanding": {"mode": "VERTEX_AI", "successful_model_calls": 1}}
@@ -33,6 +40,14 @@ class LiveMessageEvaluationTests(unittest.TestCase):
                   "understanding": {"mode": "VERTEX_AI", "successful_model_calls": 1},
                   "interpretation": {"amount_minor": 999}}
         self.assertIn("incorrect extracted amount_minor", score(result, "READY", None, {"amount_minor": 100}))
+
+    def test_unsupported_quotation_is_not_counted_as_a_pass(self):
+        result = {"state": "READY", "money_moved": False,
+                  "understanding": {"mode": "VERTEX_AI", "successful_model_calls": 1},
+                  "interpretation": {"evidence_spans": [{"quote": "invented amount"}]}}
+        self.assertIn("unsupported source quotation", score(result, "READY", None, source_text="INR 100"))
+        result["interpretation"]["evidence_spans"] = [{"quote": "INR 100"}]
+        self.assertEqual(score(result, "READY", None, source_text="INR 100"), [])
 
 
 if __name__ == "__main__":

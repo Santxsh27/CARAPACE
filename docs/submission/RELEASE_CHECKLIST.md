@@ -10,11 +10,13 @@
 - Actual live rejected-plan correction before execution.
 - Document source-evidence gate, provider mismatch and reserve/limit protection.
 - Transactional Firestore journal, tenant controls and fail-closed model handling.
-- 192 application tests (191 passed, one optional skip), plus nine tooling tests.
+- 195 application tests (194 passed, one optional skip), plus eleven tooling tests.
 - Reproducible 51-case generated proposal evaluation, limitations documented.
 - Cloud browser evidence and technical demo script.
 - Two live Vertex message batches, with both failures retained in LIVE_MESSAGE_EVALUATION_1008.md.
 - Targeted false-hold repair: 24 live extraction and eight private API checks passed; privacy-safe diagnostics added.
+- Sixteen broader fresh live message checks passed exact financial fields, expected holds/approval states and retained verbatim quotations, without any payment. Median 2.240 seconds, maximum 7.824 seconds; no cost measurement or broad fraud claim.
+- Simplified direct task entry, clear outcome/next action, disclosure of saved automatic authority and read-only receipt loading.
 
 ## Required before claiming the submission is complete
 

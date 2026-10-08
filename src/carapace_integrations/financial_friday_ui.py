@@ -217,7 +217,8 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       $('live-mode').textContent=nice(data.state);$('live-result').replaceChildren();$('live-result').append(node('b',data.message));
       const facts=data.interpretation||{};$('live-result').append(node('p',`Extracted: ${facts.bill_reference||'no reference'} · ${facts.amount_minor?money(facts.amount_minor):'amount unknown'} · ${facts.claimed_payee_id||'payee not stated'}`));
       if(data.reason?.length)$('live-result').append(node('p','Stopped because: '+data.reason.map(nice).join(' · ')));
-      if(facts.evidence_spans?.length){const evidence=node('details',undefined,'source-spans');evidence.append(node('summary','Show exact source evidence'));facts.evidence_spans.forEach(span=>evidence.append(node('blockquote',nice(span.field)+': “'+span.quote+'”')));$('live-result').append(evidence);}
+      if(facts.evidence_spans?.length){const evidence=node('details',undefined,'source-spans');evidence.append(node('summary','Show source quotations'));facts.evidence_spans.forEach(span=>evidence.append(node('blockquote',nice(span.field)+': “'+span.quote+'”')));$('live-result').append(evidence);}
+      if(data.source_quote_validation?.discarded)$('live-result').append(node('p','Some AI quotations were not verbatim and were discarded. Provider evidence remains the separate financial check.'));
       if(data.document)$('live-result').append(node('p',`${data.document.filename} · ${Math.ceil(data.document.size_bytes/1024)} KB · raw file discarded after analysis`));
       resetStages();stage('understand','done','Message structured');stage('ground',data.state==='ATTENTION'?'blocked':'done',data.state==='ATTENTION'?'Needs attention':'Provider record matched');
       if(data.state==='ATTENTION'){stage('plan','skipped','No unsafe plan requested');stage('prove','done','Stopped before action');stage('act','blocked','No money moved');setCore('THREAT CONTAINED','Signal contradicted trusted evidence');}

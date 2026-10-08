@@ -8,7 +8,7 @@ Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo step
 
 Financial Friday is not a financial chatbot and it is not an AI with unrestricted bank access. It turns a user's limited financial instruction into a typed action program, independently verifies every financial effect, executes only allowlisted operations through an authorised provider, and reconciles the recorded result before declaring success.
 
-The working slice now accepts a saved standing instruction plus a previously unseen message, QR text, voice transcript, bill image or PDF. Gemini extracts a typed financial request with exact source quotations, Friday retrieves a separate enrolled test-provider record, and the deterministic kernel decides whether an artificial-money action is allowed. A verified task can execute automatically inside the saved limit; changed amounts, recipients, recurring requests, embedded instructions and protected-balance violations stop before execution.
+The working slice now accepts a saved standing instruction plus a previously unseen message, QR text, voice transcript, bill image or PDF. Gemini extracts a typed financial request and proposed source quotations, Friday retrieves a separate enrolled test-provider record, and the deterministic kernel decides whether an artificial-money action is allowed. Text quotations are checked against the original input and unsupported quotations discarded; document quotations are model-produced, not independently OCR-verified. A verified task can execute automatically inside the saved limit; changed amounts, recipients, recurring requests, embedded instructions and protected-balance violations stop before execution.
 
 The existing Python package names still use `carapace_*` to preserve compatibility while the product transitions from CARAPACE to Financial Friday.
 
@@ -27,11 +27,17 @@ cyan means working; labels always accompany colours. The Motion toggle remembers
 only a local display preference and respects the OS reduced-motion setting.
 These effects do not create new financial permissions or simulate success.
 The Jarvis-inspired command centre pairs the assistant core with a time-aware
-greeting, quick task shortcuts and a read-only briefing from the most recent ten
+greeting, one direct bill request and a read-only briefing from the most recent ten
 recorded runs. Activity has text search and Confirmed/Held/Review filters. Native
 dialog help explains the permission boundary; `/` focuses the command outside
-text fields and `?` opens help. None of these interactions submits a payment.
-See [the UI verification report](docs/FRIDAY_MULTISCREEN_1008.md).
+text fields and `?` opens help. Help, filters, journal reads and keyboard shortcuts
+do not submit a payment.
+Submitting the home request starts the live task; saved automatic permission can
+complete a permitted artificial payment. This is disclosed next to the request.
+The dedicated outcome summary explains what happened, why and the next step.
+Repeated developer metrics stay inside the evidence disclosure, and saved-receipt
+loading never shows a previous task's outcome as the new result.
+See [the latest UI flow check](docs/submission/UI_VERIFICATION_1009.md) and [earlier UI verification](docs/FRIDAY_MULTISCREEN_1008.md).
 
 The **live input path** saves a user's
 instruction, publishes a new artificial bill into an enrolled test provider, and
@@ -46,7 +52,7 @@ The live flow is content-driven rather than a stored question/answer animation.
 Users can change the reference, amount, payee and wording or upload a new PNG,
 JPEG, WebP or PDF bill. Documents are capped at 8 MB, checked against their file
 signature and processed ephemerally: Friday persists the SHA-256 digest, typed
-facts and exact evidence quotations, but not the raw file. The outcome changes
+facts and proposed evidence quotations, but not the raw file. The outcome changes
 from READY or COMPLETED to ATTENTION when the content contradicts the provider.
 
 The dedicated Run screen exposes the same backend truth as a five-stage assurance
@@ -122,7 +128,7 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Bill identity, rather than message identity, prevents two messages about one bill from creating two payments. At commit time, the cloud executor rechecks provider details, current mandate, automatic permission and protected balance. Updating a mandate never resets the artificial account balance.
 - Transaction callback contract tests cover restart recovery, concurrent attempts, repeated bill messages, changed provider details, corrupt receipts, AI-offline replay and commit failures. Cloud integration checks are recorded separately in `docs/CLOUD_RUN.md`; neither establishes production banking readiness.
 - The default Firestore database is now provisioned in Mumbai (`asia-south1`), with deletion protection. Payment and witness signing keys plus private demo API credentials are provisioned in Secret Manager; secret values are never committed.
-- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-message1008` serves version `0.13.2` at 100% normal traffic with `gemini-3.5-flash-lite` on Vertex AI. It includes the document gate, targeted message prompt repair and privacy-safe diagnostics. Fresh artificial payments and cross-revision receipt-first replay have been verified without repeat debits. See [current message release](docs/submission/MESSAGE_PROMPT_REPAIR_1008.md), [original API evidence](docs/CLOUD_RELEASE_0132_VERIFIED.md) and [browser verification](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
+- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-ready1008` serves version `0.13.2` at 100% normal traffic with `gemini-3.5-flash-lite` on Vertex AI. It includes the document gate, targeted message prompt repair, privacy-safe diagnostics and text quotation validation. Fresh artificial payments and cross-revision receipt-first replay have been verified without repeat debits. See [current release and handoff](docs/submission/FINAL_HANDOFF_1009.md), [message release history](docs/submission/MESSAGE_PROMPT_REPAIR_1008.md), [original API evidence](docs/CLOUD_RELEASE_0132_VERIFIED.md) and [browser verification](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
 - The protected [cloud website](https://financial-friday-web-171681243260.asia-south1.run.app/) now works with real owner Google sign-in through IAP. A new ₹2,487 bill completed through browser → live Vertex AI → transactional Firestore → signed receipt; replay created no additional debit, and a changed recipient was held. The API is still private and backend keys never enter the browser. Owner-only access is not yet judge enrollment. See [browser verification and limits](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
 
 ## Next steps
@@ -181,7 +187,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **192 tests run: 191 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and nine multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+Current isolated result: **195 tests run: 194 passed, 1 optional Anthos integration test skipped**, plus **11 tooling tests passed**. This includes cloud gateway checks, multi-screen UI contracts, quotation suppression, concurrency and receipt recovery. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
 
 Live PDF verification now includes a matching bill stopped at the saved automatic
 limit and a recipient mismatch stopped before payment, through Vertex AI and the
@@ -206,6 +212,12 @@ This small component check is not broad fraud accuracy. The subsequent
 [prompt repair](docs/submission/MESSAGE_PROMPT_REPAIR_1008.md) passed 24 live
 extraction and eight private API checks without weakening the gate. The earlier
 503 remains undiagnosed; sanitized diagnostics now help investigate future failures.
+The broader follow-up checked 16 fresh message variants on the private candidate:
+16/16 expected outcomes, exact financial extraction and retained text quotations
+passed; the balance was unchanged. Sample API median 2.240 seconds and maximum
+7.824 seconds are not a p95 or general latency promise. Cost was not measured.
+An earlier 16-case pass exposed two invented quotations; the subsequent filter
+fix and both limitations are retained in the final handoff report.
 The evaluator and nine offline tooling tests are included in CI.
 
 ## What is retained from CARAPACE

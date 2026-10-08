@@ -74,6 +74,21 @@ class FridayExperienceTests(unittest.TestCase):
         self.assertIn("e.target.closest('input,textarea,select", EXPERIENCE_JS)
         self.assertIn("function filterActivity()", EXPERIENCE_JS)
 
+    def test_home_has_one_direct_request_and_discloses_saved_permission(self):
+        self.assertIn("hero.querySelector('.hero-main').append(command)", EXPERIENCE_JS)
+        self.assertIn("if(value){$('live-input').value=value;checkLive();}", EXPERIENCE_JS)
+        self.assertIn("Allowed tasks may complete automatically", EXPERIENCE_JS)
+        self.assertIn(".command-hints{display:none}", EXPERIENCE_CSS)
+
+    def test_outcome_summary_uses_evidence_not_decorative_progress(self):
+        self.assertIn("const originalSignalResult=showLiveResult", EXPERIENCE_JS)
+        self.assertIn("data.state==='READY'", EXPERIENCE_JS)
+        self.assertIn("Needs approval · no payment yet", EXPERIENCE_JS)
+        self.assertIn("No success is assumed", EXPERIENCE_JS)
+        self.assertIn("aria-atomic", EXPERIENCE_JS)
+        self.assertIn("evidenceDetails.insertBefore($('briefing')", EXPERIENCE_JS)
+        self.assertIn("$('verdict').hidden=true", EXPERIENCE_JS)
+
 
 if __name__ == "__main__":
     unittest.main()

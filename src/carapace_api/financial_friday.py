@@ -247,6 +247,12 @@ class FinancialFridayService:
         durable_existing = self.durable.get("signals", tenant, event_id)
         if durable_existing is not None:
             return durable_existing["result"]
+        if signal.source_type != "DOCUMENT":
+            # Text is available verbatim. Never preserve an invented quotation as evidence.
+            supported = [span for span in interpretation.evidence_spans if span.quote in signal.content_text]
+            source_metadata = {**(source_metadata or {}), "source_quote_validation": {
+                "mode": "VERBATIM_TEXT", "discarded": len(interpretation.evidence_spans) - len(supported)}}
+            interpretation = interpretation.model_copy(update={"evidence_spans": supported})
         now = datetime.now(timezone.utc).isoformat()
         result = {
             "event_id": event_id,

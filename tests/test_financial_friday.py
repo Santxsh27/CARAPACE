@@ -111,6 +111,18 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertNotIn("123456", output)
         self.assertNotIn("secret", output)
 
+    def test_text_source_quotations_must_be_verbatim(self):
+        signal = IncomingFinancialSignal(source_type="MESSAGE", content_text="Invoice QUOTE-123 amount INR 100.00")
+        interpretation = InterpretedFinancialSignal(request_kind="BILL", bill_reference="QUOTE-123",
+            amount_minor=10000, summary="Artificial quotation check", evidence_spans=[
+                FinancialEvidenceSpan(field="bill_reference", quote="QUOTE-123"),
+                FinancialEvidenceSpan(field="amount_minor", quote="invented amount text")])
+        result = self.service._ingest_interpreted_signal("tenant-a", signal, interpretation)
+        self.assertEqual(result["source_quote_validation"]["discarded"], 1)
+        self.assertEqual([s["quote"] for s in result["interpretation"]["evidence_spans"]], ["QUOTE-123"])
+        self.assertFalse(result["money_moved"])
+        self.assertEqual(self.payment_count(), 0)
+
     def test_input_api_fails_closed_when_understanding_is_unavailable(self):
         settings = Settings(environment="test", database_path=Path(self.temp.name) / "api-failure.db",
                             tenant_keys={"tenant-a": "secret-a"}, ai_provider="local")

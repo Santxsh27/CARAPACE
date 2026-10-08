@@ -9,10 +9,10 @@ Save an instruction such as “Handle verified bills up to ₹3,000, protect ₹
 ## Run and explore
 
 1. Start Docker Desktop and open this folder in Visual Studio Code.
-2. Run `docker compose up -d --build api anthos-demo`.
+2. Run `docker compose --profile anthos up -d --build api anthos-demo`.
 3. Open http://localhost:8090 for Friday and http://localhost:8080/docs for the API.
 4. Open **My rules** to inspect/save standing permission. Open **Bills → Demo provider setup** to publish a fresh artificial bill.
-5. Use **Bills** for a new message or **Documents** for its image/PDF.
+5. Paste a request directly on **Friday home**, use **Bills** for a longer message or **Documents** for its image/PDF. Submitting a valid request may complete an artificial payment within your saved automatic permission.
 6. Friday opens a separate **Run** screen. Change the amount or recipient and check that it stops.
 7. Use **Safety lab** for controlled subscription/timeout cases, and **Activity** to reopen existing receipts without paying again.
 8. Home's **Your sandbox briefing** counts recent recorded outcomes, not all-time totals. Use Activity search and outcome filters to find a receipt. **How Friday works** explains the journey; Escape closes help and `/` focuses the home command outside text fields.
@@ -42,7 +42,7 @@ Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Bui
 
 ## Verification
 
-Version 0.13.2 plus the cloud gateway and multi-screen UI: 192 tests ran, 191 passed, one optional Anthos test skipped. Nine tooling tests also passed. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, missing document quotations, privacy-safe diagnostics, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md`, `docs/FRIDAY_MULTISCREEN_1008.md` and `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A separate no-payment evaluation covers 51 generated proposals (12 valid allowed, 39 unsafe rejected); results and limitations are in `docs/submission/SAFETY_EVALUATION.md`.
+Version 0.13.2 plus the cloud gateway and multi-screen UI: 195 tests ran, 194 passed, one optional Anthos test skipped. Eleven tooling tests also passed. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, missing document quotations, suppression of invented text quotations, privacy-safe diagnostics, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md`, `docs/FRIDAY_MULTISCREEN_1008.md` and `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A separate no-payment evaluation covers 51 generated proposals (12 valid allowed, 39 unsafe rejected); results and limitations are in `docs/submission/SAFETY_EVALUATION.md`. The newest 16-case live Vertex check and remaining submission blockers are in `docs/submission/FINAL_HANDOFF_1009.md`.
 
 ```bash
 docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests
