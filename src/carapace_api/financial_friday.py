@@ -24,6 +24,7 @@ from carapace_core.friday_live import (
     IncomingFinancialSignal,
     InterpretedFinancialSignal,
     TestProviderBill,
+    bill_increase_requires_review,
 )
 from carapace_integrations.financial_friday_fixtures import load_case
 from .friday_durable import LocalFridayState
@@ -155,6 +156,23 @@ class FinancialFridayService:
         self.durable.put("provider_bills", tenant, bill.bill_reference, bill.model_dump())
         return {"published": True, "bill": bill.model_dump(), "scope": "ENROLLED_TEST_PROVIDER"}
 
+    def household_bills(self, tenant: str) -> dict:
+        """Read-only artificial provider records for a household review list."""
+        if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
+            records = self.durable.list("provider_bills", tenant, 100)
+        else:
+            with self.connect() as db:
+                rows = db.execute(
+                    "SELECT bill_json FROM friday_provider_bills WHERE tenant_id=? ORDER BY rowid DESC LIMIT 100",
+                    (tenant,),
+                ).fetchall()
+            records = [json.loads(row[0]) for row in rows]
+        bills = [TestProviderBill.model_validate(record).model_dump() for record in records]
+        return {
+            "items": sorted(bills, key=lambda bill: (bill["due_date"], bill["bill_reference"]))[:20],
+            "scope": "ENROLLED_TEST_PROVIDER_ARTIFICIAL_MONEY",
+        }
+
     def _load_case(self, tenant: str, case_id: str) -> dict:
         if case_id.startswith("live-"):
             if self.durable.mode == "FIRESTORE_TRANSACTIONAL":
@@ -278,7 +296,11 @@ class FinancialFridayService:
                 bill = TestProviderBill.model_validate(durable_bill) if durable_bill else None
 
         case_id = None
-        if bill is not None:
+        payment_request = interpretation.request_kind in {"BILL", "PAYMENT_REQUEST"}
+        if not payment_request:
+            result.update(message="This is not a new bill payment request. No payment was prepared.",
+                          reason=["NOT_A_PAYMENT_REQUEST"])
+        if bill is not None and payment_request:
             mandate_data = self.mandate(tenant)
             mandate = FridayMandate.model_validate(mandate_data["mandate"])
             case_id = "live-" + sha256_hex({"tenant": tenant, "event": event_id, "bill": bill.model_dump()})[:24]
@@ -326,6 +348,22 @@ class FinancialFridayService:
                 "live": {"event_id": event_id, "authoritative_bill": bill.model_dump()},
             }
             mismatch = []
+            increase_percent = None
+            if bill.previous_amount_minor is not None:
+                increase_percent = round(
+                    (bill.amount_minor - bill.previous_amount_minor) * 100 / bill.previous_amount_minor,
+                    1,
+                )
+            result["bill_review"] = {
+                "provider_name": bill.provider_name,
+                "bill_reference": bill.bill_reference,
+                "amount_minor": bill.amount_minor,
+                "previous_amount_minor": bill.previous_amount_minor,
+                "increase_percent": increase_percent,
+                "due_date": bill.due_date,
+                "payee_id": bill.payee_id,
+                "source": "ENROLLED_TEST_PROVIDER",
+            }
             if signal.source_type == "DOCUMENT":
                 quoted_fields = {span.field for span in interpretation.evidence_spans}
                 required_fields = {"bill_reference", "amount_minor", "claimed_payee_id"}
@@ -339,6 +377,8 @@ class FinancialFridayService:
                 mismatch.append("EMBEDDED_INSTRUCTION")
             if interpretation.recurring_requested:
                 mismatch.append("RECURRING_REQUEST")
+            if bill_increase_requires_review(bill, mandate.bill_increase_review_percent):
+                mismatch.append("UNUSUAL_BILL_INCREASE")
             with self.connect() as db:
                 db.execute(
                     "INSERT OR REPLACE INTO friday_dynamic_cases VALUES (?,?,?)",
@@ -349,7 +389,10 @@ class FinancialFridayService:
             affordable = balance - bill.amount_minor >= mandate.protected_balance_minor
             within_limit = bill.amount_minor <= mandate.automatic_payment_limit_minor
             if mismatch:
-                result.update(state="ATTENTION", message="Friday found a contradiction and stopped before payment.", reason=mismatch)
+                result.update(state="ATTENTION", message=(
+                    "This bill exceeds your chosen increase-review threshold. No payment was made."
+                    if mismatch == ["UNUSUAL_BILL_INCREASE"]
+                    else "Friday found a contradiction and stopped before payment."), reason=mismatch)
             elif not affordable:
                 result.update(state="ATTENTION", message="Friday protected your reserved balance.", reason=["PROTECTED_BALANCE"])
             elif not within_limit:
@@ -768,6 +811,8 @@ class FinancialFridayService:
                         changed = ["MANDATE_CHANGED"]
                     elif result.get("automatic") and (not mandate.automatic_sandbox_execution or payload["amount_minor"] > mandate.automatic_payment_limit_minor):
                         changed = ["AUTOMATIC_PERMISSION_CHANGED"]
+                    elif bill_increase_requires_review(TestProviderBill.model_validate(bill), mandate.bill_increase_review_percent):
+                        changed = ["UNUSUAL_BILL_INCREASE"]
                     if changed:
                         result["status"] = "HELD"
                         result["outcome"] = {"money_moved": False, "new_payment_created": False, "reason": changed}

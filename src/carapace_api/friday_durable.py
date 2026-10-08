@@ -5,6 +5,8 @@ from typing import Any, Protocol
 from copy import deepcopy
 from hashlib import sha256
 
+from carapace_core.friday_live import FridayMandate, TestProviderBill, bill_increase_requires_review
+
 
 KINDS = {"mandates", "accounts", "provider_bills", "signals", "dynamic_cases", "runs", "payments", "idempotency"}
 
@@ -149,6 +151,11 @@ class FirestoreFridayState:
                         reason = ["MANDATE_CHANGED"]
                     elif output.get("automatic") and (not rules["automatic_sandbox_execution"] or payload["amount_minor"] > rules["automatic_payment_limit_minor"]):
                         reason = ["AUTOMATIC_PERMISSION_CHANGED"]
+                    elif bill_increase_requires_review(
+                        TestProviderBill.model_validate(live["authoritative_bill"]),
+                        FridayMandate.model_validate(rules).bill_increase_review_percent,
+                    ):
+                        reason = ["UNUSUAL_BILL_INCREASE"]
                     elif balance < rules["protected_balance_minor"]:
                         reason = ["PROTECTED_BALANCE"]
             if reason:

@@ -1,12 +1,37 @@
 # Financial Friday — Product and Engineering Specification
 
-Version 1.2 · 2 October 2026
+Version 1.3 · 9 October 2026 · broader workspace increment, not yet cloud deployed
 
 ## Product statement
 
 Financial Friday is a bounded AI operator for everyday financial tasks. A person delegates an outcome and constraints; Gemini creates or repairs a typed plan; an independent deterministic kernel proves the plan stays within those constraints; a restricted provider adapter performs the allowed action; and reconciliation verifies what actually happened.
 
 The product removes routine work without asking a person to trust a chatbot or give an LLM unrestricted financial authority.
+
+## Shared consumer experience
+
+The product covers four connected needs: understand available records, handle
+supported obligations, protect the user's constraints and resolve uncertain
+outcomes. They use the same tenant identity, mandate, evidence and receipt boundary.
+Bill payment is the first execution adapter, not a promise of universal bank access.
+
+`GET /v1/friday/workspace` is read-only. It displays a bounded artificial-money
+snapshot: balance, protected reserve, recorded bills, conservative potential
+commitments, shortfall and recent outcomes. Totals use integer minor units, make
+missing history explicit and exclude a bill only if its signed internal receipt
+matches tenant, goal, provider, payee, amount and currency. External payment status
+remains unknown. The snapshot is not atomic and the execution gate rechecks state.
+
+`friday_resolution.resolve_bill` provides a separate tested kernel for bank/biller
+disagreement. Connector trust is server-owned, never supplied by Gemini. Pending
+outcomes must not be retried blindly; multiple settled postings require review;
+paid confirmation requires a matching bank payment and biller reference. A ready
+reconciliation proposal is not a completed provider action. No resolution branch
+authorizes payment or refund. Source authentication, separate provider services,
+durable follow-up and live correction remain required before exposing execution.
+
+Transaction alerts, receipts and unknown interpretations must not create executable
+payment cases. Bill-increase review is a customer preference, not a fraud claim.
 
 ## The one problem
 

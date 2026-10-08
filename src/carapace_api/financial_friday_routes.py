@@ -81,6 +81,11 @@ def register_financial_friday_routes(application, service, authenticate):
     def today(tenant: TenantContext = Depends(authenticate)):
         return service.daily_brief(tenant.tenant_id)
 
+    @application.get("/v1/friday/workspace", tags=["financial-friday"])
+    def workspace(tenant: TenantContext = Depends(authenticate)):
+        from .friday_workspace import financial_workspace
+        return financial_workspace(service, tenant.tenant_id)
+
     @application.get("/v1/friday/storage-status", tags=["financial-friday"])
     def storage_status(tenant: TenantContext = Depends(authenticate)):
         del tenant
@@ -97,6 +102,10 @@ def register_financial_friday_routes(application, service, authenticate):
     @application.post("/v1/friday/test-provider/bills", tags=["financial-friday"])
     def publish_test_bill(request: TestProviderBill, tenant: TenantContext = Depends(authenticate)):
         return service.publish_test_bill(tenant.tenant_id, request)
+
+    @application.get("/v1/friday/test-provider/bills", tags=["financial-friday"])
+    def household_bills(tenant: TenantContext = Depends(authenticate)):
+        return service.household_bills(tenant.tenant_id)
 
     @application.get("/v1/friday/live-input", tags=["financial-friday"])
     def live_inputs(tenant: TenantContext = Depends(authenticate)):

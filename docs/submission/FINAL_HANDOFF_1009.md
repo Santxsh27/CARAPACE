@@ -2,6 +2,26 @@
 
 October 9, 2026. This is a working artificial-money pilot, not unrestricted bank access or a claim that the whole submission is complete.
 
+## Later local workspace increment (0.14.0, not cloud deployed)
+
+Friday now connects Understand / Handle / Protect / Resolve through a read-only
+My money screen and `/v1/friday/workspace`. It displays the existing tenant's bill
+records, protected reserve, conservative commitments, shortfall and receipt
+history. External payment status and missing historical comparison remain unknown.
+Native verification ran 235 tests: 234 passed, one optional Anthos test skipped.
+The Docker image skips Node-dependent script tests, which passed
+natively. Local Docker services were rebuilt without changing named volumes.
+
+Safety review reproduced an alert-to-payment bug in an isolated temporary account;
+intake now refuses TRANSACTION_ALERT/UNKNOWN before constructing an executable
+case, with regression coverage and conservative local-parser/model instructions.
+A pure bank/biller disagreement kernel validates binding, freshness, trusted issuer
+configuration and consent; it permits no payments/refunds. Its reconciliation
+action is a proposal, not a connected correction service.
+
+No new model call, real payment, cloud release, IAM change or public access grant
+was performed. The cloud evidence below describes the earlier deployed release.
+
 ## One coherent product
 
 Delegate a verified household bill within saved rules. Gemini understands the new input and proposes a typed plan; independently retrieved provider evidence and strict code validate the financial effects; a restricted executor acts once; Friday records a signed receipt and checks a previous outcome before retrying. AI can correct a rejected plan, but cannot relax permission or alter the production ledger. Voice transcripts, QR text and document inputs use the same safety boundary.

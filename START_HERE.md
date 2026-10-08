@@ -21,6 +21,11 @@ Save an instruction such as “Handle verified bills up to ₹3,000, protect ₹
 
 ## Implemented capabilities
 
+- **My money**: read-only bill, reserve and shortfall overview, with explicit record coverage.
+- Shared Understand / Handle / Protect / Resolve navigation and capability boundaries.
+- Transaction-alert/unknown intake stops before preparing a new payment.
+- Tested bank/biller resolution kernel; provider correction execution is not connected.
+
 - Typed goals, provider evidence and Gemini action programs.
 - Vertex AI and Gemini Developer API adapters, plus a labelled local comparison.
 - New message, QR-text and transcript interpretation; PNG/JPEG/WebP/PDF interpretation with quotations.
@@ -42,10 +47,16 @@ Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Bui
 
 ## Verification
 
+The newer **0.14.0 local workspace increment** ran 235 native tests: 234 passed,
+one optional Anthos test skipped. My money now works through localhost and the
+tenant-scoped API. The new resolution kernel has sixteen tests, but no live biller
+correction endpoint. The earlier Cloud Run release remains unchanged until the new
+candidate passes cloud verification. No live Gemini calls were made in this increment.
+
 Version 0.13.2 plus the cloud gateway and multi-screen UI: 195 tests ran, 194 passed, one optional Anthos test skipped. Eleven tooling tests also passed. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, missing document quotations, suppression of invented text quotations, privacy-safe diagnostics, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md`, `docs/FRIDAY_MULTISCREEN_1008.md` and `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A separate no-payment evaluation covers 51 generated proposals (12 valid allowed, 39 unsafe rejected); results and limitations are in `docs/submission/SAFETY_EVALUATION.md`. The newest 16-case live Vertex check and remaining submission blockers are in `docs/submission/FINAL_HANDOFF_1009.md`.
 
 ```bash
-docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api python -m unittest discover -s tests
+docker compose --profile test run --rm --no-deps --build -e CARAPACE_AI_PROVIDER=local -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false tests
 ```
 
 ## Remaining submission work, in order

@@ -320,6 +320,20 @@ def create_demo_app() -> FastAPI:
             raise HTTPException(code, "Friday mandate unavailable")
         return result
 
+    @application.get("/api/friday/workspace")
+    async def friday_workspace():
+        code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/workspace", "GET")
+        if code != 200:
+            raise HTTPException(code, "Money workspace unavailable")
+        return result
+
+    @application.get("/api/friday/test-provider/bills")
+    async def friday_household_bills():
+        code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/test-provider/bills", "GET")
+        if code != 200:
+            raise HTTPException(code, "Household bills unavailable")
+        return result
+
     @application.put("/api/friday/mandate")
     async def save_friday_mandate(request: FridayMandate):
         code, result = await run_in_threadpool(

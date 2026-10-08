@@ -9,7 +9,7 @@ import unittest
 
 from carapace_api.friday_durable import FirestoreFridayState
 import test_financial_friday
-from carapace_core.friday_live import FridayMandate, IncomingFinancialSignal
+from carapace_core.friday_live import FridayMandate, IncomingFinancialSignal, TestProviderBill
 
 
 class Snapshot:
@@ -161,6 +161,24 @@ class DurableTransactionTests(unittest.TestCase):
         self.service.save_mandate("tenant-a", FridayMandate(**rules))
         result = self.service.run_live_signal("tenant-a", self.signal["event_id"])["run"]
         self.assertEqual(result["outcome"]["reason"], ["PROTECTED_BALANCE"])
+
+    def test_current_bill_increase_threshold_is_enforced_at_commit(self):
+        rules = self.service.mandate("tenant-a")["mandate"]
+        rules["bill_increase_review_percent"] = 50
+        self.service.save_mandate("tenant-a", FridayMandate(**rules))
+        self.service.publish_test_bill("tenant-a", TestProviderBill(
+            bill_reference="LIVE-2002", provider_name="TN Power", provider_id="tn-power-test",
+            payee_id="tnpower@upi", amount_minor=195_000, previous_amount_minor=150_000,
+            due_date="2026-10-12",
+        ))
+        signal = self.service.ingest_live_signal("tenant-a", IncomingFinancialSignal(
+            source_type="MESSAGE", content_text="TN Power bill LIVE-2002 for INR 1950.00. Payee: tnpower@upi"))
+        self.assertEqual(signal["state"], "READY")
+        rules["bill_increase_review_percent"] = 20
+        self.service.save_mandate("tenant-a", FridayMandate(**rules))
+        result = self.service.run_live_signal("tenant-a", signal["event_id"])["run"]
+        self.assertEqual(result["outcome"]["reason"], ["UNUSUAL_BILL_INCREASE"])
+        self.assertEqual(self.service.mandate("tenant-a")["sandbox_balance_minor"], 5_000_000)
 
 
 if __name__ == "__main__":

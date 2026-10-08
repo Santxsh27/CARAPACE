@@ -82,7 +82,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       <details class="mandate-panel"><summary>Your standing permission</summary>
       <label class="label" for="goal">Instruction</label>
       <textarea class="goal" id="goal">Track my verified household bills, protect ₹10,000, and never create subscriptions.</textarea>
-      <div class="form-grid" style="grid-template-columns:1fr 1fr"><label>Protected balance<input class="field" id="reserve" type="number" min="0" step="100" value="10000"></label><label>Automatic limit<input class="field" id="auto-limit" type="number" min="0" step="100" value="5000"></label></div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr"><label>Protected balance<input class="field" id="reserve" type="number" min="0" step="100" value="10000"></label><label>Automatic limit<input class="field" id="auto-limit" type="number" min="0" step="100" value="5000"></label><label>Review bill increases above (%)<input class="field" id="increase-review" type="number" min="1" max="200" step="1" value="30"></label></div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:var(--muted)"><input id="auto-execute" type="checkbox"> Automatically execute verified artificial-money bills</label>
       <div class="inline-actions"><button class="planner" id="save-mandate" type="button">Save instruction</button></div>
       <p class="goal-note">Saved for this sandbox. No real bank account is connected.</p></details>
@@ -102,7 +102,8 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
           <div class="inline-actions"><button class="run" id="check-live" type="button">Handle this safely</button><button class="planner voice" id="speak-live" type="button">◉ Speak</button></div>
           <div class="upload-row"><input id="document-input" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" aria-label="Upload a bill image or PDF"><button class="planner" id="check-document" type="button">Check document</button><span class="upload-note">PNG, JPEG, WebP or PDF · 8 MB max · raw file not stored</span></div>
           <div class="live-state" id="live-result">Ready when you are.</div></div></div>
-          <details class="provider-setup"><summary>Demo provider setup</summary><div class="form-grid"><label>Bill reference<input class="field" id="provider-reference" value="LIVE-1001"></label><label>Amount in rupees<input class="field" id="provider-amount" type="number" min="1" step=".01" value="2499"></label><label>Verified payee<input class="field" id="provider-payee" value="tnpower@upi"></label></div><div class="inline-actions"><button class="planner" id="publish-bill" type="button">Publish test bill</button></div></details>
+          <section class="customer-examples" aria-label="Household bill examples"><h4>Try a household bill</h4><p>Each example creates a new artificial biller record and fills a message for you to review. Preparing an example does not submit a payment. Handling a matching bill may use your saved artificial-money permission.</p><div class="inline-actions"><button class="planner" type="button" data-household-example="routine">Routine bill</button><button class="planner" type="button" data-household-example="increase">Unexpected increase</button><button class="planner" type="button" data-household-example="payee">Changed recipient</button></div></section>
+          <details class="provider-setup"><summary>Demo provider setup</summary><div class="form-grid"><label>Bill reference<input class="field" id="provider-reference" value="LIVE-1001"></label><label>Amount in rupees<input class="field" id="provider-amount" type="number" min="1" step=".01" value="2499"></label><label>Previous artificial bill in rupees (optional)<input class="field" id="provider-previous-amount" type="number" min="1" step=".01"></label><label>Test payee<input class="field" id="provider-payee" value="tnpower@upi"></label></div><div class="inline-actions"><button class="planner" id="publish-bill" type="button">Publish test bill</button></div></details>
         </article>
         <details class="card watch-card" style="margin-bottom:22px">
           <summary>Proactive bill monitoring <span class="badge" id="watch-status">Loading</span></summary>
@@ -200,22 +201,33 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       const response=await fetch(path,options);const data=await response.json();if(!response.ok)throw new Error(data.detail||'Request failed');return data;
     }
     async function loadMandate(){
-      try{const data=await jsonRequest('/api/friday/mandate');const m=data.mandate;$('goal').value=m.instruction;$('reserve').value=(m.protected_balance_minor/100).toFixed(2);$('auto-limit').value=(m.automatic_payment_limit_minor/100).toFixed(2);$('auto-execute').checked=m.automatic_sandbox_execution;$('visible-limit').innerHTML='<i>✓</i>'+money(m.automatic_payment_limit_minor);}
+      try{const data=await jsonRequest('/api/friday/mandate');const m=data.mandate;$('goal').value=m.instruction;$('reserve').value=(m.protected_balance_minor/100).toFixed(2);$('auto-limit').value=(m.automatic_payment_limit_minor/100).toFixed(2);$('increase-review').value=m.bill_increase_review_percent??30;$('auto-execute').checked=m.automatic_sandbox_execution;$('visible-limit').innerHTML='<i>✓</i>'+money(m.automatic_payment_limit_minor);}
       catch(error){toast('Saved instruction unavailable');}
     }
     async function saveMandate(){
       const button=$('save-mandate');button.disabled=true;
-      try{const limit=Math.round(Number($('auto-limit').value)*100);await jsonRequest('/api/friday/mandate','PUT',{instruction:$('goal').value,protected_balance_minor:Math.round(Number($('reserve').value)*100),automatic_payment_limit_minor:limit,max_fee_minor:0,automatic_sandbox_execution:$('auto-execute').checked});$('visible-limit').innerHTML='<i>✓</i>'+money(limit);toast('Friday instruction saved');}
+      try{const limit=Math.round(Number($('auto-limit').value)*100);await jsonRequest('/api/friday/mandate','PUT',{instruction:$('goal').value,protected_balance_minor:Math.round(Number($('reserve').value)*100),automatic_payment_limit_minor:limit,max_fee_minor:0,bill_increase_review_percent:Number($('increase-review').value),automatic_sandbox_execution:$('auto-execute').checked});$('visible-limit').innerHTML='<i>✓</i>'+money(limit);toast('Friday instruction saved');}
       catch(error){toast(String(error));}finally{button.disabled=false;}
     }
     async function publishBill(){
       const button=$('publish-bill');button.disabled=true;
-      try{await jsonRequest('/api/friday/test-provider/bills','POST',{bill_reference:$('provider-reference').value.trim(),provider_name:'TN Power',provider_id:'tn-power-test',payee_id:$('provider-payee').value.trim(),amount_minor:Math.round(Number($('provider-amount').value)*100),due_date:new Date(Date.now()+3*86400000).toISOString().slice(0,10),currency:'INR'});$('live-mode').textContent='Provider ready';$('live-result').textContent='The enrolled test provider published a fresh bill. Friday can now verify a message against it.';toast('Fresh test bill published');}
+      try{const previous=Number($('provider-previous-amount').value);await jsonRequest('/api/friday/test-provider/bills','POST',{bill_reference:$('provider-reference').value.trim(),provider_name:'TN Power',provider_id:'tn-power-test',payee_id:$('provider-payee').value.trim(),amount_minor:Math.round(Number($('provider-amount').value)*100),previous_amount_minor:previous>0?Math.round(previous*100):null,due_date:new Date(Date.now()+3*86400000).toISOString().slice(0,10),currency:'INR'});$('live-mode').textContent='Provider ready';$('live-result').textContent='The enrolled test provider published a fresh bill. Friday can now verify a message against it.';toast('Fresh test bill published');}
       catch(error){$('live-result').textContent=String(error);}finally{button.disabled=false;}
+    }
+    async function prepareHouseholdExample(kind,button){
+      const examples={routine:{amount:178000,previous:165000,claimed:'tnpower@upi'},increase:{amount:248700,previous:160000,claimed:'tnpower@upi'},payee:{amount:178000,previous:165000,claimed:'stranger@upi'}};
+      const example=examples[kind];if(!example)return;
+      button.disabled=true;
+      try{const reference='HOME-'+Date.now().toString(36).toUpperCase();const due=new Date(Date.now()+3*86400000).toISOString().slice(0,10);
+        await jsonRequest('/api/friday/test-provider/bills','POST',{bill_reference:reference,provider_name:'TN Power (artificial)',provider_id:'tn-power-test',payee_id:'tnpower@upi',amount_minor:example.amount,previous_amount_minor:example.previous,due_date:due,currency:'INR'});
+        $('live-input').value=`TN Power electricity bill ${reference} for INR ${(example.amount/100).toFixed(2)} is due ${due}. Payee: ${example.claimed}. Please check this one-time bill against the provider before handling it.`;
+        $('live-mode').textContent='Artificial example ready';$('live-result').textContent='Example prepared. Review or edit the message, then choose Handle this safely. No payment has been submitted.';$('live-input').focus();
+      }catch(error){$('live-result').textContent='Could not prepare the artificial example: '+String(error);}finally{button.disabled=false;}
     }
     function showLiveResult(data){
       $('live-mode').textContent=nice(data.state);$('live-result').replaceChildren();$('live-result').append(node('b',data.message));
       const facts=data.interpretation||{};$('live-result').append(node('p',`Extracted: ${facts.bill_reference||'no reference'} · ${facts.amount_minor?money(facts.amount_minor):'amount unknown'} · ${facts.claimed_payee_id||'payee not stated'}`));
+      if(data.bill_review){const bill=data.bill_review;const change=bill.increase_percent===null?'':` · previous bill ${money(bill.previous_amount_minor)} (${bill.increase_percent>0?'+':''}${bill.increase_percent}%)`;$('live-result').append(node('p',`Artificial biller record: ${bill.provider_name} · due ${bill.due_date} · ${money(bill.amount_minor)}${change}`));}
       if(data.reason?.length)$('live-result').append(node('p','Stopped because: '+data.reason.map(nice).join(' · ')));
       if(facts.evidence_spans?.length){const evidence=node('details',undefined,'source-spans');evidence.append(node('summary','Show source quotations'));facts.evidence_spans.forEach(span=>evidence.append(node('blockquote',nice(span.field)+': “'+span.quote+'”')));$('live-result').append(evidence);}
       if(data.source_quote_validation?.discarded)$('live-result').append(node('p','Some AI quotations were not verbatim and were discarded. Provider evidence remains the separate financial check.'));
@@ -258,6 +270,7 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
         if(location.hash.startsWith('#run=')){const response=await fetch('/api/friday/runs/'+encodeURIComponent(decodeURIComponent(location.hash.slice(5))));if(response.ok)render(await response.json());}
         if(data.storage?.mode==='FIRESTORE_TRANSACTIONAL')$('storage-status').textContent='Cloud journal · restart protected';
         await loadMandate();
+        document.querySelectorAll('[data-household-example]').forEach(button=>button.addEventListener('click',()=>prepareHouseholdExample(button.dataset.householdExample,button)));
       }catch(error){$('ai-status').textContent='API unavailable';$('run').disabled=true;$('scenario-copy').textContent=String(error);}
     }
     let watching=false;

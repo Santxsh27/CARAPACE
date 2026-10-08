@@ -14,6 +14,7 @@ class FridayMandate(BaseModel):
     protected_balance_minor: int = Field(strict=True, ge=0, le=100_000_000)
     automatic_payment_limit_minor: int = Field(strict=True, ge=0, le=10_000_000)
     max_fee_minor: int = Field(default=0, strict=True, ge=0, le=1_000_000)
+    bill_increase_review_percent: int = Field(default=30, strict=True, ge=1, le=200)
     automatic_sandbox_execution: bool = False
 
 
@@ -59,5 +60,12 @@ class TestProviderBill(BaseModel):
     provider_id: str = Field(pattern=r"^[a-z0-9][a-z0-9-]{2,79}$")
     payee_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9@._-]{2,119}$")
     amount_minor: int = Field(strict=True, gt=0, le=10_000_000)
+    previous_amount_minor: int | None = Field(default=None, strict=True, gt=0, le=10_000_000)
     due_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     currency: Literal["INR"] = "INR"
+
+
+def bill_increase_requires_review(bill: TestProviderBill, review_percent: int) -> bool:
+    """Use exact integer arithmetic; a missing comparison never implies an increase."""
+    return (bill.previous_amount_minor is not None
+            and bill.amount_minor * 100 > bill.previous_amount_minor * (100 + review_percent))

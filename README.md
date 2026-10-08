@@ -1,24 +1,41 @@
 # Financial Friday
 
-Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo steps, technology list and remaining submission work.
+Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo steps, technology list and remaining submission work. The [household bill journey](docs/CUSTOMER_JOURNEY.md) explains the customer value, three new artificial examples and next build priorities.
 
 ## A bounded AI operator for everyday financial tasks
+
+Friday's broader product is **Understand → Handle → Protect → Resolve**, sharing
+one permission-controlled engine rather than unrelated financial mini-apps.
+**My money** now gives a read-only snapshot of recorded artificial bills, available
+funds above the reserve, potential bill commitments and shortfalls. Signed matching
+internal payment receipts are distinguished from unresolved records; none of this
+establishes external settlement or permits spending. Bill payments remain the first
+working execution adapter, not the whole product vision.
+
+A new bill-resolution kernel checks separately shaped bank and biller evidence,
+freshness, exact identity bindings and reconciliation permission. It never approves
+repayment or a refund. **The kernel is tested; external bank/biller connectors and
+end-to-end correction are not connected.** Statements, investments and universal
+bank control are not implemented. Transaction alerts and unknown requests now stop
+before a payment case is constructed.
 
 **Delegate the goal. Gemini plans. The safety kernel proves. The executor acts once.**
 
 Financial Friday is not a financial chatbot and it is not an AI with unrestricted bank access. It turns a user's limited financial instruction into a typed action program, independently verifies every financial effect, executes only allowlisted operations through an authorised provider, and reconciles the recorded result before declaring success.
 
-The working slice now accepts a saved standing instruction plus a previously unseen message, QR text, voice transcript, bill image or PDF. Gemini extracts a typed financial request and proposed source quotations, Friday retrieves a separate enrolled test-provider record, and the deterministic kernel decides whether an artificial-money action is allowed. Text quotations are checked against the original input and unsupported quotations discarded; document quotations are model-produced, not independently OCR-verified. A verified task can execute automatically inside the saved limit; changed amounts, recipients, recurring requests, embedded instructions and protected-balance violations stop before execution.
+The working slice now accepts a saved standing instruction plus a previously unseen message, QR text, voice transcript, bill image or PDF. Gemini extracts a typed financial request and proposed source quotations, Friday retrieves a separate enrolled test-provider record, and the deterministic kernel decides whether an artificial-money action is allowed. Text quotations are checked against the original input and unsupported quotations discarded; document quotations are model-produced, not independently OCR-verified. A verified task can execute automatically inside the saved limit; changed amounts, recipients, recurring requests, embedded instructions, unusual bill increases above a saved review threshold and protected-balance violations stop before execution. The bill-increase comparison uses a previous amount supplied by the artificial test provider, not a real utility history.
 
 The existing Python package names still use `carapace_*` to preserve compatibility while the product transitions from CARAPACE to Financial Friday.
 
 ## What works now
 
-The app now has separate screens: **Friday home, Bills, Documents, Activity,
+The app now has separate screens: **Friday home, My money, Bills, Documents, Activity,
 Safety lab and My rules**, plus a dedicated **Run** screen. Home shows an animated
 assistant core and four clear task choices, not a previous payment or a developer
 console. Every run uses the existing API; screen animations do not manufacture
-successful checks. Browser Back, keyboard focus, phone layouts and reduced-motion
+successful checks. Home also lists upcoming artificial provider bills for read-only
+review; selecting a bill prepares a request without submitting a payment. Browser
+Back, keyboard focus, phone layouts and reduced-motion
 preferences are supported. Activity reopens recorded evidence with a read-only
 request; it never repeats a payment. Pointer-driven 3D card tilt, coloured task
 surfaces, gentle button lift and active-stage shimmer provide visual feedback.
@@ -182,12 +199,13 @@ Choose `{"planner":"local"}` for the explicit deterministic comparison. With Ver
 Run every automated test:
 
 ```bash
-docker compose run --rm --build \
+docker compose --profile test run --rm --no-deps --build \
+  -e CARAPACE_AI_PROVIDER=local \
   -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false \
-  api python -m unittest discover -s tests
+  tests
 ```
 
-Current isolated result: **195 tests run: 194 passed, 1 optional Anthos integration test skipped**, plus **11 tooling tests passed**. This includes cloud gateway checks, multi-screen UI contracts, quotation suppression, concurrency and receipt recovery. Browser navigation, a new text input, held execution, saved-receipt viewing, pointer tilt, help and activity filtering are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+Local workspace increment **0.14.0**: **235 tests run, 234 passed, one optional Anthos integration test skipped** in the native suite, including JavaScript parsing/renderer checks. The Docker test image lacks Node and skips browser-script tests; those passed in the native suite. The previous deployed 0.13.2 release ran 195 tests plus eleven tooling tests. New coverage includes exact workspace totals, receipt binding, tenant isolation, non-payment alerts and the bill-resolution kernel. The workspace was checked through the local browser and API. **This increment has not been deployed or live-Gemini evaluated; Cloud Run still runs the earlier release.** These regressions are not broad fraud-accuracy or product-impact measurements.
 
 Live PDF verification now includes a matching bill stopped at the saved automatic
 limit and a recipient mismatch stopped before payment, through Vertex AI and the

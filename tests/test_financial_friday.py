@@ -151,13 +151,14 @@ class FinancialFridayTests(unittest.TestCase):
         def list(self, kind, tenant, limit=20):
             return [value for (k, t, _), value in self.records.items() if k == kind and t == tenant][:limit]
 
-    def publish_live_bill(self, reference="LIVE-1001", amount=249_900):
+    def publish_live_bill(self, reference="LIVE-1001", amount=249_900, previous=None):
         return self.service.publish_test_bill("tenant-a", TestProviderBill(
             bill_reference=reference,
             provider_name="TN Power",
             provider_id="tn-power-test",
             payee_id="tnpower@upi",
             amount_minor=amount,
+            previous_amount_minor=previous,
             due_date="2026-10-04",
         ))
 
@@ -182,6 +183,17 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertEqual(repeated["event_id"], checked["event_id"])
         self.assertEqual(self.payment_count(), 1)
 
+    def test_household_bill_list_is_read_only_and_tenant_scoped(self):
+        self.publish_live_bill(reference="LIVE-1001", amount=178_000, previous=165_000)
+        self.service.publish_test_bill("tenant-b", TestProviderBill(
+            bill_reference="OTHER-2002", provider_name="Other", provider_id="other-test",
+            payee_id="other@upi", amount_minor=500_00, due_date="2026-10-12",
+        ))
+        listed = self.service.household_bills("tenant-a")
+        self.assertEqual([item["bill_reference"] for item in listed["items"]], ["LIVE-1001"])
+        self.assertEqual(listed["items"][0]["previous_amount_minor"], 165_000)
+        self.assertEqual(self.payment_count(), 0)
+
     def test_live_recipient_change_is_stopped_before_execution(self):
         self.publish_live_bill()
         result = self.service.ingest_live_signal("tenant-a", IncomingFinancialSignal(
@@ -192,6 +204,43 @@ class FinancialFridayTests(unittest.TestCase):
         self.assertIn("RECIPIENT_MISMATCH", result["reason"])
         with self.assertRaises(ValueError):
             self.service.run_live_signal("tenant-a", result["event_id"])
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_unusual_bill_increase_requires_review_without_payment(self):
+        self.service.save_mandate("tenant-a", FridayMandate(
+            instruction="Handle verified household bills and protect my reserve.",
+            protected_balance_minor=1_000_000,
+            automatic_payment_limit_minor=300_000,
+            bill_increase_review_percent=30,
+            automatic_sandbox_execution=True,
+        ))
+        self.publish_live_bill(amount=248_700, previous=160_000)
+        result = self.service.ingest_live_signal("tenant-a", IncomingFinancialSignal(
+            source_type="MESSAGE",
+            content_text="TN Power bill LIVE-1001 for INR 2487.00. Payee: tnpower@upi",
+        ))
+        self.assertEqual(result["state"], "ATTENTION")
+        self.assertEqual(result["reason"], ["UNUSUAL_BILL_INCREASE"])
+        self.assertEqual(result["bill_review"]["increase_percent"], 55.4)
+        self.assertEqual(self.payment_count(), 0)
+
+    def test_lowered_increase_threshold_is_rechecked_before_execution(self):
+        mandate = FridayMandate(
+            instruction="Handle verified household bills and protect my reserve.",
+            protected_balance_minor=1_000_000,
+            automatic_payment_limit_minor=300_000,
+            bill_increase_review_percent=50,
+        )
+        self.service.save_mandate("tenant-a", mandate)
+        self.publish_live_bill(amount=195_000, previous=150_000)
+        result = self.service.ingest_live_signal("tenant-a", IncomingFinancialSignal(
+            source_type="MESSAGE",
+            content_text="TN Power bill LIVE-1001 for INR 1950.00. Payee: tnpower@upi",
+        ))
+        self.assertEqual(result["state"], "READY")
+        self.service.save_mandate("tenant-a", mandate.model_copy(update={"bill_increase_review_percent": 20}))
+        run = self.service.run_live_signal("tenant-a", result["event_id"])["run"]
+        self.assertEqual(run["outcome"]["reason"], ["UNUSUAL_BILL_INCREASE"])
         self.assertEqual(self.payment_count(), 0)
 
     def test_live_provider_change_after_interpretation_is_held(self):
