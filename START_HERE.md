@@ -51,7 +51,7 @@ docker compose run --rm --build -e CARAPACE_TEST_ANTHOS_BRIDGE_ENABLED=false api
 ## Remaining submission work, in order
 
 1. Confirm dashboard deadline/eligibility and explicitly arrange judge access; record the live story in docs/submission/DEMO_SCRIPT.md.
-2. Expand the verified live PDF path to a fresh below-limit document task and images; verify a second explicitly enrolled cloud identity. Two PDF safety cases and the owner browser upload path already work.
+2. Expand live evaluation to varied documents/images and a second explicitly enrolled cloud identity. A fresh INR 49 PDF task, real rejected-plan correction, signed receipt and no-debit/no-AI replay now work; evidence is in `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`.
 3. Connect an independently authenticated sandbox provider.
 4. Connect durable orchestration if promising continuous background operation.
 5. Measure unseen-case completion, unsafe actions, false holds, latency and AI cost against plain Gemini.

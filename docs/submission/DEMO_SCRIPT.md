@@ -27,6 +27,13 @@ Use a fresh bill reference each time. In **Demo provider setup**, publish a TN P
 
 ## Evidence versus aspiration
 
+Optional stronger proof: reopen cloud run `ff_8941c311741749c3b435415fae278f2a`.
+This fresh INR 49 PDF journey shows actual live Gemini attempt 1 rejected for
+WRONG_CADENCE, attempt 2 accepted, and exactly one artificial payment. Its replay
+`ff_9e1a4eeef182469cb51bf78d7efee1d5` reused the receipt without another AI call
+or debit. Clearly distinguish viewing this saved evidence from executing a fresh
+demo. Full details are in `../FRIDAY_DOCUMENT_VERIFICATION_1008.md`.
+
 The cloud browser journey and regression suite are real evidence. The reproducible generated proposal evaluation allowed 12 valid candidates and rejected 39 unsafe candidates without executing payments. See SAFETY_EVALUATION.md for its limits. A broad unseen-case evaluation, live comparison with plain Gemini, per-run AI cost, native voice assistant and continuous cloud monitoring are not yet completed. Do not substitute these synthetic results for measured fraud detection accuracy or promise a hackathon win.
 
 ## Submission gates

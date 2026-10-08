@@ -58,7 +58,39 @@ Fresh artificial reference DOC-LIVE-1008-V2, INR 3,001:
   `stranger@upi`, recipient mismatch and exact source quotations. This was not a
   mock UI response. No console errors were observed.
 
-This verifies two PDF cases and the browser path, not image-format accuracy,
-unseen-document performance or a safe fresh payment from a document. Below-limit
-fresh document execution, broader live evaluation, explicit judge enrollment,
-deadline confirmation and submission video/deck remain separate tasks.
+This initial verification covered two PDF cases and the browser path, not
+image-format accuracy or unseen-document performance. The later complete
+document-to-payment check is recorded below.
+
+## Fresh PDF to one payment, live repair and safe replay
+
+New artificial reference DOC-PAY-1008-49, amount INR 49.00, enrolled development
+payee `fridaydocs@upi`. The existing saved permission already allowed the amount;
+no permission, reserve, IAM or identity enrollment was changed.
+
+- Live Vertex document interpretation returned the bill facts and quotations.
+- Fresh run `ff_8941c311741749c3b435415fae278f2a` completed one artificial payment.
+- Gemini's first actual plan was rejected with WRONG_CADENCE: it assigned NONE
+  to the payment action. A second live proposal set ONE_TIME and passed. The
+  executor ran only after acceptance; this was not a deliberately injected mock.
+- One INR 49 debit occurred. The receipt had the correct amount and payee, signature
+  and key ID; the server's cryptographically verified receipt count increased by one.
+  Operation: `ffpay_d4742aa063bd46319dca860bec92b72d`.
+- Replay run `ff_9e1a4eeef182469cb51bf78d7efee1d5` returned ALREADY_COMPLETED,
+  reused the identical receipt, made zero model calls and left the balance unchanged.
+- The single sampled completion took 10.319 seconds including verification reads.
+  It is not an average, p95, model latency benchmark or cost estimate.
+- Signed-in cloud browser reopened the completed run with GET only. It displayed
+  two planning attempts, passed gate, one effect, six rejected hostile mutations
+  and signed receipt. No console errors observed. No additional payment on viewing.
+
+The verification tool's default remains no-payment. Its new explicit
+`--allow-artificial-payment` mode is capped at INR 50, checks existing automatic
+permission and reserve, refuses recently recorded references, and requires a fresh
+completion result. Five offline tooling checks cover caps, permission, reserve and
+missing source evidence; CI runs them separately from the 191-test application suite.
+Run tooling checks with `python -m unittest discover -s tools -p test_cloud_document_checks.py`.
+
+Broader live evaluation, image accuracy, explicit judge enrollment, deadline
+confirmation and submission video/deck remain outstanding. This remains artificial
+money with development provider evidence, not an authorized real-bank payment.

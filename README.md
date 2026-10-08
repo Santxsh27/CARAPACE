@@ -186,6 +186,10 @@ Current isolated result: **191 tests run: 190 passed, 1 optional Anthos integrat
 Live PDF verification now includes a matching bill stopped at the saved automatic
 limit and a recipient mismatch stopped before payment, through Vertex AI and the
 signed-in cloud website. The document gate refuses missing critical quotations.
+An additional fresh INR 49 PDF completed one artificial payment: Gemini corrected
+a real rejected first plan, the server verified the signed receipt, and replay
+reused it without another debit or model call. Five separate offline verification
+tooling checks protect the explicit INR 50 test cap and existing permission.
 See [the document verification report](docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md)
 for the initial failure, fix, live evidence and scope limits.
 
