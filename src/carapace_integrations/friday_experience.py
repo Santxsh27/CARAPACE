@@ -55,7 +55,30 @@ EXPERIENCE_CSS = r"""
   .activity-empty{padding:35px;text-align:center;border:1px dashed #355267;border-radius:20px;color:#b8cede}.activity-refresh{display:block;margin:0 auto 24px}.route-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
   @media(max-width:800px){.task-grid{grid-template-columns:repeat(2,1fr)}.demo-layout{grid-template-columns:1fr}.demo-controls{position:static}.briefing{grid-template-columns:1fr}.friday-nav{gap:0}.friday-nav button{padding:9px 12px;font-size:12px}.shell.layout{padding-top:20px}.pipeline{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:520px){.home-command{flex-direction:column}.task-grid{grid-template-columns:1fr 1fr;gap:10px}.task-tile{min-height:165px;padding:17px}.task-tile b{font-size:16px}.task-tile .tile-label{margin-bottom:13px}.screen-heading h1{font-size:32px}.friday-view .card{padding:20px}.promise{grid-template-columns:1fr}.run-heading{display:block;padding-right:0}.run-signal{position:static;display:inline-block;margin:10px 0}.pipeline{grid-template-columns:1fr}.activity-entry{padding:16px;gap:8px;flex-wrap:wrap}.friday-view[data-screen="home"] .core-console{transform:scale(.7);margin:-28px 0}.topbar .pill.optional{display:none}}
-  @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+  /* Progressive 3D interaction; no motion ever represents financial evidence. */
+  :root{--friday-pass:#7ef4bc;--friday-held:#ff91a6;--friday-review:#ffd28a;--friday-live:#91eaff}
+  .task-grid,.pipeline{perspective:1100px}.task-tile{transform-style:preserve-3d;isolation:isolate;overflow:hidden;box-shadow:0 12px 30px #0004,inset 0 1px 0 #d3edff12}
+  .task-tile:nth-child(2){background:linear-gradient(145deg,#202d50,#101c30)}.task-tile:nth-child(3){background:linear-gradient(145deg,#133b3b,#102331)}.task-tile:nth-child(4){background:linear-gradient(145deg,#332a4c,#181c30)}
+  .task-tile:before{content:'';position:absolute;inset:0;pointer-events:none;z-index:-1;background:radial-gradient(circle at var(--mx,50%) var(--my,20%),#98eaff28,transparent 65%);opacity:.25;transition:opacity .35s}
+  .task-tile:hover:before{opacity:1}.task-tile b{transform:translateZ(20px)}.task-tile .tile-label{transform:translateZ(12px)}
+  .task-tile[data-tilting]{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-6px);box-shadow:0 24px 50px #0007,0 0 24px #70cfff12,inset 0 1px 0 #d3edff25}
+  button,a,summary,input,textarea,select{transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s,border-color .28s,background-color .28s,color .2s}
+  @media(hover:hover) and (pointer:fine){button:not(:disabled):hover,.friday-view summary:hover{transform:translateY(-3px);box-shadow:0 8px 22px #59ceff16}.task-tile:not(:disabled):hover{transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-6px)}.activity-entry:hover{transform:translateX(4px)}.stage:hover{transform:translateY(-4px);box-shadow:0 12px 22px #0004}}
+  button:not(:disabled):active{transform:translateY(1px) scale(.985)!important}button:disabled{cursor:wait;transform:none!important}
+  input:focus,textarea:focus,select:focus{border-color:#91eaff!important;box-shadow:0 0 0 4px #7fdfff12}.friday-view .card:hover{border-color:#486477}
+  .friday-view{animation:screen-arrive .45s cubic-bezier(.2,.8,.2,1)}.task-tile,.stage,.metric{transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,border-color .3s,background .3s}
+  .stage{position:relative;overflow:hidden;box-shadow:inset 0 1px 0 #ffffff10}.stage.active{border-color:var(--friday-live);box-shadow:0 0 22px #71d9ff24}.stage.active:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent,#91eaff15,transparent);transform:translateX(-100%);animation:evidence-shimmer 2s linear infinite}
+  @keyframes evidence-shimmer{to{transform:translateX(100%)}}
+  .stage.done{border-color:#53be91;background:linear-gradient(145deg,#16483b,#102b30)}.stage.blocked{border-color:#df7189;background:linear-gradient(145deg,#512737,#291d30)}.stage.skipped{border-style:dashed;opacity:.75}
+  [data-state="complete"] .brief-main,[data-state="complete"] .verdict{border:1px solid #4bc38d;background:linear-gradient(135deg,#163d32,#132637);box-shadow:0 0 30px #6ff4b80b}
+  [data-state="held"] .brief-main,[data-state="held"] .verdict{border:1px solid #d86f86;background:linear-gradient(135deg,#472538,#221f32);box-shadow:0 0 30px #ff91a60b}
+  [data-state="attention"] .run-signal{color:var(--friday-review);border-color:#b68b4a;background:#30271c}
+  [data-state="attention"] .run-source{border-color:#b68b4a;background:linear-gradient(140deg,#2c271d,#142633)}
+  .outcome-key{display:flex;gap:18px;flex-wrap:wrap;color:#b3c6d6;font-size:11px;margin:20px 0}.outcome-key span:before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;background:var(--friday-live)}.outcome-key .pass:before{background:var(--friday-pass)}.outcome-key .held:before{background:var(--friday-held)}.outcome-key .review:before{background:var(--friday-review)}
+  .activity-entry[data-outcome="good"]{border-left:3px solid #7ef4bc;background:linear-gradient(100deg,#12362e,#142336 65%)}.activity-entry[data-outcome="held"]{border-left:3px solid #ff91a6;background:linear-gradient(100deg,#382332,#142336 65%)}.activity-entry[data-outcome="review"]{border-left:3px solid #ffd28a}.activity-entry .status{border-radius:24px;padding:7px 12px;background:#091521;white-space:normal}.activity-entry .status.review{color:var(--friday-review)}
+  .motion-toggle{font-size:11px!important;border-color:#345063!important;margin-left:12px;color:#9ddced!important}.home-command:focus-within{border-color:#91eaff;box-shadow:0 0 0 4px #7fdfff0b,0 14px 60px #5ee1ff12}
+  html[data-motion="off"] *,html[data-motion="off"] *:before,html[data-motion="off"] *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}html[data-motion="off"] .task-tile,html[data-motion="off"] button,html[data-motion="off"] .stage{transform:none!important}
+  @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.task-tile,button,.stage{transform:none!important}}
 </style>
 """
 
@@ -67,6 +90,7 @@ EXPERIENCE_NAV = """
   <button type="button" data-screen-link="activity">Activity</button>
   <button type="button" data-screen-link="demos">Safety lab</button>
   <button type="button" data-screen-link="settings">My rules</button>
+  <button type="button" id="motion-toggle" class="motion-toggle" aria-pressed="false">Motion on</button>
 </nav>
 <p id="route-announcement" class="route-announcement" role="status" aria-live="polite"></p>
 """
@@ -75,6 +99,11 @@ EXPERIENCE_JS = r"""
     // One purpose per route; all money actions still use the original backend.
     const experience=(()=>{
       const root=document.querySelector('.workspace');const oldBody=root.querySelector('.body');
+      // Fine-pointer perspective is cosmetic, never a stage-completion signal.
+      const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');const fine=window.matchMedia('(hover: hover) and (pointer: fine)');let motionPreference='on';
+      try{motionPreference=localStorage.getItem('friday-motion')||'on';}catch(e){}
+      function syncMotion(){const off=reduced.matches||motionPreference==='off';document.documentElement.dataset.motion=off?'off':'on';$('motion-toggle').textContent=reduced.matches?'Reduced motion':off?'Motion off':'Motion on';$('motion-toggle').setAttribute('aria-pressed',String(off));$('motion-toggle').disabled=reduced.matches;}
+      $('motion-toggle').addEventListener('click',()=>{motionPreference=motionPreference==='off'?'on':'off';try{localStorage.setItem('friday-motion',motionPreference);}catch(e){}syncMotion();});reduced.addEventListener('change',syncMotion);syncMotion();
       const sidebar=document.querySelector('.sidebar');const views={};let busy=false;let active='home';let loadedRun=null;
       const titles={home:'Your financial co-pilot',bill:'Let’s handle your bill.',document:'Let’s read the details.',demos:'See the safety system work.',run:'Friday is on it.',activity:'Everything Friday handled.',settings:'You’re always in control.'};
       const element=(tag,text,className)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(className)e.className=className;return e;};
@@ -90,6 +119,7 @@ EXPERIENCE_JS = r"""
         ['activity','03 / REMEMBER','My activity','Your outcomes and receipts, ready whenever you need them.'],
         ['demos','04 / EXPLORE','Try the safety lab','Watch me resolve a trap, recover an outcome or stop safely.']
       ].forEach(([route,label,title,copy])=>{const b=element('button',null,'task-tile');b.type='button';b.dataset.screenLink=route;b.append(element('span',label,'tile-label'),element('b',title),element('small',copy));tiles.append(b);});home.append(tiles,element('p','Artificial-money pilot · No real bank account connected · You set the limits.','screen-note'));
+      tiles.querySelectorAll('.task-tile').forEach(tile=>{tile.addEventListener('pointermove',e=>{if(!fine.matches||document.documentElement.dataset.motion==='off')return;const r=tile.getBoundingClientRect();const x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));const y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));tile.style.setProperty('--rx',((.5-y)*7).toFixed(2)+'deg');tile.style.setProperty('--ry',((x-.5)*9).toFixed(2)+'deg');tile.style.setProperty('--mx',(x*100)+'%');tile.style.setProperty('--my',(y*100)+'%');tile.dataset.tilting='true';});tile.addEventListener('pointerleave',()=>{delete tile.dataset.tilting;tile.style.setProperty('--rx','0deg');tile.style.setProperty('--ry','0deg');});});
       const bill=view('bill','Paste the bill request once. Friday checks the provider record and your saved permission before taking any action.');
       const live=root.querySelector('.live-card');live.classList.add('task-form');const upload=live.querySelector('.upload-row');const source=$('live-result');bill.append(live);
       $('live-input').value='';$('live-mode').textContent='Ready for a request';$('live-input').placeholder='For example: TN Power bill [reference], ₹2,487, payee tnpower@upi…';
@@ -101,6 +131,7 @@ EXPERIENCE_JS = r"""
       const watcher=root.querySelector('.watch-card');if(watcher)activity.append(watcher);const cloudNote=oldBody.querySelector(':scope > p');if(cloudNote){cloudNote.classList.add('screen-note');activity.append(cloudNote);}
       const runView=view('run','A live task has its own space. Green means confirmed checks; red means an action was held or needs attention.');runView.dataset.state='idle';runView.querySelector('.screen-heading').classList.add('run-heading');const signal=element('span','Waiting for a task','run-signal');signal.id='run-signal';runView.querySelector('.screen-heading').append(signal);
       source.classList.add('run-source');runView.append(source,root.querySelector('.assurance-board'),$('result'));
+      const key=element('div',null,'outcome-key');key.setAttribute('aria-label','Outcome colour key');[['pass','Confirmed'],['held','Held · no action'],['review','Needs verification'],['live','Working']].forEach(([kind,label])=>key.append(element('span',label,kind)));runView.querySelector('.screen-heading').append(key);
       const actions=element('div',null,'run-actions');for(const [route,label] of [['home','New task'],['activity','View my activity']]){const b=element('button',label,'planner');b.type='button';b.dataset.screenLink=route;actions.append(b);}runView.append(actions,element('p','Never repeat an uncertain payment blindly. Check the recorded outcome first.','screen-note'));
       const originalSelect=selectScenario;selectScenario=function(id){originalSelect(id);$('demo-description').textContent=catalogue.find(x=>x.id===id)?.description||'Choose a scenario.';$('scenario-copy').textContent='What can I take off your mind? Choose a task. I’ll handle the steps within your rules.';if(active==='home')setCore('READY','What should I handle?');};
       function show(name,push=true){if(!views[name])name='home';active=name;Object.entries(views).forEach(([key,v])=>v.hidden=key!==name);
@@ -111,7 +142,7 @@ EXPERIENCE_JS = r"""
       const originalRender=render;render=function(r){originalRender(r);loadedRun=r.run_id;if(source.textContent.startsWith('Loading'))source.textContent='Recorded outcome loaded. Viewing this receipt does not submit another payment.';show('run',false);state(completedStatuses.includes(r.status)?'complete':'held',r.status==='HELD'?'Held · no new payment':r.status==='ALREADY_COMPLETED'?'Already handled · no repeat':r.status==='RECONCILED_COMPLETED'?'Recovered · no retry':r.status==='COMPLETED_SYNTHETIC'?'Completed · receipt recorded':'Attention · outcome not confirmed');};
       async function execute(fn,label){if(busy){toast('Friday is already handling a task. Check its outcome before starting another.');show('run',false);return;}
         busy=true;show('run');loadedRun=null;source.textContent=label;state('working','Working · awaiting verified result');
-        try{await fn();}finally{busy=false;if(runView.dataset.state==='working'){if(document.querySelector('[data-stage="ground"].blocked')||document.querySelector('[data-stage="understand"].blocked'))state('held','Attention · check the evidence');else if($('live-mode').textContent.toUpperCase()==='READY')state('idle','Ready · approval required');else state('idle','Check the task outcome below');}}}
+        try{await fn();}finally{busy=false;if(runView.dataset.state==='working'){if(document.querySelector('[data-stage="ground"].blocked')||document.querySelector('[data-stage="understand"].blocked'))state('attention','Attention · check the evidence');else if($('live-mode').textContent.toUpperCase()==='READY')state('idle','Ready · approval required');else state('attention','Check the task outcome below');}}}
       const oldCheck=checkLive;checkLive=()=>{if(!$('live-input').value.trim()){toast('Add a bill request first.');$('live-input').focus();return Promise.resolve();}return execute(oldCheck,'Understanding your bill request…');};
       const oldDocument=checkDocument;checkDocument=()=>{if(!$('document-input').files.length){toast('Choose a bill image or PDF first.');$('document-input').focus();return Promise.resolve();}return execute(oldDocument,'Reading your document…');};
       const oldRun=run;run=()=>execute(oldRun,'Running a controlled safety scenario…');
@@ -119,7 +150,7 @@ EXPERIENCE_JS = r"""
       command.addEventListener('submit',e=>{e.preventDefault();const value=$('home-command').value.trim();show('bill');if(value)$('live-input').value=value;$('live-input').focus();});
       async function refreshActivity(){list.replaceChildren(element('p','Loading recorded outcomes…','activity-empty'));refresh.disabled=true;
         try{const data=await jsonRequest('/api/friday/today');list.replaceChildren();const runs=data.recent_runs||[];if(!runs.length)list.append(element('p','Nothing handled yet. Start with a bill or the safety lab.','activity-empty'));
-          runs.forEach(r=>{if(!/^[A-Za-z0-9_-]{1,100}$/.test(r.run_id))return;const b=element('button',null,'activity-entry');b.type='button';b.dataset.runId=r.run_id;const copy=element('div');copy.append(element('b',nice(String(r.case_id||'Recorded task').replaceAll('-','_'))),element('small',r.run_id));const status=element('span',nice(r.status),'status '+(completedStatuses.includes(r.status)?'good':'held'));b.append(copy,status);list.append(b);});
+          runs.forEach(r=>{if(!/^[A-Za-z0-9_-]{1,100}$/.test(r.run_id))return;const b=element('button',null,'activity-entry');b.type='button';b.dataset.runId=r.run_id;b.dataset.outcome=completedStatuses.includes(r.status)?'good':r.status==='HELD'?'held':'review';const copy=element('div');copy.append(element('b',nice(String(r.case_id||'Recorded task').replaceAll('-','_'))),element('small',r.run_id));const status=element('span',nice(r.status),'status '+b.dataset.outcome);b.append(copy,status);list.append(b);});
         }catch(e){list.replaceChildren(element('p','Activity could not be loaded. No payment was submitted. Try refreshing this read-only view.','activity-empty'));}finally{refresh.disabled=false;}}
       async function openRun(id){if(busy){toast('Wait for the current task to finish before reopening another run.');return;}show('run',false);$('result').classList.remove('visible');$('briefing').classList.remove('visible');source.textContent='Loading the recorded outcome. No payment is being submitted.';resetStages();state('working','Loading saved evidence');
         try{render(await jsonRequest('/api/friday/runs/'+encodeURIComponent(id)));}catch(e){state('held','Outcome unavailable');source.textContent='This recorded run could not be loaded. No payment was submitted. Check activity before retrying any financial task.';}}

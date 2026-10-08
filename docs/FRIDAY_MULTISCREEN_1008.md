@@ -63,3 +63,31 @@ This remains an artificial-money pilot. Native Gemini voice, authorized real-ban
 connectors, durable cloud scheduling, a broad evaluation and judge enrollment are
 separate remaining submission/production gates. Document-screen navigation was
 checked; a fresh live document upload is not claimed by this report.
+
+## Motion and colour polish
+
+The next presentation-only pass adds pointer-position 3D tilt (maximum 3.5°/4.5°),
+layered task headings, hover light, subtle button lift/press, focus glow and active
+stage shimmer. No Three.js or external CDN dependency is used: CSS perspective
+plus bounded pointer-event JavaScript is sufficient for this interface.
+No new AI, bank or provider feature is implied by these visual changes.
+
+Local browser verified real mouse hover: `data-tilting=true`, rotation 1.40°/2.70°
+and an actual `matrix3d` transform. Motion off removed transforms; re-enabling it
+restored the preference. OS reduced motion remains authoritative. Touch devices
+do not receive pointer tilt. Held and completed saved runs remain read-only;
+Activity rows and the briefing/receipt surfaces use backend-derived outcome colours.
+The red held screen retained zero money effects and its mismatch explanation.
+
+Full isolated suite: 184 tests in 16.291 seconds, OK (one optional test skipped).
+Generated JavaScript syntax also passed. Cloud Build
+`89b3b452-8919-4109-af60-cc8c0aa3e2d9` succeeded with web digest
+`sha256:9875bd4ac219b9c2d3aaddeb8ff35b45677657cf1f2d97d67152fe237e2102d3`.
+Revision `financial-friday-web-motion1008` serves 100% traffic with IAP still enabled.
+Signed-in cloud navigation fetched Activity and reopened held run
+`ff_04a4490d13a14fa1bff69696ca465809`: red result surfaces, original mismatch reason,
+zero original money effects, no new payment submitted and no browser console errors.
+The Product Design brief kept the existing screen structure and added interaction
+feedback rather than rebuilding the app. The verification story was Activity →
+authenticated gateway GET → existing Firestore run → coloured outcome, with local
+pointer and display-preference checks kept separate from financial execution.

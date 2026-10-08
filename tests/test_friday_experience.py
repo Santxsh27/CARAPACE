@@ -48,6 +48,16 @@ class FridayExperienceTests(unittest.TestCase):
         self.assertIn("const experience=", html)
         self.assertNotIn("async function refreshInbox", html)
 
+    def test_motion_and_outcome_styling_do_not_grant_authority(self):
+        self.assertIn("rotateX(var(--rx", EXPERIENCE_CSS)
+        self.assertIn("pointerleave", EXPERIENCE_JS)
+        self.assertIn("reduced.matches||motionPreference==='off'", EXPERIENCE_JS)
+        self.assertIn("friday-motion", EXPERIENCE_JS)
+        self.assertIn("b.dataset.outcome", EXPERIENCE_JS)
+        self.assertIn("Needs verification", EXPERIENCE_JS)
+        self.assertIn("[data-state=\"attention\"]", EXPERIENCE_CSS)
+        self.assertNotIn("requestAnimationFrame", EXPERIENCE_JS)
+
 
 if __name__ == "__main__":
     unittest.main()

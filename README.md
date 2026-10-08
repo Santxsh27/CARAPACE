@@ -20,7 +20,13 @@ assistant core and four clear task choices, not a previous payment or a develope
 console. Every run uses the existing API; screen animations do not manufacture
 successful checks. Browser Back, keyboard focus, phone layouts and reduced-motion
 preferences are supported. Activity reopens recorded evidence with a read-only
-request; it never repeats a payment. See [the UI verification report](docs/FRIDAY_MULTISCREEN_1008.md).
+request; it never repeats a payment. Pointer-driven 3D card tilt, coloured task
+surfaces, gentle button lift and active-stage shimmer provide visual feedback.
+Green means confirmed, rose/red means held, amber means verification needed and
+cyan means working; labels always accompany colours. The Motion toggle remembers
+only a local display preference and respects the OS reduced-motion setting.
+These effects do not create new financial permissions or simulate success.
+See [the UI verification report](docs/FRIDAY_MULTISCREEN_1008.md).
 
 The **live input path** saves a user's
 instruction, publishes a new artificial bill into an enrolled test provider, and
@@ -170,7 +176,7 @@ docker compose run --rm --build \
   api python -m unittest discover -s tests
 ```
 
-Current isolated result: **183 tests run: 182 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and six multi-screen UI contracts. Browser navigation, a new text input, held execution and saved-receipt viewing are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
+Current isolated result: **184 tests run: 183 passed, 1 optional Anthos integration test skipped**, including 16 cloud gateway checks and seven multi-screen UI contracts. Browser navigation, a new text input, held execution, saved-receipt viewing and pointer tilt are checked separately in the UI report. Mock tests and this small live sample are not a broad fraud-accuracy benchmark.
 
 ## What is retained from CARAPACE
 
