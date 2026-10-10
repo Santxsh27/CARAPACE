@@ -4,9 +4,21 @@ Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo step
 
 ## A bounded AI operator for everyday financial tasks
 
+### Simpler local interface
+
+Home now offers three tasks: **Check a bill**, **Read a document**, and
+**Understand my money**. My money separates statement analysis from saved inputs;
+the artificial wallet is an optional panel, not the primary consumer dashboard.
+Statement results replace the upload form, with breakdowns behind expandable
+details. Task outcomes show the result first, with engineering evidence under
+**How Friday checked this**. Approval still shows the amount and recipient;
+consent, authentication and all financial checks remain unchanged. Settings and
+the safety lab remain under **More**. This redesign is local; it is not deployed
+to the existing Cloud Run website yet.
+
 ### New local feature: analyze your own statement
 
-Open **My money → Use your actual transaction history**. Upload an INR CSV with
+Open **My money → Review spending**. Upload an INR CSV with
 `date,description,debit,credit` columns (amounts in rupees), and consent to temporary
 server processing. Friday calculates exact money-in/out, monthly cash flow, largest
 outgoing entries and repeated-row review candidates from your actual rows. No demo

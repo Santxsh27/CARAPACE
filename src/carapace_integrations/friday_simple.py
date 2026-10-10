@@ -1,0 +1,82 @@
+"""Progressive disclosure for the existing Friday routes, not another app.
+
+Only presentation changes here. Auth, consent, approvals and backend calls stay
+with their original handlers. Essential scope labels never disappear.
+"""
+
+SIMPLE_CSS = r"""
+<style id="friday-simple-styles">
+  .shell.layout{max-width:1000px;padding:24px 24px 48px}
+  .friday-nav{justify-content:flex-start;max-width:1000px;margin:auto;border-bottom:0;padding:12px 24px;gap:8px}
+  .friday-nav button{font-size:14px;min-height:44px}
+  .simple-more{margin-left:auto;position:relative}.simple-more>summary{cursor:pointer;padding:12px 16px;min-height:44px;box-sizing:border-box;color:#c3d4e3;border:1px solid #355363;border-radius:12px;list-style:none}
+  .simple-more[open]>div{position:absolute;right:0;top:52px;z-index:20;width:210px;display:grid;padding:10px;background:#121e2a;border:1px solid #355363;border-radius:16px;box-shadow:0 12px 32px #0008}
+  .simple-more button{text-align:left}.simple-more button.motion-toggle{margin:4px 0}
+  .simple-home .hero{min-height:0!important;padding:32px!important;border-radius:24px!important;display:grid!important;grid-template-columns:1fr!important;text-align:left!important}
+  .simple-home .hero-main{max-width:none!important}.simple-home .hero h2{font-size:clamp(30px,4vw,44px)!important;margin:0 0 12px!important;text-align:left!important}
+  .simple-home .hero p{margin:0!important;font-size:15px!important;line-height:1.6!important;max-width:none!important}
+  .simple-home .hero .core-console,.simple-home .hero .system-line,.simple-home .hero .eyebrow,.simple-home .command-hints{display:none!important}
+  .simple-home .home-command{margin:24px 0 10px!important;max-width:none;padding:8px!important}.simple-home .home-command input{min-height:42px;font-size:15px}
+  .simple-home .hero .permission-note{font-size:12px!important;color:#b6c6ce!important;margin:10px 0 0!important}
+  .simple-home .task-grid{grid-template-columns:repeat(3,minmax(0,1fr));margin:20px 0}
+  .simple-home .task-tile{min-height:125px;padding:24px;transform:none!important;transition:background .2s,border-color .2s}
+  .simple-home .task-tile .tile-label{display:none}.simple-home .task-tile b{font-size:18px}.simple-home .task-tile small{font-size:13px;line-height:1.6}
+  .simple-fold{border:1px solid #355363;border-radius:16px;background:#101c28;margin:16px 0;padding:0 18px}
+  .simple-fold>summary{cursor:pointer;font-size:14px;min-height:48px;display:flex;align-items:center;gap:10px;color:#dce8ed;font-weight:600;list-style:none}
+  .simple-fold>summary:after{content:'+';margin-left:auto}.simple-fold[open]>summary:after{content:'−'}
+  .simple-fold>div{padding-bottom:18px}.simple-fold>div>p{font-size:13px;line-height:1.7;color:#bdcbd4}
+  .simple-home .cockpit-tools{margin:0 0 16px}.simple-home .cockpit-tools>span{font-size:12px;letter-spacing:0;text-transform:none}
+  .simple-home .screen-note{margin:16px 0;font-size:12px}.simple-fold .household-inbox,.simple-fold .cockpit-brief{margin:0;border:0;background:none;padding:16px 0;box-shadow:none}
+  .simple-home h2[tabindex="-1"]:focus{outline:none}
+  .screen-heading{max-width:820px;margin:0 auto 20px}.screen-heading h1{font-size:32px}.screen-heading>.eyebrow{display:none}.screen-heading p{font-size:14px;margin:10px 0}.screen-back{font-size:13px}
+  .simple-money-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+  .simple-money-picker button{border:1px solid #355363;background:#132332;color:#ecf5f8;border-radius:18px;text-align:left;min-height:120px;padding:24px;cursor:pointer;transition:border-color .18s,background .18s}
+  .simple-money-picker button:hover{background:#192f40;border-color:#79b7c9}.simple-money-picker b,.simple-money-picker small{display:block}.simple-money-picker b{font-size:20px;margin-bottom:8px}.simple-money-picker small{color:#b8cbd5;font-size:13px}
+  .simple-panel[hidden],.simple-money-picker[hidden],.simple-panel-back[hidden]{display:none!important}
+  .simple-statement-form[hidden]{display:none!important}.simple-statement-form>.planner{display:block}
+  .simple-panel-back{margin-bottom:12px}.money-section{margin:16px 0;padding:24px}.money-section h2{font-size:19px}.money-section>p{font-size:14px}
+  .simple-panel input[type=file]{display:block;width:100%;margin:12px 0 16px;padding:16px;border:1px dashed #547282;border-radius:12px;box-sizing:border-box}
+  .simple-panel input[type=checkbox]{margin:10px 8px 18px 0;vertical-align:middle;width:18px;height:18px}.simple-panel label{line-height:1.6}
+  .simple-panel .planner{margin:8px 8px 8px 0}.simple-panel .screen-note{font-size:12px}.simple-evidence{max-width:820px;margin:18px auto}.simple-evidence .assurance-board,.simple-evidence #result{margin:16px 0}
+  .simple-approval{max-width:820px;margin:14px auto}.simple-approval button{width:100%}.outcome-summary{max-width:820px;margin:16px auto!important;padding:26px!important}.outcome-summary h2{font-size:25px!important}.outcome-summary p{font-size:15px!important}
+  .friday-view .task-form{max-width:760px;margin:auto}.friday-view .command-copy>p{font-size:14px}.friday-view .command-input{min-height:150px}
+  .simple-scope{font-size:12px;color:#b4c7d1;margin:16px 0}.simple-fold .money-capabilities{display:none}
+  @media(max-width:640px){.shell.layout{padding:20px 16px 40px}.friday-nav{padding:10px 16px;gap:4px}.friday-nav button{padding:10px 12px}.simple-home .hero{padding:24px!important}.simple-home .home-command{flex-direction:column}.simple-home .task-grid,.simple-money-picker{grid-template-columns:1fr}.simple-home .task-tile{min-height:100px}.screen-heading h1{font-size:28px}.money-section{padding:20px}.simple-more[open]>div{width:190px}}
+</style>
+"""
+
+# Injected inside the existing experience closure so no control is reimplemented.
+SIMPLE_JS = r"""
+      // A smaller interface over the same financial safety boundary.
+      function disclosure(label, nodes){const fold=element('details',null,'simple-fold');fold.append(element('summary',label));const body=element('div');nodes.filter(Boolean).forEach(n=>body.append(n));fold.append(body);return fold;}
+      function shortHeading(screen,title,copy){const heading=screen.querySelector('.screen-heading');heading.querySelector('h1').textContent=title;heading.querySelector('p').textContent=copy;}
+      const nav=document.querySelector('.friday-nav');const more=element('details',null,'simple-more');more.append(element('summary','More'));const moreItems=element('div');['bill','document','demos','settings'].forEach(id=>moreItems.append(nav.querySelector('[data-screen-link="'+id+'"]')));moreItems.append($('motion-toggle'));more.append(moreItems);nav.append(more);nav.querySelector('[data-screen-link="home"]').textContent='Home';
+      more.addEventListener('click',e=>{if(e.target.closest('[data-screen-link]'))more.open=false;});document.addEventListener('keydown',e=>{if(e.key==='Escape')more.open=false;});
+      home.classList.add('simple-home');$('workspace-title').textContent='Hi. I’m Friday.';$('scenario-copy').textContent='Check a bill. Read a document. Understand your spending.';$('home-command').placeholder='Paste a bill request…';permissionNote.textContent='Payment demo only. Saved rules may allow automatic artificial payments.';cockpitTools.querySelector('span').textContent='Your financial assistant';
+      tiles.replaceChildren();[['bill','Check a bill','Message or payment request'],['document','Read a document','Bill photo or PDF'],['money','Understand my money','Statement or saved inputs']].forEach(([route,title,copy])=>{const b=element('button',null,'task-tile');b.type='button';b.dataset.screenLink=route;b.append(element('b',title),element('small',copy));tiles.append(b);});
+      home.append(disclosure('Demo bills & recent activity',[billInbox,cockpitBrief]));
+      shortHeading(bill,'Check a bill','Paste the request. Friday checks the details before any action.');live.querySelector('h3').textContent='What’s the request?';live.querySelector('.command-copy p').textContent='No PIN, OTP or password needed.';$('live-input').placeholder='Paste the bill message here';$('check-live').textContent='Check bill';
+      const examples=live.querySelector('.customer-examples');const providerSetup=live.querySelector('.provider-setup');live.append(disclosure('Try a demo or set up a test bill',[examples,providerSetup]));
+      shortHeading(doc,'Read a document','Choose a bill photo or PDF. Google Gemini reads it; the raw file is not saved.');docCard.querySelector('h2').textContent='Your bill';$('check-document').textContent='Read document';
+      shortHeading(activity,'Activity','Your recorded tasks and receipts. Payments here use artificial funds.');shortHeading(settings,'My rules','Set the limits for automatic artificial payments.');shortHeading(demos,'Safety lab','Controlled payment tests with artificial funds.');shortHeading(runView,'Task result','Artificial-money pilot. No real bank account connected.');
+      const engineering=disclosure('How Friday checked this',[source,runView.querySelector('.assurance-board'),$('result')]);engineering.classList.add('simple-evidence');runView.insertBefore(engineering,actions);const approvalArea=element('div',null,'simple-approval');runView.insertBefore(approvalArea,engineering);
+      function liftApproval(data){approvalArea.replaceChildren();const button=source.querySelector('button');if(button){const review=data.bill_review||{};approvalArea.append(element('p','Artificial payment: '+workspaceMoney(review.amount_minor)+' · Recipient: '+(review.payee_id||'Not verified')+' · '+(review.provider_name||'Provider not supplied')),button);}}
+      const simplerSignal=showLiveResult;showLiveResult=function(data){simplerSignal(data);liftApproval(data);engineering.open=false;};
+      Object.assign(reasonCopy,{EVIDENCE_PAYEE_MISMATCH:'The recipient does not match the permitted payee.',EVIDENCE_PROVIDER_MISMATCH:'This is not the permitted provider.',EVIDENCE_CURRENCY_MISMATCH:'The currency does not match the permitted task.'});
+      const simplerRender=render;render=function(data){simplerRender(data);approvalArea.replaceChildren();engineering.open=false;if(data.status==='HELD'){const explanations=(data.outcome?.reason||[]).map(code=>reasonCopy[code]||nice(code)).join(' ');summarize('Payment stopped.',explanations||'The request did not pass the saved safety rules.','No new artificial payment was made. Check the request before trying again.');}else if(completedStatuses.includes(data.status)){const receipt=data.outcome?.receipt?.payload;const text=data.status==='COMPLETED_SYNTHETIC'?'One artificial payment was recorded.':'An earlier result was found. No repeat payment was sent.';summarize(data.status==='COMPLETED_SYNTHETIC'?'Done. Receipt recorded.':'Already handled.',receipt?workspaceMoney(receipt.amount_minor)+' · '+receipt.payee_id+'. '+text:text,'Your receipt is saved in Activity.');}};
+      shortHeading(moneyView,'My money','Choose what you want to review. No bank account is connected.');
+      const picker=element('div',null,'simple-money-picker');const panelBack=element('button','Back to My money','planner simple-panel-back');panelBack.type='button';panelBack.hidden=true;
+      const wallet=element('div',null,'simple-panel');wallet.append(moneyControls,moneyFeedback,moneyContent);const walletFold=disclosure('Demo wallet · artificial funds',[wallet,followSection]);
+      statementSection.classList.add('simple-panel');personalInbox.classList.add('simple-panel');statementSection.hidden=true;personalInbox.hidden=true;statementSection.querySelector('h2').textContent='Review your spending';statementSection.querySelector('p').textContent='Choose an INR statement CSV. No payment will be made.';statementHelp.textContent='INR CSV · 1 MB max. Remove personal identifiers before uploading.';statementSection.insertBefore(disclosure('CSV format & privacy',[element('p','Columns: date, description, debit, credit. Amounts in rupees; one debit or credit per row. Dates: YYYY-MM-DD or DD/MM/YYYY. Maximum 5,000 rows. Raw data is processed temporarily, not saved or sent to Gemini.')]),statementConsent);statementButton.textContent='Review statement';
+      personalInbox.querySelector('h2').textContent='Saved inputs';personalInbox.querySelector('p').textContent='What Friday read from your messages and documents. Not verified bank evidence.';inboxRefresh.textContent='Refresh inputs';
+      function selectMoneyPanel(id){picker.hidden=Boolean(id);panelBack.hidden=!id;statementSection.hidden=id!=='statement';personalInbox.hidden=id!=='inputs';walletFold.hidden=Boolean(id);if(id==='inputs'&&!inboxRefresh.disabled)inboxRefresh.click();if(id){const h=(id==='statement'?statementSection:personalInbox).querySelector('h2');h.tabIndex=-1;h.focus({preventScroll:true});}}
+      [['statement','Review spending','Upload your statement CSV'],['inputs','Saved inputs','Messages and documents Friday read']].forEach(([id,title,copy])=>{const b=element('button');b.type='button';b.append(element('b',title),element('small',copy));b.addEventListener('click',()=>selectMoneyPanel(id));picker.append(b);});panelBack.addEventListener('click',()=>selectMoneyPanel(null));moneyWorkspace.replaceChildren(picker,panelBack,statementSection,personalInbox,walletFold);
+      function foldWalletEvidence(){const nodes=Array.from(moneyContent.children);nodes.forEach(node=>{if(node.classList.contains('money-capabilities')){node.remove();return;}const h=node.querySelector('h2');if(h&&['What is connected now','Know the boundaries','Recent recorded outcomes','Bill records'].includes(h.textContent)){const fold=disclosure(h.textContent,[]);moneyContent.replaceChild(fold,node);fold.querySelector('div').append(node);}});}
+      const originalMoneyRefresh=refreshMoney;moneyRefresh.removeEventListener('click',originalMoneyRefresh);refreshMoney=async function(){await originalMoneyRefresh();foldWalletEvidence();};moneyRefresh.addEventListener('click',refreshMoney);
+      const originalShow=show;show=function(name,push=true){if(name==='money')selectMoneyPanel(null);originalShow(name,push);};
+      const simpleSelect=selectScenario;selectScenario=function(id){simpleSelect(id);$('scenario-copy').textContent='Check a bill. Read a document. Understand your spending.';};
+      const statementForm=element('div',null,'simple-statement-form');statementSection.insertBefore(statementForm,statementStatus);statementForm.append(statementLabel,statementFile,statementHelp,statementSection.querySelector('.simple-fold'),statementConsent,consentLabel,statementButton);clearStatement.textContent='Clear results & start again';
+      // Only presentation of already returned results; never an execution trigger.
+      function compactStatementResults(){statementForm.hidden=statementResults.children.length>0;statementSection.querySelector('p').textContent=statementForm.hidden?'Read-only results. Net flow is not your account balance.':'Choose an INR statement CSV. No payment will be made.';const notes=[];Array.from(statementResults.children).forEach(child=>{if(child.classList.contains('simple-fold'))return;if(child.classList.contains('screen-note')){notes.push(child);return;}const heading=child.querySelector('h2');if(heading&&['Month-by-month cash flow','Largest outgoing entries'].includes(heading.textContent)){const fold=disclosure(heading.textContent,[]);statementResults.replaceChild(fold,child);fold.querySelector('div').append(child);}});if(notes.length)statementResults.append(disclosure('Processing & limitations',notes));}
+      new MutationObserver(compactStatementResults).observe(statementResults,{childList:true});
+"""

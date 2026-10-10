@@ -248,6 +248,8 @@ EXPERIENCE_JS = r"""
 
 def enhance_friday_html(html: str) -> str:
     """Retain existing element IDs and API handlers while separating their views."""
-    return (html.replace("</head>", EXPERIENCE_CSS + "</head>", 1)
+    from .friday_simple import SIMPLE_CSS, SIMPLE_JS
+    compact_js = EXPERIENCE_JS.replace("route(false);", SIMPLE_JS + "route(false);", 1)
+    return (html.replace("</head>", EXPERIENCE_CSS + SIMPLE_CSS + "</head>", 1)
             .replace('<main class="shell layout">', EXPERIENCE_NAV + '<main class="shell layout">', 1)
-            .replace("    let watching=false;", EXPERIENCE_JS + "\n    let watching=false;", 1))
+            .replace("    let watching=false;", compact_js + "\n    let watching=false;", 1))
