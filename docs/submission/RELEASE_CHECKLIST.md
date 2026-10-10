@@ -10,7 +10,10 @@
 - Actual live rejected-plan correction before execution.
 - Document source-evidence gate, provider mismatch and reserve/limit protection.
 - Transactional Firestore journal, tenant controls and fail-closed model handling.
-- 263 application tests (262 passed, one optional skip), plus eleven tooling tests.
+- 265 application tests (264 passed, one optional skip), plus eleven tooling tests.
+- 0.15.2 colour-coded tasks and recorded AI-correction summary deployed in
+  `clarity1011`; server-evidence progress replaces timed stages. Live Vertex
+  paid-notice check passed with unchanged balance and zero payment requests.
 - October 11: connected plan-to-prefill bill journey and readable activity are
   deployed as 0.15.1. Live Vertex paid-notice check passed; no payment request,
   unchanged balance and private access retained. See ../JOURNEY_1011.md.

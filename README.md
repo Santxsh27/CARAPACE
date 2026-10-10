@@ -32,11 +32,12 @@ balances and evidence are rechecked at execution. Activity now shows provider,
 time and a labelled approved limit, not a technical case ID or a misleading
 claim that the limit was paid. Recorded receipts still open read-only.
 
-**Live release: 0.15.1, October 11.** The `journey1011` API and web revisions
+**Live release: 0.15.2, October 11.** The `clarity1011` API and web revisions
 passed zero-traffic checks and were promoted with private access unchanged.
-263 application tests ran (262 passed, one optional skip); eleven tooling tests
+265 application tests ran (264 passed, one optional skip); eleven tooling tests
 passed. Live Vertex interpreted an artificial paid notice without preparing a
-payment, and the cloud balance stayed unchanged. See [readiness and UX notes](docs/JOURNEY_1011.md).
+payment, and the cloud balance stayed unchanged. See [current release notes](docs/CLARITY_0152.md)
+and [readiness and UX notes](docs/JOURNEY_1011.md).
 
 ### Reserve-aware planning (0.15.0 live)
 
