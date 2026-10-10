@@ -10,7 +10,10 @@
 - Actual live rejected-plan correction before execution.
 - Document source-evidence gate, provider mismatch and reserve/limit protection.
 - Transactional Firestore journal, tenant controls and fail-closed model handling.
-- 195 application tests (194 passed, one optional skip), plus eleven tooling tests.
+- 263 application tests (262 passed, one optional skip), plus eleven tooling tests.
+- October 11: connected plan-to-prefill bill journey and readable activity are
+  deployed as 0.15.1. Live Vertex paid-notice check passed; no payment request,
+  unchanged balance and private access retained. See ../JOURNEY_1011.md.
 - Reproducible 51-case generated proposal evaluation, limitations documented.
 - Cloud browser evidence and technical demo script.
 - Two live Vertex message batches, with both failures retained in LIVE_MESSAGE_EVALUATION_1008.md.
@@ -20,7 +23,9 @@
 
 ## Required before claiming the submission is complete
 
-1. Confirm official deadline, eligibility, team/build-window rules on the dashboard.
+1. Public timeline checked October 11: prototype deadline October 18 and team
+   formation October 11. Confirm exact cutoff/timezone, eligibility and roster
+   in the participant dashboard; do not rely solely on earlier chat dates.
 2. Arrange explicit judge identity enrollment or organizer-approved demo access.
    Current protection is owner-only. Do not publish the private financial API.
 3. Investigate any recurring understanding HTTP 503 and run broader unseen-input

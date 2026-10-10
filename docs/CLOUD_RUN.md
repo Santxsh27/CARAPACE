@@ -2,7 +2,19 @@
 
 ## Current cloud boundary
 
-**Latest release: 0.15.0, October 10.** API `financial-friday-api-plan1010`
+**Latest release: 0.15.1, October 11.** `financial-friday-api-journey1011` and
+`financial-friday-web-journey1011` serve the connected bill-planning journey.
+Cloud Build `d5ee1b5a-5943-427f-a958-9e69f9e458f1`, clean source commit `587c9e5`,
+image `sha256:a8ae02bcaa39495ee7efe28734da636e476a30e383f54c602d00a18411e4e56b`.
+Candidate checks confirmed Firestore persistence, read-only planning, 13 bill
+records, unchanged balance, no payment authority, unavailable external biller
+correction and anonymous rejection. One live Vertex paid-notice interpretation
+passed with zero payment requests. Existing IAP and owner-only access remain.
+The UI connects planning to prefill-only preparation and readable activity;
+263 application tests ran (262 passed, one skip), plus eleven tooling tests.
+See [journey and remaining submission gaps](JOURNEY_1011.md).
+
+**Previous release: 0.15.0, October 10.** API `financial-friday-api-plan1010`
 and web `financial-friday-web-plan1010` now serve 100% normal traffic using image
 `sha256:6c8851718235b7cbb654fd682437def0acce63cb0d2c01221315017dfea7dd95`,
 Cloud Build `a49300a2-c1af-4919-a547-9d1c31759fe5`, source commit `f11e920`.

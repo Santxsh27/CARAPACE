@@ -19,9 +19,11 @@ balances and evidence are rechecked at execution. Activity now shows provider,
 time and a labelled approved limit, not a technical case ID or a misleading
 claim that the limit was paid. Recorded receipts still open read-only.
 
-This is a tested local candidate, not yet a newer Cloud Run rollout. The live
-cloud release described below remains 0.15.0 until candidate verification and
-promotion. See [readiness and UX notes](docs/JOURNEY_1011.md).
+**Live release: 0.15.1, October 11.** The `journey1011` API and web revisions
+passed zero-traffic checks and were promoted with private access unchanged.
+263 application tests ran (262 passed, one optional skip); eleven tooling tests
+passed. Live Vertex interpreted an artificial paid notice without preparing a
+payment, and the cloud balance stayed unchanged. See [readiness and UX notes](docs/JOURNEY_1011.md).
 
 ### Reserve-aware planning (0.15.0 live)
 
@@ -77,7 +79,7 @@ document understanding already existed; this makes its extracted facts accessibl
 even when no trusted payment adapter is available. Extracted claims are not bank
 verification. These additions are included in the 0.15.0 cloud release.
 
-**Current cloud release: 0.15.0 (October 10).** Task-first screens, statement
+**Previous cloud release: 0.15.0 (October 10).** Task-first screens, statement
 analysis and reserve-aware planning are live on the private Cloud Run website.
 The API and web `plan1010` revisions passed candidate checks before promotion. Live
 Vertex correctly interpreted a paid notice without preparing another payment;
