@@ -70,6 +70,7 @@ def financial_workspace(service, tenant: str) -> dict:
         "read_only": True, "money_moved": False, "currency": "INR",
         "balance_minor": balance, "protected_balance_minor": mandate.protected_balance_minor,
         "available_above_reserve_minor": available, "bills": bills,
+        "automatic_payment_limit_minor": mandate.automatic_payment_limit_minor,
         "upcoming_total_minor": committed,
         "budget": {"committed_minor": committed,
                    "remaining_after_bills_minor": available - committed,

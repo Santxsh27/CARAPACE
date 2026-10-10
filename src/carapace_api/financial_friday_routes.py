@@ -104,6 +104,12 @@ def register_financial_friday_routes(application, service, authenticate):
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
 
+    @application.get("/v1/friday/bill-plan", tags=["financial-friday"])
+    def bill_plan(tenant: TenantContext = Depends(authenticate)):
+        from .friday_workspace import financial_workspace
+        from carapace_core.friday_bill_plan import plan_bills
+        return plan_bills(financial_workspace(service, tenant.tenant_id))
+
     @application.post("/v1/friday/follow-through", tags=["financial-friday"])
     def follow_through(request: FollowThroughRequest, tenant: TenantContext = Depends(authenticate)):
         from .friday_followthrough import acknowledge_recorded_bill

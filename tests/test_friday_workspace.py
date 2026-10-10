@@ -230,6 +230,13 @@ class FridayWorkspaceTests(unittest.TestCase):
                               "X-Carapace-API-Key": "secret-one"})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["read_only"])
+        self.assertEqual(client.get("/v1/friday/bill-plan").status_code, 401)
+        before = app.state.financial_friday.mandate("one")["sandbox_balance_minor"]
+        plan = client.get("/v1/friday/bill-plan", headers={"X-Carapace-Tenant": "one",
+                           "X-Carapace-API-Key": "secret-one"})
+        self.assertEqual(plan.status_code, 200)
+        self.assertFalse(plan.json()["payment_authorized"])
+        self.assertEqual(app.state.financial_friday.mandate("one")["sandbox_balance_minor"], before)
 
     def test_cloud_workspace_allowlist_preserves_identity_and_read_only_method(self):
         settings = WebSettings("https://private-api.run.app", "https://friday-web.run.app",
@@ -245,3 +252,6 @@ class FridayWorkspaceTests(unittest.TestCase):
         self.assertEqual(client.post("/api/friday/workspace", headers=headers, json={}).status_code, 404)
         self.assertEqual(client.get("/api/friday/workspace?tenant=two", headers=headers).status_code, 400)
         self.assertEqual(transport.call_count, 1)
+        self.assertEqual(client.get("/api/friday/bill-plan", headers=headers).status_code, 200)
+        self.assertEqual(transport.call_args.args[1:4], ("one", "/v1/friday/bill-plan", "GET"))
+        self.assertEqual(client.post("/api/friday/bill-plan", headers=headers, json={}).status_code, 404)

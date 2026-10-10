@@ -4,13 +4,31 @@ Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo step
 
 ## A bounded AI operator for everyday financial tasks
 
-### Simpler local interface
+### Reserve-aware planning (0.15.0 candidate)
+
+**My money → Plan my bills** computes a personalised, read-only plan from current
+tenant-owned artificial provider records and the saved reserve/single-payment
+limit. An exact Pareto-frontier dynamic program prioritises bill count on earlier
+due dates, then minimises spend for ties. Paid records, receipt conflicts,
+unusual increases and over-limit bills are separated, not blindly scheduled.
+Incomplete records or bounded-search limits return no complete plan. This is not
+a payment permission, reservation, credit recommendation or claim about real
+bank balances. Gemini interprets requests and proposes payment programs; exact
+code handles constrained arithmetic and verification.
+
+Tests include an independent exhaustive oracle over 80 generated eight-bill
+cases. This validates the solver on that development corpus, not fraud accuracy
+or a globally novel algorithm. Each task result now keeps its five-stage
+assurance journey visible, while detailed program evidence stays expandable.
+Cloud rollout evidence will be recorded after verification.
+
+### Task-first interface
 
 Home now offers three tasks: **Check a bill**, **Read a document**, and
 **Understand my money**. My money separates statement analysis from saved inputs;
 the artificial wallet is an optional panel, not the primary consumer dashboard.
 Statement results replace the upload form, with breakdowns behind expandable
-details. Task outcomes show the result first, with engineering evidence under
+details. Task outcomes show the result and assurance journey first, with engineering evidence under
 **How Friday checked this**. Approval still shows the amount and recipient;
 consent, authentication and all financial checks remain unchanged. Settings and
 the safety lab remain under **More**. This redesign is local; it is not deployed
@@ -32,7 +50,7 @@ Remove account identifiers and unnecessary personal information before uploading
 Net flow is not an account balance; repeated rows are not proof of fraud. Imported
 data never changes payment permissions, the artificial ledger or bill status.
 
-**My money → What Friday understood from your inputs** now displays the most recent
+**My money → Saved inputs** now displays the most recent
 20 saved message/document interpretations independently of sample billers. Gemini
 document understanding already existed; this makes its extracted facts accessible
 even when no trusted payment adapter is available. Extracted claims are not bank

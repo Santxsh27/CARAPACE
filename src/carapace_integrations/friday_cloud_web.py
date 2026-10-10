@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 
 MAX_BODY = 8 * 1024 * 1024
 ROUTES = {
-    "GET": r"(?:scenarios|today|workspace|mandate|live-input|storage-status|test-provider/bills|runs/[A-Za-z0-9_-]{1,100})",
+    "GET": r"(?:scenarios|today|workspace|bill-plan|mandate|live-input|storage-status|test-provider/bills|runs/[A-Za-z0-9_-]{1,100})",
     "PUT": r"mandate",
     "POST": r"(?:statements/analyze|follow-through|live-input|documents|test-provider/bills|live-input/[A-Za-z0-9_-]{1,100}/run|scenarios/[A-Za-z0-9_-]{1,100}/run)",
 }

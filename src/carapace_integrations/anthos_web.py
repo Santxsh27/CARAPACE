@@ -336,6 +336,13 @@ def create_demo_app() -> FastAPI:
             raise HTTPException(code, "Follow-through unavailable")
         return result
 
+    @application.get("/api/friday/bill-plan")
+    async def friday_bill_plan():
+        code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/bill-plan", "GET")
+        if code != 200:
+            raise HTTPException(code, "Bill plan unavailable")
+        return result
+
     @application.get("/api/friday/test-provider/bills")
     async def friday_household_bills():
         code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/test-provider/bills", "GET")

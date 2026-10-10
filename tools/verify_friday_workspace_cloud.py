@@ -37,13 +37,18 @@ def main():
             return json.load(response)
 
     health = request("/health/ready")
-    assert health["version"] == "0.14.1", "wrong candidate version"
+    assert health["version"] == "0.15.0", "wrong candidate version"
     assert request("/v1/friday/storage-status")["mode"] == "FIRESTORE_TRANSACTIONAL"
     before = request("/v1/friday/mandate")["sandbox_balance_minor"]
     workspace = request("/v1/friday/workspace")
     assert workspace["scope"] == "ARTIFICIAL_MONEY" and workspace["read_only"]
     assert not workspace["money_moved"] and workspace["balance_minor"] == before
     assert workspace["coverage"]["bill_records_returned"] == len(workspace["bills"])
+    plan = request("/v1/friday/bill-plan")
+    assert plan["read_only"] and not plan["money_moved"] and not plan["payment_authorized"]
+    if plan["state"] == "PLANNED":
+        assert plan["planned_total_minor"] <= workspace["available_above_reserve_minor"]
+        assert plan["remaining_above_reserve_minor"] >= 0
     unavailable = request("/v1/friday/follow-through", {"bill_reference": "RELEASE-CHECK-NO-ACTION"})
     assert unavailable["state"] == "UNAVAILABLE"
     assert unavailable["reason"] == "CLOUD_CONNECTOR_NOT_IMPLEMENTED"
@@ -70,6 +75,7 @@ def main():
         raise AssertionError("anonymous access unexpectedly allowed")
     print(json.dumps({"version": health["version"], "workspace_verified": True,
         "bill_records": len(workspace["bills"]), "balance_unchanged": True,
+        "plan_state": plan["state"], "plan_has_no_payment_authority": True,
         "cloud_followthrough_disabled": True, "anonymous_access_rejected": True,
         "live_paid_alert_verified": paid_alert_verified,
         "live_ai_intake_requested": args.check_paid_alert, "payment_requests": 0}))
