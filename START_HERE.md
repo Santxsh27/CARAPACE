@@ -43,15 +43,16 @@ Local SQLite mode runs the complete artificial-money journey. Version 0.13.2 inc
 
 Python, FastAPI, Pydantic, SQLite, cryptography/Ed25519, Google Gen AI SDK, Google Firestore client, Docker Compose, HTML/CSS/JavaScript and browser speech transcription. The repository retains earlier Bank of Anthos artificial-bank work.
 
-Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Build, service identity, Secret Manager and budget alerts. The API is version 0.13.2, using Gemini 3.5 Flash-Lite and transactional Firestore. Real owner Google login through IAP and a fresh ₹2,487 browser-to-cloud bill journey now work; replay reused the receipt without another debit, and a changed recipient was held. Access is owner-only. Cloud Tasks and native Gemini Live voice remain planned. BigQuery, Document AI, ADK and Agora are not implemented.
+Google Cloud includes Vertex AI, private Cloud Run, Artifact Registry, Cloud Build, service identity, Secret Manager and budget alerts. The API is version 0.14.1, using Gemini 3.5 Flash-Lite and transactional Firestore. Owner Google login through IAP works. The earlier fresh ₹2,487 cloud bill journey, receipt-first replay and recipient hold remain release history; the new workspace and a live paid-notice safety check passed on October 10. Access remains owner-only. Cloud Tasks and native Gemini Live voice remain planned. BigQuery, Document AI, ADK and Agora are not implemented.
 
 ## Verification
 
-The newer **0.14.0 local workspace increment** ran 235 native tests: 234 passed,
-one optional Anthos test skipped. My money now works through localhost and the
-tenant-scoped API. The new resolution kernel has sixteen tests, but no live biller
-correction endpoint. The earlier Cloud Run release remains unchanged until the new
-candidate passes cloud verification. No live Gemini calls were made in this increment.
+The **0.14.1 workspace release** ran 244 native tests: 243 passed, one optional
+integration skipped. My money now works locally and through the private cloud
+gateway. The candidate passed Firestore reads, unchanged balance, anonymous-access
+rejection and a live Vertex paid-notice check before promotion. Local signed bill
+acknowledgement is tested, but disabled in cloud mode; real biller correction is
+not connected. See `docs/CLOUD_RUN.md` for current release identifiers.
 
 Version 0.13.2 plus the cloud gateway and multi-screen UI: 195 tests ran, 194 passed, one optional Anthos test skipped. Eleven tooling tests also passed. Tests include concurrency, durable restart, corrupted receipts, replay while AI is unavailable, identity/tenant isolation, same-origin protection, missing document quotations, suppression of invented text quotations, privacy-safe diagnostics, read-only briefing/filtering and no automatic gateway payment retry. Browser evidence is in `docs/FRIDAY_BROWSER_VERIFICATION_1008.md`, `docs/FRIDAY_MULTISCREEN_1008.md` and `docs/FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A separate no-payment evaluation covers 51 generated proposals (12 valid allowed, 39 unsafe rejected); results and limitations are in `docs/submission/SAFETY_EVALUATION.md`. The newest 16-case live Vertex check and remaining submission blockers are in `docs/submission/FINAL_HANDOFF_1009.md`.
 

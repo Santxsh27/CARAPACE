@@ -2,11 +2,28 @@
 
 ## Current cloud boundary
 
+**October 10 release: version 0.14.1 is now deployed.** API revision
+`financial-friday-api-workspace1010` and web revision
+`financial-friday-web-workspace1010` serve 100% normal traffic. Both use immutable
+image `sha256:8a9ee7eae65fb9b196f299144fea4e01130ef9dc706fb69d53ad686dc52c1e86`,
+built from commit `a74369f` by Cloud Build
+`9625e31f-9530-48fe-a4d3-0a01e1ace537`.
+
+The zero-traffic API candidate passed authenticated Firestore workspace checks
+(13 bill records), unchanged-balance checks, anonymous-access rejection, and a
+live Vertex interpretation of an artificial already-paid notice. The notice
+remained ATTENTION / NOT_A_PAYMENT_REQUEST with no prepared payment or debit.
+The owner-protected browser verified the new My money page through the gateway.
+The local acknowledgement endpoint explicitly returns UNAVAILABLE in cloud mode;
+external biller correction is not connected. No rules, secrets or IAM permissions
+were broadened. `tools/verify_friday_workspace_cloud.py` repeats these checks;
+its optional `--check-paid-alert` makes a live AI intake call, not a payment.
+
 The Google Cloud project, billing alerts and required APIs are configured. Vertex AI has been called successfully with Google identity. The repository can be built into the existing non-root Docker image and deployed to Cloud Run.
 
 The Cloud Run service is deliberately private. Its dedicated runtime service account has Vertex invocation, project-scoped Firestore data access and access to the three named demo secrets. It uses Application Default Credentials supplied by Cloud Run; no Gemini API key is embedded in the image or repository.
 
-Version 0.13.2 with the document gate, message repair and verbatim text quotation filter serves 100% normal traffic on `financial-friday-api-ready1008`. Current release evidence is in `submission/FINAL_HANDOFF_1009.md`; message repair history is in `submission/MESSAGE_PROMPT_REPAIR_1008.md`; document verification is in `FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A live
+Earlier version 0.13.2 with the document gate, message repair and verbatim text quotation filter served normal traffic on `financial-friday-api-ready1008`. Historical release evidence is in `submission/FINAL_HANDOFF_1009.md`; message repair history is in `submission/MESSAGE_PROMPT_REPAIR_1008.md`; document verification is in `FRIDAY_DOCUMENT_VERIFICATION_1008.md`. A live
 cross-revision check restored a payment created by 0.13.1 from Firestore, verified
 the persistent signing key, retained its original operation ID and unchanged
 balance, and returned ALREADY_COMPLETED without calling AI or creating a debit.

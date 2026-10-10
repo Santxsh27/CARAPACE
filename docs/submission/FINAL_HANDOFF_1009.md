@@ -2,7 +2,16 @@
 
 October 9, 2026. This is a working artificial-money pilot, not unrestricted bank access or a claim that the whole submission is complete.
 
-## Later local workspace increment (0.14.0, not cloud deployed)
+## October 10 release update
+
+Version 0.14.1 is now deployed on the existing private Cloud Run services.
+The workspace candidate and one live Vertex paid-notice check passed; the balance
+was unchanged and no payment was prepared. The protected browser loaded the money
+view and the explicit disabled-cloud-acknowledgement result. README and
+`docs/CLOUD_RUN.md` describe the current release. The October 9 sections below
+remain historical evidence, not the current traffic assignment.
+
+## Historical local workspace increment (0.14.0)
 
 Friday now connects Understand / Handle / Protect / Resolve through a read-only
 My money screen and `/v1/friday/workspace`. It displays the existing tenant's bill

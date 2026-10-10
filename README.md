@@ -4,6 +4,13 @@ Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo step
 
 ## A bounded AI operator for everyday financial tasks
 
+**Current cloud release: 0.14.1 (October 10).** My money and the broader Friday
+workspace are now live on the existing private Cloud Run website. The API and
+web `workspace1010` revisions passed candidate checks before promotion. Live
+Vertex correctly interpreted a paid notice without preparing another payment;
+the balance stayed unchanged. Local bill acknowledgement is still disabled in
+cloud mode, and no real bank/biller connector exists. See [current cloud evidence](docs/CLOUD_RUN.md).
+
 Friday's broader product is **Understand → Handle → Protect → Resolve**, sharing
 one permission-controlled engine rather than unrelated financial mini-apps.
 **My money** now gives a read-only snapshot of recorded artificial bills, available
@@ -145,7 +152,7 @@ Gemini has no payment credentials or generic network, code, SQL, shell, or URL t
 - Bill identity, rather than message identity, prevents two messages about one bill from creating two payments. At commit time, the cloud executor rechecks provider details, current mandate, automatic permission and protected balance. Updating a mandate never resets the artificial account balance.
 - Transaction callback contract tests cover restart recovery, concurrent attempts, repeated bill messages, changed provider details, corrupt receipts, AI-offline replay and commit failures. Cloud integration checks are recorded separately in `docs/CLOUD_RUN.md`; neither establishes production banking readiness.
 - The default Firestore database is now provisioned in Mumbai (`asia-south1`), with deletion protection. Payment and witness signing keys plus private demo API credentials are provisioned in Secret Manager; secret values are never committed.
-- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-ready1008` serves version `0.13.2` at 100% normal traffic with `gemini-3.5-flash-lite` on Vertex AI. It includes the document gate, targeted message prompt repair, privacy-safe diagnostics and text quotation validation. Fresh artificial payments and cross-revision receipt-first replay have been verified without repeat debits. See [current release and handoff](docs/submission/FINAL_HANDOFF_1009.md), [message release history](docs/submission/MESSAGE_PROMPT_REPAIR_1008.md), [original API evidence](docs/CLOUD_RELEASE_0132_VERIFIED.md) and [browser verification](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
+- The official Google Cloud CLI is installed and authenticated. Private Cloud Run revision `financial-friday-api-workspace1010` serves version `0.14.1` at 100% normal traffic with `gemini-3.5-flash-lite` on Vertex AI. It retains the document gate, targeted message prompt repair, privacy-safe diagnostics and text quotation validation. Fresh artificial payments and cross-revision receipt-first replay were verified in the earlier release; the new workspace and paid-notice safety gate were verified in this release. See [current cloud evidence](docs/CLOUD_RUN.md) and [historical release handoff](docs/submission/FINAL_HANDOFF_1009.md).
 - The protected [cloud website](https://financial-friday-web-171681243260.asia-south1.run.app/) now works with real owner Google sign-in through IAP. A new ₹2,487 bill completed through browser → live Vertex AI → transactional Firestore → signed receipt; replay created no additional debit, and a changed recipient was held. The API is still private and backend keys never enter the browser. Owner-only access is not yet judge enrollment. See [browser verification and limits](docs/FRIDAY_BROWSER_VERIFICATION_1008.md).
 
 ## Next steps
@@ -205,7 +212,7 @@ docker compose --profile test run --rm --no-deps --build \
   tests
 ```
 
-Local workspace increment **0.14.0**: **235 tests run, 234 passed, one optional Anthos integration test skipped** in the native suite, including JavaScript parsing/renderer checks. The Docker test image lacks Node and skips browser-script tests; those passed in the native suite. The previous deployed 0.13.2 release ran 195 tests plus eleven tooling tests. New coverage includes exact workspace totals, receipt binding, tenant isolation, non-payment alerts and the bill-resolution kernel. The workspace was checked through the local browser and API. **This increment has not been deployed or live-Gemini evaluated; Cloud Run still runs the earlier release.** These regressions are not broad fraud-accuracy or product-impact measurements.
+Current **0.14.1**: **244 tests run, 243 passed, one optional integration skipped** natively; Docker ran 244 tests with 237 passed and seven environment-dependent skips. Coverage includes workspace totals, receipt binding, tenant isolation, non-payment alerts, resolution decisions and concurrent local acknowledgement. The workspace was verified locally and through the protected Cloud Run browser, with live Vertex paid-notice verification. These regressions are not broad fraud-accuracy or product-impact measurements.
 
 Live PDF verification now includes a matching bill stopped at the saved automatic
 limit and a recipient mismatch stopped before payment, through Vertex AI and the
