@@ -52,6 +52,16 @@ class FinancialFridayTests(unittest.TestCase):
         with sqlite3.connect(self.path) as db:
             return db.execute("SELECT COUNT(*) FROM friday_payments").fetchone()[0]
 
+    def test_activity_has_readable_metadata_without_reexecuting(self):
+        run = self.service.run('demo', 'genuine-bill')
+        before = self.payment_count()
+        item = self.service.daily_brief('demo')['recent_runs'][0]
+        self.assertEqual(item['run_id'], run['run_id'])
+        self.assertEqual(item['provider_id'], run['goal']['provider_id'])
+        self.assertEqual(item['payment_limit_minor'], run['goal']['max_total_minor'])
+        self.assertEqual(self.payment_count(), before)
+        self.assertEqual(self.service.daily_brief('other')['recent_runs'], [])
+
     def test_understanding_transient_failure_retries_before_any_execution(self):
         error = RuntimeError("temporary provider failure")
         error.code = 504

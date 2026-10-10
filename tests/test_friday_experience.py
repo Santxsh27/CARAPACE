@@ -14,6 +14,15 @@ class FridayExperienceTests(unittest.TestCase):
         self.assertIn("/api/friday/live-input", FINANCIAL_FRIDAY_HTML)
         self.assertIn("/api/friday/documents", FINANCIAL_FRIDAY_HTML)
 
+    def test_activity_copy_does_not_claim_limit_was_paid_or_real_settlement(self):
+        helper = EXPERIENCE_JS.split('function activityPresentation(r)', 1)[1].split('async function refreshActivity', 1)[0]
+        self.assertIn('Approved limit', helper)
+        self.assertIn('Completed in sandbox', helper)
+        self.assertIn('Prior outcome found — no retry', helper)
+        self.assertNotIn('r.case_id', helper)
+        self.assertNotIn('r.run_id', helper)
+        self.assertNotIn('Settled', helper)
+
     def test_hidden_screens_and_reduced_motion_are_explicit(self):
         self.assertIn(".friday-view[hidden]{display:none!important}", EXPERIENCE_CSS)
         self.assertIn("prefers-reduced-motion:reduce", EXPERIENCE_CSS)

@@ -26,7 +26,7 @@ from carapace_core.friday_live import (
     TestProviderBill,
     bill_increase_requires_review,
 )
-from carapace_integrations.financial_friday_fixtures import load_case
+from carapace_integrations.financial_friday_fixtures import CASES, load_case
 from .friday_durable import LocalFridayState
 
 
@@ -553,7 +553,10 @@ class FinancialFridayService:
             "recorded_total_minor": sum(r["payload"]["amount_minor"] for r in receipts),
             "verified_receipt_count": len(receipts), "invalid_receipt_count": invalid,
             "recent_runs": [{"run_id": r["run_id"], "case_id": r["case_id"],
-                             "status": r["status"], "started_at": r["started_at"]}
+                             "status": r["status"], "started_at": r["started_at"],
+                             "provider_id": (r.get("goal") or {}).get("provider_id"),
+                             "task_label": CASES.get(r["case_id"], (None,))[0],
+                             "payment_limit_minor": (r.get("goal") or {}).get("max_total_minor")}
                             for r in (json.loads(row[0]) for row in rows)],
             "balance": None,
             "live_activity": [json.loads(row[0]) for row in live_rows],

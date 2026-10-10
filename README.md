@@ -4,6 +4,25 @@ Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo step
 
 ## A bounded AI operator for everyday financial tasks
 
+### Current improvement: one connected bill-handling journey (October 11)
+
+The primary problem is **financial admin without unsafe delegation**: understanding
+a bill, deciding what fits a protected reserve, checking its payment details,
+handling an allowed task and confirming the recorded outcome. Documents and
+statements support that journey; Friday is not an unrestricted finance Jarvis.
+
+The new local interface leads with **Plan my bills**. Eligible plan rows have
+**Prepare bill check**, which fills the request from the current plan without
+submitting it. Choosing **Check bill** then uses the original interpretation,
+provider, permission and execution gates. Plan selection is never authorization;
+balances and evidence are rechecked at execution. Activity now shows provider,
+time and a labelled approved limit, not a technical case ID or a misleading
+claim that the limit was paid. Recorded receipts still open read-only.
+
+This is a tested local candidate, not yet a newer Cloud Run rollout. The live
+cloud release described below remains 0.15.0 until candidate verification and
+promotion. See [readiness and UX notes](docs/JOURNEY_1011.md).
+
 ### Reserve-aware planning (0.15.0 live)
 
 **My money → Plan my bills** computes a personalised, read-only plan from current

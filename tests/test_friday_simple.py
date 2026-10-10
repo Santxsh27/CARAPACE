@@ -64,3 +64,36 @@ process.stdout.write(JSON.stringify({visible,retained,cleared:approvalArea.child
         self.assertIn('Artificial payment', evidence['visible'])
         self.assertTrue(evidence['retained'])
         self.assertTrue(evidence['cleared'])
+
+    def test_plan_handoff_only_prefills_and_requires_original_check(self):
+        helper = SIMPLE_JS.split('function preparePlannedBill', 1)[1].split('async function loadBillPlan', 1)[0]
+        self.assertIn("show('bill')", helper)
+        self.assertIn("$('live-input').value", helper)
+        self.assertIn('Number.isSafeInteger', helper)
+        self.assertNotIn('checkLive(', helper)
+        self.assertNotIn('jsonRequest(', helper)
+        self.assertIn("if(key==='selected')", SIMPLE_JS)
+        self.assertIn('It does not submit it.', SIMPLE_JS)
+
+    def test_plan_handoff_exact_amount_and_invalid_record_runtime(self):
+        node = '/usr/local/bin/node' if Path('/usr/local/bin/node').exists() else shutil.which('node')
+        if not node:
+            self.skipTest('Node needed for UI runtime verification')
+        helper = 'function preparePlannedBill' + SIMPLE_JS.split('function preparePlannedBill', 1)[1].split('async function loadBillPlan', 1)[0]
+        harness = """
+const input={value:'',focus(){}};let routes=[],alerts=[];
+const $=()=>input;const show=name=>routes.push(name);const toast=text=>alerts.push(text);
+""" + helper + """
+preparePlannedBill({provider_name:'Electricity',bill_reference:'NEW-42',payee_id:'known@upi',amount_minor:199901});
+const prepared=input.value;
+preparePlannedBill({provider_name:'Electricity',bill_reference:'BAD',payee_id:'known@upi',amount_minor:1.2});
+process.stdout.write(JSON.stringify({prepared,routes,alerts,unchanged:input.value===prepared}));
+"""
+        result = subprocess.run([node, '-e', harness], text=True, capture_output=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        evidence = json.loads(result.stdout)
+        self.assertIn('INR 1999.01', evidence['prepared'])
+        self.assertIn('NEW-42', evidence['prepared'])
+        self.assertEqual(evidence['routes'], ['bill'])
+        self.assertEqual(len(evidence['alerts']), 1)
+        self.assertTrue(evidence['unchanged'])

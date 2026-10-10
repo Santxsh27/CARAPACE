@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--project", required=True)
     parser.add_argument("--gcloud", default="gcloud")
     parser.add_argument("--ca-file")
+    parser.add_argument("--expected-version", default="0.15.1")
     parser.add_argument("--check-paid-alert", action="store_true",
         help="One live AI interpretation of an artificial paid notice; never a payment request")
     args = parser.parse_args()
@@ -37,7 +38,7 @@ def main():
             return json.load(response)
 
     health = request("/health/ready")
-    assert health["version"] == "0.15.0", "wrong candidate version"
+    assert health["version"] == args.expected_version, "wrong candidate version"
     assert request("/v1/friday/storage-status")["mode"] == "FIRESTORE_TRANSACTIONAL"
     before = request("/v1/friday/mandate")["sandbox_balance_minor"]
     workspace = request("/v1/friday/workspace")
