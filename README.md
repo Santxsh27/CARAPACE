@@ -4,7 +4,20 @@ Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo step
 
 ## A bounded AI operator for everyday financial tasks
 
-### Current improvement: one connected bill-handling journey (October 11)
+### Current improvement: clearer tasks and visible AI correction (October 11)
+
+Release 0.15.2 adds violet primary actions, distinct teal/document-violet/amber
+task cards and evidence-based green/red/amber outcomes. Result screens now
+explain whether live Gemini planned, corrected a rejected proposal, or was not
+needed. Recorded planning calls, rejected proposals and confirmed new sandbox
+payments are shown separately. An AI plan correction is **not** a bank code
+repair. No new AI capability or financial authority is claimed by this UI change.
+
+Timed demonstration progress has been removed: the screen waits for the server
+and reconstructs stages from returned run evidence. Unknown outcomes never get
+a completed-action stage. The original permission gates and local fallback remain.
+
+### One connected bill-handling journey
 
 The primary problem is **financial admin without unsafe delegation**: understanding
 a bill, deciding what fits a protected reserve, checking its payment details,

@@ -13,7 +13,7 @@ def main():
     parser.add_argument("--project", required=True)
     parser.add_argument("--gcloud", default="gcloud")
     parser.add_argument("--ca-file")
-    parser.add_argument("--expected-version", default="0.15.1")
+    parser.add_argument("--expected-version", default="0.15.2")
     parser.add_argument("--check-paid-alert", action="store_true",
         help="One live AI interpretation of an artificial paid notice; never a payment request")
     args = parser.parse_args()

@@ -60,6 +60,35 @@ SIMPLE_CSS = r"""
   .plan-row-action button:hover{background:#234c3e}.plan-next-note{color:#b7c8d3;font-size:12px;line-height:1.6}
   button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid #b5ecdc!important;outline-offset:4px}
   @media(max-width:640px){.simple-home .hero{padding:26px!important}.friday-primary-plan{gap:10px}.friday-primary-plan button{width:100%}.activity-entry .status{text-align:left;max-width:none}.plan-row-action{width:100%;justify-content:space-between}}
+  /* Colour communicates the task; outcome colours always follow server evidence. */
+  body{background:#0b1020!important;background-image:radial-gradient(ellipse at 90% 0%,#26275166,transparent 55%)!important}
+  .topbar{background:#0b1020!important}.friday-nav{background:#11182a!important;border-radius:18px}
+  .friday-nav button[aria-current="page"]{background:#293059!important;border-color:#929ced!important;color:#eef0ff!important}
+  .simple-home .hero{background:linear-gradient(125deg,#20294b,#151d31 72%)!important;border-color:#535d8a!important}
+  .simple-home .hero h2{color:#f2f4ff!important}.simple-home .hero p{color:#d1daee!important}
+  .friday-primary-plan .run,.simple-home .home-command .run{background:#c4baff!important;color:#20183e!important;border-color:#c4baff!important;box-shadow:none!important}
+  .friday-primary-plan .run:hover,.simple-home .home-command .run:hover{background:#ded7ff!important}
+  .simple-home .home-command input{background:#0f172a!important;border-color:#68749a!important}
+  .simple-home .task-tile[data-screen-link="bill"]{background:#163a37!important;border-color:#427f76!important}
+  .simple-home .task-tile[data-screen-link="document"]{background:#302649!important;border-color:#796599!important}
+  .simple-home .task-tile[data-screen-link="money"]{background:#332e23!important;border-color:#88734e!important}
+  .simple-home .task-tile small{color:#d0d8e3!important}.simple-home .task-tile:hover{filter:brightness(1.15)}
+  .simple-home .task-tile,.simple-money-picker button,.plan-row-action button{transition:filter .18s,background .18s,border-color .18s,box-shadow .18s}
+  .simple-money-picker button{background:#192640;border-color:#546b99}.simple-fold{background:#121c30;border-color:#425476}
+  .money-section,.friday-view .card{border-color:#43567b!important;background:#141f34!important}
+  .plan-row-action button{background:#164b40;color:#d5fff0;border-color:#5eac97}
+  .friday-work{max-width:820px;margin:18px auto;padding:24px;background:#16213a;border:1px solid #536899;border-radius:20px}
+  .friday-work h2{font-size:19px;margin:0 0 10px}.friday-work>p{color:#d4dded;font-size:14px;line-height:1.65;margin:0}
+  .friday-work dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0 0}
+  .friday-work dl>div{padding:16px;border-radius:12px;background:#202f4d;border:1px solid #536587}
+  .friday-work dt{font-size:12px;color:#c9d7ee}.friday-work dd{font-size:21px;font-weight:650;margin:8px 0 0;color:#e8e2ff}
+  .friday-work.corrected{background:#202743;border-color:#9b8ccc}
+  [data-state="complete"] .outcome-summary{background:#143b32!important;border-color:#64af94!important}
+  [data-state="held"] .outcome-summary{background:#401f2e!important;border-color:#d88599!important}
+  [data-state="attention"] .outcome-summary{background:#3a3020!important;border-color:#c9a66a!important}
+  .activity-entry .status.good{color:#a9f0cb}.activity-entry .status.bad{color:#ffb5c7}.activity-entry .status.warn{color:#f6d29a}
+  @media(max-width:640px){.friday-work{padding:20px}.friday-work dl{grid-template-columns:1fr}.friday-work dl>div{display:flex;align-items:center;justify-content:space-between}.friday-work dd{margin:0;font-size:18px}}
+  @media(prefers-reduced-motion:reduce){.simple-home .task-tile,.simple-money-picker button,.plan-row-action button{transition:none}}
 </style>
 """
 
@@ -81,7 +110,26 @@ SIMPLE_JS = r"""
       function liftApproval(data){approvalArea.replaceChildren();const button=source.querySelector('button');if(button){const review=data.bill_review||{};approvalArea.append(element('p','Artificial payment: '+workspaceMoney(review.amount_minor)+' · Recipient: '+(review.payee_id||'Not verified')+' · '+(review.provider_name||'Provider not supplied')),button);}}
       const simplerSignal=showLiveResult;showLiveResult=function(data){simplerSignal(data);liftApproval(data);engineering.open=false;};
       Object.assign(reasonCopy,{EVIDENCE_PAYEE_MISMATCH:'The recipient does not match the permitted payee.',EVIDENCE_PROVIDER_MISMATCH:'This is not the permitted provider.',EVIDENCE_CURRENCY_MISMATCH:'The currency does not match the permitted task.'});
-      const simplerRender=render;render=function(data){simplerRender(data);approvalArea.replaceChildren();engineering.open=false;if(data.status==='HELD'){const explanations=(data.outcome?.reason||[]).map(code=>reasonCopy[code]||nice(code)).join(' ');summarize('Payment stopped.',explanations||'The request did not pass the saved safety rules.','No new artificial payment was made. Check the request before trying again.');}else if(completedStatuses.includes(data.status)){const receipt=data.outcome?.receipt?.payload;const text=data.status==='COMPLETED_SYNTHETIC'?'One artificial payment was recorded.':'An earlier result was found. No repeat payment was sent.';summarize(data.status==='COMPLETED_SYNTHETIC'?'Done. Receipt recorded.':'Already handled.',receipt?workspaceMoney(receipt.amount_minor)+' · '+receipt.payee_id+'. '+text:text,'Your receipt is saved in Activity.');}};
+      const work=element('section',null,'friday-work');work.hidden=true;runView.insertBefore(work,assurance);
+      // Read-only projection of recorded events: never infer AI or payment success.
+      function workEvidence(data){
+        const events=Array.isArray(data.events)?data.events:[];let rejected=0,corrected=false;
+        events.forEach(event=>{if(event.type==='AI_PROGRAM_REJECTED'||(event.type==='AI_PROGRAM_PROPOSED'&&event.verification?.passed===false))rejected++;if(event.type==='AI_PROGRAM_PROPOSED'&&event.verification?.passed===true&&rejected>0)corrected=true;});
+        const calls=data.provenance?.successful_model_calls;const liveMode=['VERTEX_AI','GEMINI_API'].includes(data.provenance?.mode);
+        const modelCalls=liveMode&&Number.isSafeInteger(calls)&&calls>=0?calls:0;
+        const live=modelCalls>0;
+        const payment=data.outcome?.new_payment_created===true&&data.status==='COMPLETED_SYNTHETIC';
+        let title,copy;
+        if(corrected&&live){title='Friday corrected its plan before acting.';copy='The safety checker rejected an earlier proposal. The model received that feedback and returned a plan that passed. This is a task-plan correction—not a bank software repair.';}
+        else if(live){title='Gemini planned. The safety checker decided.';copy='Friday used the model for restricted planning. Independent code checked permission and financial effects before execution.';}
+        else if(data.provenance?.mode==='LOCAL_RULES'){title='Handled by the local rules engine.';copy='No live AI planning was used in this run. The same independent safety and execution checks apply.';}
+        else{title='Existing evidence came first.';copy='No successful live planning call is recorded. Friday may stop a contradictory request or reconcile an existing result without asking AI to approve it.';}
+        return {title,copy,corrected:corrected&&live,modelCalls,rejected,payment};
+      }
+      function showWork(data){const evidence=workEvidence(data);work.hidden=false;work.classList.toggle('corrected',evidence.corrected);work.replaceChildren(element('h2',evidence.title),element('p',evidence.copy));const metrics=element('dl');[['Live planning calls',String(evidence.modelCalls)],['Rejected proposals',String(evidence.rejected)],['New sandbox payment',evidence.payment?'1 recorded':'None confirmed']].forEach(([label,value])=>{const item=element('div');item.append(element('dt',label),element('dd',value));metrics.append(item);});work.append(metrics);}
+      const simplerRender=render;render=function(data){simplerRender(data);showWork(data);approvalArea.replaceChildren();engineering.open=false;if(data.status==='HELD'){const explanations=(data.outcome?.reason||[]).map(code=>reasonCopy[code]||nice(code)).join(' ');summarize('Payment stopped.',explanations||'The request did not pass the saved safety rules.','No new artificial payment was made. Check the request before trying again.');}else if(completedStatuses.includes(data.status)){const receipt=data.outcome?.receipt?.payload;const text=data.status==='COMPLETED_SYNTHETIC'?'One artificial payment was recorded.':'An earlier result was found. No repeat payment was sent.';summarize(data.status==='COMPLETED_SYNTHETIC'?'Done. Receipt recorded.':'Already handled.',receipt?workspaceMoney(receipt.amount_minor)+' · '+receipt.payee_id+'. '+text:text,'Your receipt is saved in Activity.');}};
+      const workSignal=showLiveResult;showLiveResult=function(data){work.hidden=true;workSignal(data);};
+      const workShow=show;show=function(name,push=true){if(name==='run')work.hidden=true;workShow(name,push);};
       shortHeading(moneyView,'My money','Choose what you want to review. No bank account is connected.');
       const picker=element('div',null,'simple-money-picker');const panelBack=element('button','Back to My money','planner simple-panel-back');panelBack.type='button';panelBack.hidden=true;
       const wallet=element('div',null,'simple-panel');wallet.append(moneyControls,moneyFeedback,moneyContent);const walletFold=disclosure('Demo wallet · artificial funds',[wallet,followSection]);

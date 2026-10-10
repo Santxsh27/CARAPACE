@@ -9,6 +9,45 @@ from carapace_integrations.friday_simple import SIMPLE_CSS, SIMPLE_JS
 
 
 class FridaySimpleTests(unittest.TestCase):
+    def test_work_evidence_requires_recorded_correction_and_live_provenance(self):
+        node = '/usr/local/bin/node' if Path('/usr/local/bin/node').exists() else shutil.which('node')
+        if not node:
+            self.skipTest('Node needed for UI runtime verification')
+        helper = 'function workEvidence' + SIMPLE_JS.split('function workEvidence', 1)[1].split('function showWork', 1)[0]
+        harness = helper + """
+const rejected={type:'AI_PROGRAM_PROPOSED',verification:{passed:false}};
+const accepted={type:'AI_PROGRAM_PROPOSED',verification:{passed:true}};
+const base={provenance:{mode:'VERTEX_AI',successful_model_calls:2},events:[rejected,accepted],status:'COMPLETED_SYNTHETIC',outcome:{new_payment_created:true}};
+const correction=workEvidence(base);
+const held=workEvidence({...base,status:'HELD',events:[rejected]});
+const local=workEvidence({...base,provenance:{mode:'LOCAL_RULES',successful_model_calls:2}});
+const reverse=workEvidence({...base,events:[accepted,rejected]});
+const unknown=workEvidence({status:'RECONCILING',outcome:{new_payment_created:true}});
+const replay=workEvidence({...base,status:'ALREADY_COMPLETED',outcome:{new_payment_created:false}});
+process.stdout.write(JSON.stringify({correction,held,local,reverse,unknown,replay}));
+"""
+        result = subprocess.run([node, '-e', harness], text=True, capture_output=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads(result.stdout)
+        self.assertTrue(data['correction']['corrected'])
+        self.assertTrue(data['correction']['payment'])
+        self.assertEqual(data['correction']['rejected'], 1)
+        self.assertIn('not a bank software repair', data['correction']['copy'])
+        self.assertFalse(data['held']['corrected'])
+        self.assertFalse(data['held']['payment'])
+        self.assertFalse(data['local']['corrected'])
+        self.assertEqual(data['local']['modelCalls'], 0)
+        self.assertFalse(data['reverse']['corrected'])
+        self.assertFalse(data['unknown']['payment'])
+        self.assertFalse(data['replay']['payment'])
+
+    def test_progress_never_advances_on_an_animation_timer(self):
+        self.assertNotIn('stageTimer', FINANCIAL_FRIDAY_HTML)
+        self.assertIn('Waiting for the server result', FINANCIAL_FRIDAY_HTML)
+        self.assertIn('Outcome not confirmed', FINANCIAL_FRIDAY_HTML)
+        self.assertIn('prefers-reduced-motion', SIMPLE_CSS)
+        self.assertIn('data-screen-link="document"', SIMPLE_CSS)
+
     def test_simple_layer_is_in_the_real_local_and_cloud_html(self):
         self.assertIn('id="friday-simple-styles"', FINANCIAL_FRIDAY_HTML)
         self.assertIn('Hi. I’m Friday.', FINANCIAL_FRIDAY_HTML)

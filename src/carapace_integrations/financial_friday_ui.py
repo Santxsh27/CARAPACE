@@ -163,7 +163,8 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
       stage('ground',deterministicHold?'blocked':'done',deterministicHold?'Contradiction found':'Evidence matched');
       if(deterministicHold)stage('plan','skipped','AI not called');else stage('plan',calls>0?'done':'done',calls>0?'Gemini responded':'Local baseline');
       if(deterministicHold)stage('prove','done','Stopped before AI');else stage('prove',passed&&attacks.every(x=>x.rejected)?'done':'blocked',passed?'Hostile changes rejected':'Program rejected');
-      stage('act',result.status==='HELD'?'blocked':'done',result.status==='RECONCILED_COMPLETED'?'Prior result found':result.status==='ALREADY_COMPLETED'?'Duplicate prevented':result.status==='HELD'?'No money moved':'Completed once');
+      const finished=['COMPLETED_SYNTHETIC','ALREADY_COMPLETED','RECONCILED_COMPLETED'].includes(result.status);
+      stage('act',result.status==='HELD'?'blocked':finished?'done':'skipped',result.status==='RECONCILED_COMPLETED'?'Prior result found':result.status==='ALREADY_COMPLETED'?'Duplicate prevented':result.status==='HELD'?'No money moved':finished?'Completed once':'Outcome not confirmed');
       if(types.includes('AI_PROVIDER_RETRY'))stage('plan',result.status==='HELD'?'blocked':'retry',result.status==='HELD'?'AI unavailable; no action':'Provider recovered after retry');
       if(result.status==='ALREADY_COMPLETED'){stage('plan','skipped','No new payment plan');stage('prove','done','Existing receipt verified');}
       $('journey-copy').textContent=deterministicHold?'Authoritative evidence contradicted the request, so Friday stopped before spending an AI call or touching money.':result.status==='RECONCILED_COMPLETED'?'Friday checked the provider first, found the earlier success and correctly avoided a duplicate retry.':'The visible stages below are reconstructed from this run’s signed backend evidence.';
@@ -191,10 +192,11 @@ FINANCIAL_FRIDAY_HTML = r"""<!doctype html>
     async function run(){
       $('live-result').textContent='Running the selected controlled safety scenario. This is separate from the message above.';$('live-mode').textContent='Sandbox scenario';
       const button=$('run');button.disabled=true;button.textContent='Analysing mission…';setCore('ANALYSING','Reading intent and permission');$('empty').hidden=false;$('result').classList.remove('visible');$('briefing').classList.remove('visible');$('empty').querySelector('h3').textContent='Friday is handling the task';$('empty').querySelector('p').textContent='Follow the live assurance journey above. Friday may complete, recover, or safely stop.';resetStages();pulse('understand','Reading goal and constraints');
-      const sequence=[['ground','Resolving trusted evidence'],['plan','Requesting a bounded plan'],['prove','Testing permission and attacks'],['act','Executing or reconciling safely']];let stageIndex=0;const stageTimer=setInterval(()=>{if(stageIndex<sequence.length){pulse(...sequence[stageIndex]);stageIndex+=1;}},650);
+      // The request is pending; only returned evidence can advance these stages.
+      pulse('understand','Waiting for the server result');
       try{const response=await fetch('/api/friday/scenarios/'+encodeURIComponent(selected)+'/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({planner:$('planner').value})});const result=await response.json();if(!response.ok)throw new Error(result.detail||'Financial Friday could not complete this run.');render(result);toast(result.status==='HELD'?'Unsafe action safely held':'Sandbox run complete');}
       catch(error){resetStages();stage('act','blocked','Unavailable · no action assumed');setCore('SAFE MODE','Provider unavailable · no action');$('empty').querySelector('h3').textContent='Friday could not finish';$('empty').querySelector('p').textContent=String(error);toast('Run failed safely—no action assumed');}
-      finally{clearInterval(stageTimer);button.disabled=false;button.textContent='Run this demo';}
+      finally{button.disabled=false;button.textContent='Run this demo';}
     }
     async function jsonRequest(path,method='GET',body){
       const options={method,headers:{'Content-Type':'application/json'}};if(body!==undefined)options.body=JSON.stringify(body);
