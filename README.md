@@ -4,7 +4,7 @@ Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo step
 
 ## A bounded AI operator for everyday financial tasks
 
-### Reserve-aware planning (0.15.0 candidate)
+### Reserve-aware planning (0.15.0 live)
 
 **My money → Plan my bills** computes a personalised, read-only plan from current
 tenant-owned artificial provider records and the saved reserve/single-payment
@@ -20,7 +20,9 @@ Tests include an independent exhaustive oracle over 80 generated eight-bill
 cases. This validates the solver on that development corpus, not fraud accuracy
 or a globally novel algorithm. Each task result now keeps its five-stage
 assurance journey visible, while detailed program evidence stays expandable.
-Cloud rollout evidence will be recorded after verification.
+Cloud rollout passed: live Vertex paid-notice interpretation, unchanged balance,
+Firestore reads, authenticated planning and anonymous-access rejection.
+See [release evidence](docs/BILL_PLAN_0150.md).
 
 ### Task-first interface
 
@@ -31,10 +33,10 @@ Statement results replace the upload form, with breakdowns behind expandable
 details. Task outcomes show the result and assurance journey first, with engineering evidence under
 **How Friday checked this**. Approval still shows the amount and recipient;
 consent, authentication and all financial checks remain unchanged. Settings and
-the safety lab remain under **More**. This redesign is local; it is not deployed
-to the existing Cloud Run website yet.
+the safety lab remain under **More**. This interface is deployed to the existing
+private Cloud Run website; no new public or banking access was granted.
 
-### New local feature: analyze your own statement
+### Analyze your own statement
 
 Open **My money → Review spending**. Upload an INR CSV with
 `date,description,debit,credit` columns (amounts in rupees), and consent to temporary
@@ -54,12 +56,11 @@ data never changes payment permissions, the artificial ledger or bill status.
 20 saved message/document interpretations independently of sample billers. Gemini
 document understanding already existed; this makes its extracted facts accessible
 even when no trusted payment adapter is available. Extracted claims are not bank
-verification. These additions are verified locally; the cloud release below has
-not yet been upgraded to include them.
+verification. These additions are included in the 0.15.0 cloud release.
 
-**Current cloud release: 0.14.1 (October 10).** My money and the broader Friday
-workspace are now live on the existing private Cloud Run website. The API and
-web `workspace1010` revisions passed candidate checks before promotion. Live
+**Current cloud release: 0.15.0 (October 10).** Task-first screens, statement
+analysis and reserve-aware planning are live on the private Cloud Run website.
+The API and web `plan1010` revisions passed candidate checks before promotion. Live
 Vertex correctly interpreted a paid notice without preparing another payment;
 the balance stayed unchanged. Local bill acknowledgement is still disabled in
 cloud mode, and no real bank/biller connector exists. See [current cloud evidence](docs/CLOUD_RUN.md).
@@ -90,8 +91,8 @@ The existing Python package names still use `carapace_*` to preserve compatibili
 ## What works now
 
 The app now has separate screens: **Friday home, My money, Bills, Documents, Activity,
-Safety lab and My rules**, plus a dedicated **Run** screen. Home shows an animated
-assistant core and four clear task choices, not a previous payment or a developer
+Safety lab and My rules**, plus a dedicated **Run** screen. Home offers three
+clear task choices, with secondary tools in More, not a previous payment or a developer
 console. Every run uses the existing API; screen animations do not manufacture
 successful checks. Home also lists upcoming artificial provider bills for read-only
 review; selecting a bill prepares a request without submitting a payment. Browser

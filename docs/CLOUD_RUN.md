@@ -2,9 +2,19 @@
 
 ## Current cloud boundary
 
-**October 10 release: version 0.14.1 is now deployed.** API revision
+**Latest release: 0.15.0, October 10.** API `financial-friday-api-plan1010`
+and web `financial-friday-web-plan1010` now serve 100% normal traffic using image
+`sha256:6c8851718235b7cbb654fd682437def0acce63cb0d2c01221315017dfea7dd95`,
+Cloud Build `a49300a2-c1af-4919-a547-9d1c31759fe5`, source commit `f11e920`.
+Includes task-first screens, ephemeral statement analysis, saved-input history,
+exact reserve-aware bill planning and a visible actual assurance journey.
+Read-only planning and one live Vertex paid-notice check passed with unchanged
+balance and no payment request. Private access remains unchanged.
+See [full verification and limits](BILL_PLAN_0150.md).
+
+**Earlier October 10 release: version 0.14.1.** API revision
 `financial-friday-api-workspace1010` and web revision
-`financial-friday-web-workspace1010` serve 100% normal traffic. Both use immutable
+`financial-friday-web-workspace1010` previously served 100% normal traffic. Both use immutable
 image `sha256:8a9ee7eae65fb9b196f299144fea4e01130ef9dc706fb69d53ad686dc52c1e86`,
 built from commit `a74369f` by Cloud Build
 `9625e31f-9530-48fe-a4d3-0a01e1ace537`.

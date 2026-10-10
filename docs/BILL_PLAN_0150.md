@@ -44,7 +44,34 @@ evidence, not timed success animations.
 - Earlier due date takes precedence over a larger count of later bills.
 - Tests cover reserve bounds, invalid values, record ambiguity, paid exclusion,
   conflicts, unusual increases, search limits and authenticated GET routing.
-- Full suite and deployment evidence are appended after runtime verification.
+- Full native suite: 259 tests run, 258 passed, one optional Anthos test skipped.
+- Existing safety corpus rerun: 51/51 decisions, all 12 valid cases accepted,
+  all 39 unsafe proposals held. Synthetic developer corpus; not live-Gemini or
+  held-out fraud performance and not evidence of money saved.
+
+## Verified deployment — October 10
+
+Source commit `f11e920`; clean Git archive excluded unrelated working-tree edits.
+Cloud Build `a49300a2-c1af-4919-a547-9d1c31759fe5` succeeded with image
+`sha256:6c8851718235b7cbb654fd682437def0acce63cb0d2c01221315017dfea7dd95`.
+API `financial-friday-api-plan1010` and web `financial-friday-web-plan1010`
+were deployed with zero normal traffic, tested, then promoted to 100%.
+
+Candidate checks confirmed version 0.15.0, Firestore transactional mode, 13
+tenant bill records, planning without payment authority, unchanged balance,
+disabled cloud biller acknowledgement and anonymous-access rejection. One live
+Vertex paid-notice interpretation remained NOT_A_PAYMENT_REQUEST with no case
+or debit. No genuine payment or mandate change was submitted during this rollout.
+
+The protected browser verified both candidate and stable cloud pages. Actual
+records produced two selected bills totalling ₹4,958, with ₹27,548 remaining
+above the reserve. Seven over-limit records required review; four matching
+internal paid records were excluded. This is the owner's current artificial
+snapshot, not a fixed expected answer. A local browser also verified the GET
+gateway/API flow and reopened a held run with visible actual execution stages.
+
+No IAP, IAM, tenant permission, secret or financial rule was broadened. Invited
+judge access must be arranged separately; the site is not anonymously accessible.
 
 ## Submission positioning
 
