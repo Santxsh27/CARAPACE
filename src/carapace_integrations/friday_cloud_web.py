@@ -21,7 +21,7 @@ MAX_BODY = 8 * 1024 * 1024
 ROUTES = {
     "GET": r"(?:scenarios|today|workspace|mandate|live-input|storage-status|test-provider/bills|runs/[A-Za-z0-9_-]{1,100})",
     "PUT": r"mandate",
-    "POST": r"(?:live-input|documents|test-provider/bills|live-input/[A-Za-z0-9_-]{1,100}/run|scenarios/[A-Za-z0-9_-]{1,100}/run)",
+    "POST": r"(?:follow-through|live-input|documents|test-provider/bills|live-input/[A-Za-z0-9_-]{1,100}/run|scenarios/[A-Za-z0-9_-]{1,100}/run)",
 }
 
 

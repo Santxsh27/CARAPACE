@@ -59,7 +59,7 @@ class FridayExperienceTests(unittest.TestCase):
         self.assertNotIn("requestAnimationFrame", EXPERIENCE_JS)
 
     def test_home_briefing_is_read_only_and_limited_to_real_recent_runs(self):
-        helper = EXPERIENCE_JS.split("async function refreshBriefing()", 1)[1].split("const bill=view", 1)[0]
+        helper = EXPERIENCE_JS.split("async function refreshBriefing()", 1)[1].split("const moneyView=view", 1)[0]
         self.assertIn("/api/friday/today", helper)
         self.assertIn("data.recent_runs||[]", helper)
         self.assertIn("most recent", helper)

@@ -222,3 +222,15 @@ Next:
 ## Product boundaries
 
 The prototype is not a bank, UPI application, investment adviser or autonomous controller of real accounts. Production actions require authorised provider partnerships and their authentication/approval rules. Human review remains mandatory for ambiguous, high-impact or regulated actions. Financial Friday automates routine work inside explicit authority; it does not ask users to surrender control of all finances.
+
+## October 10 local follow-through boundary
+
+`POST /v1/friday/follow-through` accepts only a bill reference under tenant
+authentication. In SQLite mode it atomically re-reads the enrolled bill and
+signed artificial-payment receipt, checks exact identity/amount/currency/scope,
+and inserts a signed acknowledgement with a tenant/bill uniqueness constraint.
+Retries return the existing acknowledgement after validating it; conflicts HOLD.
+It never invokes a payment executor or edits account balances. Cloud mode returns
+UNAVAILABLE without using local state. This is local bookkeeping, not external
+biller reconciliation, bank settlement proof, or refund execution. Gemini's
+existing interpretation remains separate from this deterministic trust gate.

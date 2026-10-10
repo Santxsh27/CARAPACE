@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
+from carapace_api.financial_friday_routes import FollowThroughRequest
 from pydantic import BaseModel, Field
 from typing import Literal
 from fastapi.responses import HTMLResponse
@@ -325,6 +326,14 @@ def create_demo_app() -> FastAPI:
         code, result = await run_in_threadpool(_api_call, api_base_url, "/v1/friday/workspace", "GET")
         if code != 200:
             raise HTTPException(code, "Money workspace unavailable")
+        return result
+
+    @application.post("/api/friday/follow-through")
+    async def friday_follow_through(request: FollowThroughRequest):
+        code, result = await run_in_threadpool(_api_call, api_base_url,
+            "/v1/friday/follow-through", "POST", request.model_dump())
+        if code != 200:
+            raise HTTPException(code, "Follow-through unavailable")
         return result
 
     @application.get("/api/friday/test-provider/bills")

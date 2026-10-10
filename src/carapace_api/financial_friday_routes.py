@@ -2,7 +2,7 @@
 from typing import Literal
 
 from fastapi import Depends, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 from carapace_ai.financial_friday import LocalFinancialFridayPlanner
@@ -16,6 +16,11 @@ from .financial_friday import FridayUnderstandingUnavailable
 class WatchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool
+
+
+class FollowThroughRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    bill_reference: str = Field(min_length=1, max_length=120)
 
 
 class FridayRunRequest(BaseModel):
@@ -85,6 +90,11 @@ def register_financial_friday_routes(application, service, authenticate):
     def workspace(tenant: TenantContext = Depends(authenticate)):
         from .friday_workspace import financial_workspace
         return financial_workspace(service, tenant.tenant_id)
+
+    @application.post("/v1/friday/follow-through", tags=["financial-friday"])
+    def follow_through(request: FollowThroughRequest, tenant: TenantContext = Depends(authenticate)):
+        from .friday_followthrough import acknowledge_recorded_bill
+        return acknowledge_recorded_bill(service, tenant.tenant_id, request.bill_reference)
 
     @application.get("/v1/friday/storage-status", tags=["financial-friday"])
     def storage_status(tenant: TenantContext = Depends(authenticate)):

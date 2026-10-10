@@ -253,3 +253,20 @@ understand → plan → prove → execute → reconcile → remember
 This prototype uses an enrolled test-provider API, retained regression fixtures and artificial money. Browser speech recognition supplies an optional transcript; Gemini Live native audio is not connected yet. The atomic Firestore journal and persistent signing keys are provisioned; cloud release checks are documented separately. Public user authentication and durable cloud scheduling remain unfinished. It does not access GPay, phone SMS, a real bank account, UPI credentials, OTPs or production funds. A real launch requires authorised bank/biller connectors, security review, regulated partner controls, customer support and formal compliance work. Financial Friday does not promise zero fraud, guaranteed savings, guaranteed reimbursement, investment returns, patentability or a hackathon prize.
 
 See [SPEC.md](SPEC.md) for the product contract, trust model and roadmap, and [docs/CLOUD_RUN.md](docs/CLOUD_RUN.md) for the cloud deployment boundary.
+
+## Local follow-through increment (October 10)
+
+The **My money** page now offers “Match recorded payment”. Supply a bill reference;
+the authenticated API re-reads the tenant's enrolled bill and signed artificial
+payment receipt in one SQLite transaction, verifies their exact binding, and
+records a signed local acknowledgement once. Concurrent retries cannot create
+another acknowledgement. Missing or conflicting evidence remains unverified or held.
+This does not debit money, amend a real utility bill, or prove external settlement.
+Firestore/Cloud Run execution is deliberately disabled until a transactional
+connector is implemented; no local fallback is used in cloud mode.
+
+Verification for this local increment: native suite **244 tests: 243 passed,
+one optional integration skip**; isolated Docker suite **244 tests: 237 passed,
+seven environment-dependent skips**. Browser-to-API verification confirmed that
+a bill without a matching recorded payment stays unverified. Successful,
+concurrent, tampered-evidence and cross-tenant cases are covered in automated tests.
