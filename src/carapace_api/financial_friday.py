@@ -276,7 +276,7 @@ class FinancialFridayService:
             "event_id": event_id,
             "state": "ATTENTION",
             "interpretation": interpretation.model_dump(),
-            "message": "Friday needs an enrolled provider record before it can act.",
+            "message": "Friday understood this input. Its facts are saved for review, but no enrolled provider verifies a payment yet.",
             "money_moved": False,
             **(source_metadata or {}),
         }

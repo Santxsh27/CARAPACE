@@ -39,8 +39,10 @@ class FridayWorkspaceUITests(unittest.TestCase):
         if not node:
             self.skipTest("Node is optional; runtime UI checks need Node")
         helper = EXPERIENCE_JS.split("      function workspaceMoney", 1)[1].split(
-            "      moneyRefresh.addEventListener", 1
+            "      const statementSection", 1
         )[0]
+        helper += "      async function refreshMoney" + EXPERIENCE_JS.split(
+            "      async function refreshMoney", 1)[1].split("      moneyRefresh.addEventListener", 1)[0]
         program = r"""
 class E {
   constructor(tag){this.tag=tag;this.children=[];this.dataset={};this.textContent='';this.disabled=false;}
@@ -130,10 +132,20 @@ async function jsonRequest(path,...rest){calls.push({path,rest});if(FAILURE)thro
         data["bills"][0]["provider_name"] = "<script>alert('x')</script>"
         result = self.run_workspace(data)
         self.assertIn(data["bills"][0]["provider_name"], result["text"])
-        helper = EXPERIENCE_JS.split("const moneyView=view", 1)[1].split("moneyRefresh.addEventListener", 1)[0]
+        helper = EXPERIENCE_JS.split("async function refreshMoney", 1)[1].split("moneyRefresh.addEventListener", 1)[0]
         self.assertNotIn("innerHTML", helper)
         self.assertNotIn("'POST'", helper)
         self.assertIn("moneyRefresh.disabled=true", helper)
+
+    def test_real_statement_processing_requires_consent_and_escapes_text(self):
+        helper = EXPERIENCE_JS.split("const statementSection", 1)[1].split("const personalInbox", 1)[0]
+        self.assertIn("!file||!statementConsent.checked", helper)
+        self.assertIn("/api/friday/statements/analyze", helper)
+        self.assertIn("USER_SUPPLIED_STATEMENT", helper)
+        self.assertIn("Clear statement results", helper)
+        self.assertIn("statementFile.value=''", helper)
+        self.assertNotIn("innerHTML", helper)
+        self.assertNotIn("/run", helper)
 
 
 if __name__ == "__main__":

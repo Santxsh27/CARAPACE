@@ -18,6 +18,11 @@ class WatchRequest(BaseModel):
     enabled: bool
 
 
+class StatementRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    csv_text: str = Field(min_length=1, max_length=1024 * 1024)
+
+
 class FollowThroughRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     bill_reference: str = Field(min_length=1, max_length=120)
@@ -90,6 +95,14 @@ def register_financial_friday_routes(application, service, authenticate):
     def workspace(tenant: TenantContext = Depends(authenticate)):
         from .friday_workspace import financial_workspace
         return financial_workspace(service, tenant.tenant_id)
+
+    @application.post("/v1/friday/statements/analyze", tags=["financial-friday"])
+    async def statement_analysis(request: StatementRequest, tenant: TenantContext = Depends(authenticate)):
+        from carapace_core.friday_statement import analyze_statement
+        try:
+            return await run_in_threadpool(analyze_statement, request.csv_text)
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
 
     @application.post("/v1/friday/follow-through", tags=["financial-friday"])
     def follow_through(request: FollowThroughRequest, tenant: TenantContext = Depends(authenticate)):

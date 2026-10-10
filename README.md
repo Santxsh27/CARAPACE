@@ -4,6 +4,29 @@ Start with [START_HERE.md](START_HERE.md) for the plain-language tour, demo step
 
 ## A bounded AI operator for everyday financial tasks
 
+### New local feature: analyze your own statement
+
+Open **My money → Use your actual transaction history**. Upload an INR CSV with
+`date,description,debit,credit` columns (amounts in rupees), and consent to temporary
+server processing. Friday calculates exact money-in/out, monthly cash flow, largest
+outgoing entries and repeated-row review candidates from your actual rows. No demo
+biller enrollment, model call or payment is needed. Unsupported formats fail rather
+than silently dropping transactions. Limits: 1 MB, 5,000 rows; dates YYYY-MM-DD,
+DD/MM/YYYY or DD-MM-YYYY. Normalize other bank exports into these columns first.
+
+Statement analysis is **read-only and ephemeral**: raw statements and results are
+not saved by the application or sent to Gemini. Clear the results when finished.
+Remove account identifiers and unnecessary personal information before uploading.
+Net flow is not an account balance; repeated rows are not proof of fraud. Imported
+data never changes payment permissions, the artificial ledger or bill status.
+
+**My money → What Friday understood from your inputs** now displays the most recent
+20 saved message/document interpretations independently of sample billers. Gemini
+document understanding already existed; this makes its extracted facts accessible
+even when no trusted payment adapter is available. Extracted claims are not bank
+verification. These additions are verified locally; the cloud release below has
+not yet been upgraded to include them.
+
 **Current cloud release: 0.14.1 (October 10).** My money and the broader Friday
 workspace are now live on the existing private Cloud Run website. The API and
 web `workspace1010` revisions passed candidate checks before promotion. Live
@@ -22,7 +45,7 @@ working execution adapter, not the whole product vision.
 A new bill-resolution kernel checks separately shaped bank and biller evidence,
 freshness, exact identity bindings and reconciliation permission. It never approves
 repayment or a refund. **The kernel is tested; external bank/biller connectors and
-end-to-end correction are not connected.** Statements, investments and universal
+end-to-end correction are not connected.** Live statement feeds, investments and universal
 bank control are not implemented. Transaction alerts and unknown requests now stop
 before a payment case is constructed.
 

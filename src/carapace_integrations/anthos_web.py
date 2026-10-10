@@ -377,6 +377,26 @@ def create_demo_app() -> FastAPI:
             raise HTTPException(code, result.get("detail", "Friday could not interpret this input"))
         return result
 
+    @application.post("/api/friday/statements/analyze")
+    async def friday_statement(request: StarletteRequest):
+        from carapace_api.financial_friday_routes import StatementRequest
+        from pydantic import ValidationError
+        data = bytearray()
+        async for chunk in request.stream():
+            if len(data) + len(chunk) > 2 * 1024 * 1024:
+                raise HTTPException(413, "statement request exceeds 2 MB")
+            data.extend(chunk)
+        try:
+            parsed = StatementRequest.model_validate_json(bytes(data))
+        except ValidationError as error:
+            raise HTTPException(422, "Use a CSV text request of at most 1 MB") from error
+        code, result = await run_in_threadpool(
+            _api_call, api_base_url, "/v1/friday/statements/analyze", "POST", parsed.model_dump()
+        )
+        if code != 200:
+            raise HTTPException(code, result.get("detail", "Statement could not be analyzed"))
+        return result
+
     @application.post("/api/friday/documents")
     async def friday_document(request: StarletteRequest, filename: str):
         mime_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
